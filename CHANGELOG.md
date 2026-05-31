@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.1] — 2026-05-31
+
+### Fixed
+- CI #25–#28 迭代修复：4 处 mypy `type: ignore[assignment]` 遗漏、`Path.stat` mock 补充、ruff 格式纠正、未使用导入清理
+- 全部 7 个 CI job 通过（lint, 3 平台测试, security-scan, docker-build, gpu-smoke-test）
+
 ## [2.0.0] — 2026-05-31
 
 ### Added

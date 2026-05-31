@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitcoin-collision-finder"
-version = "2.0.0"
+version = "2.0.1"
 description = "Bitcoin 私钥碰撞检测系统"
 readme = "README.md"
 requires-python = ">=3.12"
