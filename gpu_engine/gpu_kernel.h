@@ -257,49 +257,65 @@ static uint sha256_oneblock(const uchar *msg, uint msglen, uint hash[8]) {
 #define F4(x,y,z) (((x) & (z)) | ((y) & (~(z))))
 #define F5(x,y,z) ((x) ^ ((y) | (~(z))))
 
+/* 核心 RIPEMD-160 循环（通过宏内联避免函数调用开销 + 支持不同表存储） */
+#define RMD_CORE_BODY(BLK_W, BLK_R, BLK_S, BLK_RP, BLK_SP, BLK_K1, BLK_K2) \
+    do { \
+        uint a1=h[0],b1=h[1],c1=h[2],d1=h[3],e1=h[4]; \
+        uint a2=h[0],b2=h[1],c2=h[2],d2=h[3],e2=h[4]; \
+        uint t; \
+        for(uint j=0;j<80;j++){ \
+            uint round=j/16; \
+            uint fl; \
+            if(round==0)fl=F1(b1,c1,d1); \
+            else if(round==1)fl=F2(b1,c1,d1); \
+            else if(round==2)fl=F3(b1,c1,d1); \
+            else if(round==3)fl=F4(b1,c1,d1); \
+            else fl=F5(b1,c1,d1); \
+            t=ROL(a1+fl+BLK_W[BLK_R[j]]+BLK_K1[round],BLK_S[j])+e1; \
+            a1=e1;e1=d1;d1=ROL(c1,10);c1=b1;b1=t; \
+            uint fr; \
+            if(round==0)fr=F5(b2,c2,d2); \
+            else if(round==1)fr=F4(b2,c2,d2); \
+            else if(round==2)fr=F3(b2,c2,d2); \
+            else if(round==3)fr=F2(b2,c2,d2); \
+            else fr=F1(b2,c2,d2); \
+            t=ROL(a2+fr+BLK_W[BLK_RP[j]]+BLK_K2[round],BLK_SP[j])+e2; \
+            a2=e2;e2=d2;d2=ROL(c2,10);c2=b2;b2=t; \
+        } \
+        uint t0=h[0]; h[0]=h[1]+c1+d2; h[1]=h[2]+d1+e2; h[2]=h[3]+e1+a2; \
+        h[3]=h[4]+a1+b2; h[4]=t0+b1+c2; \
+    } while(0)
+
 static uint rmd160_oneblock(const uchar *msg, uint msglen, uint hashout[5]) {
     uint h[5]={0x67452301U,0xEFCDAB89U,0x98BADCFEU,0x10325476U,0xC3D2E1F0U};
     uint w[16]={0}; ulong bl=(ulong)msglen*8;
     for(uint i=0;i<msglen;i++){int bi=i/4,sh=(i%4)*8;w[bi]|=(uint)msg[i]<<sh;}
     w[msglen/4]|=0x80U<<((msglen%4)*8);
-    /* 单 block 假设: msglen < 56, HASH160 输入 32B(SHA256) ≤55 */
-    w[14]=(uint)bl; w[15]=(uint)(bl>>32);  /* 64-bit length 小端: w[14]=低32位, w[15]=高32位 */
-    /* 查表由 __constant R_RMD/S_RMD/RP_RMD/SP_RMD/K1_RMD/K2_RMD 提供 */
+    w[14]=(uint)bl; w[15]=(uint)(bl>>32);
 
-    uint a1=h[0],b1=h[1],c1=h[2],d1=h[3],e1=h[4];
-    uint a2=h[0],b2=h[1],c2=h[2],d2=h[3],e2=h[4];
-    uint t;
-
-    #pragma unroll
-    for(uint j=0;j<80;j++){
-        uint round=j/16;
-        /* ---- 左线 ---- */
-        uint fl;
-        if(round==0)fl=F1(b1,c1,d1);
-        else if(round==1)fl=F2(b1,c1,d1);
-        else if(round==2)fl=F3(b1,c1,d1);
-        else if(round==3)fl=F4(b1,c1,d1);
-        else fl=F5(b1,c1,d1);
-        t=ROL(a1+fl+w[R_RMD[j]]+K1_RMD[round],S_RMD[j])+e1;
-        a1=e1;e1=d1;d1=ROL(c1,10);c1=b1;b1=t;
-
-        /* ---- 右线 (函数顺序反转: F5,F4,F3,F2,F1) ---- */
-        uint fr;
-        if(round==0)fr=F5(b2,c2,d2);
-        else if(round==1)fr=F4(b2,c2,d2);
-        else if(round==2)fr=F3(b2,c2,d2);
-        else if(round==3)fr=F2(b2,c2,d2);
-        else fr=F1(b2,c2,d2);
-        t=ROL(a2+fr+w[RP_RMD[j]]+K2_RMD[round],SP_RMD[j])+e2;
-        a2=e2;e2=d2;d2=ROL(c2,10);c2=b2;b2=t;
-    }
-
-    /* 输出组合 (标准 RIPEMD-160: 带移位交叉) */
-    uint t0=h[0]; h[0]=h[1]+c1+d2; h[1]=h[2]+d1+e2; h[2]=h[3]+e1+a2;
-    h[3]=h[4]+a1+b2; h[4]=t0+b1+c2;
+    RMD_CORE_BODY(w, R_RMD, S_RMD, RP_RMD, SP_RMD, K1_RMD, K2_RMD);
 
     hashout[0]=h[0];hashout[1]=h[1];hashout[2]=h[2];hashout[3]=h[3];hashout[4]=h[4];
+    return 0;
 }
+
+#ifdef ARC_OPT
+/* P1-5: Arc 专用 __local 表版本 — 减少 __constant 内存访问, 利用 SLM 低延迟 */
+static uint rmd160_oneblock_local(const uchar *msg, uint msglen, uint hashout[5],
+    __local const uint *R, __local const uint *S,
+    __local const uint *RP, __local const uint *SP) {
+    uint h[5]={0x67452301U,0xEFCDAB89U,0x98BADCFEU,0x10325476U,0xC3D2E1F0U};
+    uint w[16]={0}; ulong bl=(ulong)msglen*8;
+    for(uint i=0;i<msglen;i++){int bi=i/4,sh=(i%4)*8;w[bi]|=(uint)msg[i]<<sh;}
+    w[msglen/4]|=0x80U<<((msglen%4)*8);
+    w[14]=(uint)bl; w[15]=(uint)(bl>>32);
+
+    RMD_CORE_BODY(w, R, S, RP, SP, K1_RMD, K2_RMD);
+
+    hashout[0]=h[0];hashout[1]=h[1];hashout[2]=h[2];hashout[3]=h[3];hashout[4]=h[4];
+    return 0;
+}
+#endif
 
 /* --- HASH160 综合: RIPEMD-160(SHA-256(msg)) --- */
 static void hash160_full(const uchar *msg, uint msglen, __global uchar *out) {
@@ -314,10 +330,45 @@ static void hash160_full(const uchar *msg, uint msglen, __global uchar *out) {
     for(int i=0;i<5;i++){out[i*4+0]=(uchar)(rm[i]>>24);out[i*4+1]=(uchar)(rm[i]>>16);out[i*4+2]=(uchar)(rm[i]>>8);out[i*4+3]=(uchar)rm[i];}
 }
 
+#ifdef ARC_OPT
+/* P1-5: Arc 变体 — 使用 __local 表进行 RIPEMD-160 */
+static void hash160_full_opt(const uchar *msg, uint msglen, __global uchar *out,
+    __local const uint *l_R, __local const uint *l_S,
+    __local const uint *l_RP, __local const uint *l_SP) {
+    uint sh[8];
+    sha256_oneblock(msg,msglen,sh);
+    uchar shb[32];
+    #pragma unroll
+    for(int i=0;i<8;i++){shb[i*4+0]=(uchar)(sh[i]>>24);shb[i*4+1]=(uchar)(sh[i]>>16);shb[i*4+2]=(uchar)(sh[i]>>8);shb[i*4+3]=(uchar)sh[i];}
+    uint rm[5];
+    rmd160_oneblock_local(shb,32,rm, l_R, l_S, l_RP, l_SP);
+    #pragma unroll
+    for(int i=0;i<5;i++){out[i*4+0]=(uchar)(rm[i]>>24);out[i*4+1]=(uchar)(rm[i]>>16);out[i*4+2]=(uchar)(rm[i]>>8);out[i*4+3]=(uchar)rm[i];}
+}
+#endif
+
 /* ===================================================================
  * Kernel 入口: 私钥(32B,小端) → 压缩公钥 HASH160(20B)
  * 每个工作项处理一个私钥
  * =================================================================== */
+#ifdef ARC_OPT
+/* P1-5: Arc 变体 — 预加载 __local 表后调用 hash160_full_opt */
+#define KERNEL_ARC_SETUP \
+    __local uint _rmd_R[80], _rmd_S[80], _rmd_RP[80], _rmd_SP[80]; \
+    if (get_local_id(0) == 0) { \
+        for (int _k = 0; _k < 80; _k++) { \
+            _rmd_R[_k] = R_RMD[_k]; _rmd_S[_k] = S_RMD[_k]; \
+            _rmd_RP[_k] = RP_RMD[_k]; _rmd_SP[_k] = SP_RMD[_k]; \
+        } \
+    } \
+    barrier(CLK_LOCAL_MEM_FENCE)
+#define KERNEL_HASH160(pkb, out) \
+    hash160_full_opt(pkb, 33, out, _rmd_R, _rmd_S, _rmd_RP, _rmd_SP)
+#else
+#define KERNEL_ARC_SETUP ((void)0)
+#define KERNEL_HASH160(pkb, out) hash160_full(pkb, 33, out)
+#endif
+
 __kernel void ec_mul_hash160(
     __global const uchar *privkeys,  /* [batch * 32] 小端私钥 */
     __global uchar *hash160s,        /* [batch * 20] 输出 HASH160 */
@@ -325,6 +376,8 @@ __kernel void ec_mul_hash160(
 ) {
     uint gid = get_global_id(0);
     if (gid >= batch_size) return;
+
+    KERNEL_ARC_SETUP;
 
     /* 加载私钥（小端 → fe） */
     fe k;
@@ -355,7 +408,101 @@ __kernel void ec_mul_hash160(
             pkb[1 + i*4 + j] = (uchar)(aff_x[7-i] >> ((3-j)*8));
 
     /* HASH160 = RIPEMD160(SHA256(pkb)) */
-    hash160_full(pkb, 33, hash160s + gid * 20);
+    KERNEL_HASH160(pkb, hash160s + gid * 20);
+}
+
+/* ===================================================================
+ * P2-10: GPU 侧碰撞检测 Kernel — 在 GPU 上完成 HASH160 后再检测碰撞,
+ * 回读仅命中私钥（约 32×N 字节 vs 52×batch 字节）
+ *
+ * Bloom filter parameters:
+ *   bloom_data: 位数组, m 位 (m 需为 8 的倍数)
+ *   bloom_m:    位数组总位数
+ *   hit_count:  原子计数器（初始化=0）
+ *   hit_buffer: 命中私钥索引数组 (batch_size 个 uint), kernel 写入命中位置
+ * =================================================================== */
+static uint bloom_test_bit(
+    __global const uchar *bloom, uint m, uint pos) {
+    /* 安全处理 pos >= m 的情况（理论上不应发生） */
+    uint byte_idx = pos >> 3;
+    uint bit_mask = 1U << (pos & 7U);
+    return (bloom[byte_idx] & bit_mask) ? 1U : 0U;
+}
+
+/* 从 HASH160 的前 2 个 uint32 派生出 7 个 bloom 位位置（与 Python 端一致） */
+#define BLOOM_POS(h1,h2,i,m) (((h1)+(i)*(h2))%(m))
+
+__kernel void ec_mul_hash160_collision(
+    __global const uchar *privkeys,   /* [batch * 32] 小端私钥 */
+    __global uchar *hash160s,         /* [batch * 20] 输出 HASH160（也用于调试） */
+    uint batch_size,
+    __global const uchar *bloom_data, /* bloom 位数组 */
+    uint bloom_m,                     /* bloom 总位数 */
+    __global volatile int *hit_count, /* 原子计数器 */
+    __global uint *hit_buffer         /* 命中索引数组 [batch_size] */
+) {
+    uint gid = get_global_id(0);
+    if (gid >= batch_size) return;
+
+    KERNEL_ARC_SETUP;
+
+    /* 加载私钥 */
+    fe k;
+    for (int i = 0; i < 8; i++) {
+        uint off = gid * 32 + i * 4;
+        k[i] = ((uint)privkeys[off]) | ((uint)privkeys[off+1] << 8) |
+               ((uint)privkeys[off+2] << 16) | ((uint)privkeys[off+3] << 24);
+    }
+
+    /* k * G */
+    jacobian_point pub;
+    scalar_mult_base(&pub, k);
+
+    /* Jacobian → affine */
+    fe z_inv, z_inv_sq, z_inv_cu, aff_x, aff_y;
+    fe_inv(z_inv, pub.z);
+    fe_sqr(z_inv_sq, z_inv);
+    fe_mul(z_inv_cu, z_inv_sq, z_inv);
+    fe_mul(aff_x, pub.x, z_inv_sq);
+    fe_mul(aff_y, pub.y, z_inv_cu);
+
+    /* 压缩公钥 (33B) */
+    uchar pkb[33];
+    uint y_parity = aff_y[0] & 1U;
+    pkb[0] = (uchar)(0x02U ^ y_parity);
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 4; j++)
+            pkb[1 + i*4 + j] = (uchar)(aff_x[7-i] >> ((3-j)*8));
+
+    /* HASH160 */
+    uchar *h160_out = hash160s + gid * 20;
+    KERNEL_HASH160(pkb, h160_out);
+
+    /* --- P2-10: GPU 侧 Bloom Filter 碰撞检测 --- */
+    /* 从 HASH160 结果中提取 2 个 uint32 作为 bloom 哈希种子 */
+    uint bh1 = ((uint)h160_out[0]) | ((uint)h160_out[1] << 8) |
+               ((uint)h160_out[2] << 16) | ((uint)h160_out[3] << 24);
+    uint bh2 = ((uint)h160_out[4]) | ((uint)h160_out[5] << 8) |
+               ((uint)h160_out[6] << 16) | ((uint)h160_out[7] << 24);
+    if (bh2 == 0) bh2 = 1;  /* 避免 m=0 的除零 */
+
+    /* 测试所有 7 个位位置 */
+    uint hit = 1;
+    for (int i = 0; i < 7; i++) {
+        uint pos = (bh1 + (uint)i * bh2) % bloom_m;
+        if (!bloom_test_bit(bloom_data, bloom_m, pos)) {
+            hit = 0;
+            break;
+        }
+    }
+
+    if (hit) {
+        /* 原子递增计数器，记录命中索引 */
+        int idx = atomic_inc(hit_count);
+        if ((uint)idx < batch_size) {
+            hit_buffer[idx] = gid;
+        }
+    }
 }
 
 /* Kernel 入口: 私钥(32B,小端) → 压缩公钥 X 坐标(32B,大端) */

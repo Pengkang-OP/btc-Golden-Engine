@@ -38,6 +38,7 @@ def _mock_pyopencl() -> Generator[None, None, None]:
 
     mock_device = MagicMock()
     mock_device.name = "Mock GPU Device"
+    mock_device.vendor = "Mock Vendor"
     mock_device.max_compute_units = 128
     mock_device.max_work_group_size = 256
     mock_device.global_mem_size = 8 * 1024 * 1024 * 1024
@@ -46,6 +47,7 @@ def _mock_pyopencl() -> Generator[None, None, None]:
     mock_device.version = "OpenCL 2.0"
     mock_device.type = 4
     mock_device.available = True
+    mock_device.max_mem_alloc_size = 2 * 1024 * 1024 * 1024  # 2 GB
 
     mock_platform = MagicMock()
     mock_platform.name = "Mock Platform"
@@ -65,7 +67,11 @@ def _mock_pyopencl() -> Generator[None, None, None]:
         kernel_file.parent.mkdir(parents=True, exist_ok=True)
         kernel_file.write_text(
             "__kernel void ec_mul_hash160("
-            "__global const uchar* in, __global uchar* out) {}",
+            "__global const uchar* in, __global uchar* out, uint n) {}\n"
+            "__kernel void ec_mul_hash160_collision("
+            "__global const uchar* in, __global uchar* out, uint n,"
+            "__global const uchar* bd, uint bm,"
+            "__global volatile int* hc, __global uint* hb) {}",
             encoding="utf-8",
         )
 
@@ -94,6 +100,128 @@ class TestGPUPipeline:
         pipe = GPUPipeline(quiet=True)
         assert pipe.batch_size == 65536
         pipe.close()
+
+    # ── P2-10: GPU 碰撞检测（Mock） ──────────────────────────
+
+    def test_collision_kernel_available_with_bloom(self):
+        """提供 bloom_data 时 _kernel_collision 应可用。"""
+        from gpu_engine.gpu_pipeline import GPUPipeline
+
+        pipe = GPUPipeline(
+            batch_size=256,
+            quiet=True,
+            bloom_data=b"\x00" * 1024,
+            bloom_m=8192,
+        )
+        try:
+            assert pipe._kernel_collision is not None
+            assert pipe._bloom_data is not None
+            assert pipe._bloom_m == 8192
+        finally:
+            pipe.close()
+
+    def test_no_bloom_falls_back_to_standard_kernel(self):
+        """未提供 bloom 时 _run_sub_batch 应使用 _kernel_hash160。"""
+        from gpu_engine.gpu_pipeline import GPUPipeline
+
+        pipe = GPUPipeline(batch_size=256, quiet=True)
+        try:
+            pipe._kernel_collision = None  # 模拟旧 kernel
+            # submit_batch 应能正常使用 _kernel_hash160 运行
+            result = pipe.submit_batch()
+            assert result.keys_checked == 256
+        finally:
+            pipe.close()
+
+    def test_gpu_collision_readback_path(self):
+        """GPU 碰撞检测路径应能完成回读。"""
+        from gpu_engine.gpu_pipeline import GPUPipeline
+
+        pipe = GPUPipeline(
+            batch_size=256,
+            quiet=True,
+            bloom_data=b"\xff" * 1024,
+            bloom_m=8192,
+        )
+        try:
+            # 不传 check_collision → 自动启用 GPU 碰撞
+            result = pipe.submit_batch()
+            assert result.keys_checked == 256
+            # hit_indices 由 GPU 返回（mock 返回空）
+            assert isinstance(result.hit_indices, list)
+        finally:
+            pipe.close()
+
+    # ── P2-10: Mock Dispatcher 碰撞集成 ──────────────────────────
+
+    def test_dispatcher_bloom_initialization(self):
+        """Dispatcher 使用 bloom 参数初始化应正确传递到 GPUPipeline。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=512,
+            quiet=True,
+            device_indices=[0],
+            check_collision=None,
+            bloom_data=b"\xaa" * 1024,
+            bloom_m=8192,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+            assert len(scheduler._pipelines) == 1
+            pipe = scheduler._pipelines[0]
+            assert pipe._bloom_data == b"\xaa" * 1024
+            assert pipe._bloom_m == 8192
+        finally:
+            scheduler.close()
+
+    def test_dispatcher_worker_loop_bloom_collision(self):
+        """bloom 可用时 _worker_loop 应传递 check_collision=None 到 submit_batch。"""
+        from unittest.mock import patch
+
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        submit_calls: list[object] = []
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=256,
+            quiet=True,
+            device_indices=[0],
+            check_collision=None,  # bloom 激活
+            bloom_data=b"\xaa" * 512,
+            bloom_m=4096,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+
+            pipe = scheduler._pipelines[0]
+            original_submit = pipe.submit_batch  # bound method
+
+            def tracking_submit(*args: object, **kwargs: object) -> object:
+                submit_calls.append(kwargs.get("check_collision"))
+                return original_submit(*args, **kwargs)
+
+            with patch.object(pipe, "submit_batch") as mock_sub:
+                mock_sub.side_effect = tracking_submit
+                scheduler.run()
+
+            assert len(submit_calls) >= 1
+            for sc in submit_calls:
+                assert sc is None, f"预期 check_collision=None, 得到 {sc!r}"
+        finally:
+            scheduler.close()
 
 
 # ═══════════════════════════════════════════════════════════════

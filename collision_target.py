@@ -339,6 +339,16 @@ class _BaseTargetSet:
         """返回已加载的条目总数。"""
         return self._count
 
+    @property
+    def bloom_data(self) -> bytes | None:
+        """返回 Bloom Filter 位数组（用于 GPU 侧碰撞检测），None 表示不可用。"""
+        return self._bloom
+
+    @property
+    def bloom_m(self) -> int:
+        """返回 Bloom Filter 总位数。"""
+        return self._bloom_m
+
     def close(self) -> None:
         """关闭 mmap、文件描述符并释放 Bloom Filter 资源。"""
         if hasattr(self, "_mmap") and self._mmap:
@@ -433,6 +443,16 @@ class TargetProtocol(Protocol):
     使 collision_engine.py 中可使用静态类型而非 ``object``。
     """
 
+    @property
+    def bloom_data(self) -> bytes | None:
+        """返回 Bloom Filter 位数组（Protocol stub）。"""
+        ...
+
+    @property
+    def bloom_m(self) -> int:
+        """返回 Bloom Filter 总位数（Protocol stub）。"""
+        ...
+
     def __contains__(self, item: object) -> bool:
         """检查目标是否包含指定项（Protocol stub）。"""
         ...
@@ -484,6 +504,18 @@ class SwappableTarget:
     def target(self) -> object | None:
         """当前活跃的底层集合（用于需要直接引用集合的场景）。"""
         return self._set
+
+    @property
+    def bloom_data(self) -> bytes | None:
+        """代理到底层集合的 bloom_data，不可用时返回 None。"""
+        s = self._set
+        return getattr(s, "bloom_data", None) if s is not None else None
+
+    @property
+    def bloom_m(self) -> int:
+        """代理到底层集合的 bloom_m，不可用时返回 0。"""
+        s = self._set
+        return getattr(s, "bloom_m", 0) if s is not None else 0
 
     def swap(self, new_set: object | None = None) -> None:
         """原子替换底层集合。旧集合在锁外关闭。"""

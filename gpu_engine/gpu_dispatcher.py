@@ -35,6 +35,9 @@ class DispatcherConfig:
     sequential_start: int = 1  # 顺序扫描起始私钥
     tdr_safe: bool = True  # 启用 TDR 安全 sub-batch 拆分
     max_kernel_time: float = 1.5  # 单个 sub-batch 最大执行时间（秒）
+    # P2-10: GPU 侧碰撞检测 bloom 参数（通过调度器透传）
+    bloom_data: bytes | None = None
+    bloom_m: int = 0
 
 
 @dataclass
@@ -136,11 +139,25 @@ class GPUBatchScheduler:
         gpu_stride = n_gpu * self.config.batch_size
 
         for i, (pi, di, dev_info) in enumerate(selected):
+            # P2-8: 按设备能力计算独立 batch_size
+            dev_batch = self.config.batch_size
+            raw_dev = dev_info._raw_device
+            if raw_dev is not None:
+                # 根据计算单元数比例缩放 batch_size
+                ref_cu = selected[0][2].compute_units
+                if ref_cu > 0:
+                    ratio = dev_info.compute_units / ref_cu
+                    dev_batch = max(int(self.config.batch_size * ratio), 16384)
+                # 受 max_mem_alloc_size 限制
+                max_alloc = raw_dev.max_mem_alloc_size
+                alloc_limit = int(max_alloc // (32 + 20))
+                dev_batch = min(dev_batch, alloc_limit)
+
             try:
                 pipe = GPUPipeline(
                     platform_index=pi,
                     device_index=di,
-                    batch_size=self.config.batch_size,
+                    batch_size=dev_batch,
                     quiet=self.config.quiet,
                     mode=self.config.mode,
                     sequential_start=(
@@ -153,6 +170,8 @@ class GPUBatchScheduler:
                     ),
                     tdr_safe=self.config.tdr_safe,
                     max_kernel_time=self.config.max_kernel_time,
+                    bloom_data=self.config.bloom_data,
+                    bloom_m=self.config.bloom_m,
                 )
                 self._pipelines.append(pipe)
                 self._workers.append(WorkerResult(device_name=dev_info.device_name))
@@ -169,9 +188,21 @@ class GPUBatchScheduler:
         pipe = self._pipelines[pipe_index]
         worker = self._workers[pipe_index]
 
+        # P2-10: 当 bloom 数据已设置且未传入 check_collision 时，
+        # 自动启用 GPU 侧碰撞检测（submit_batch 根据 check_collision=None 触发）
+        use_gpu_collision = (
+            self.config.bloom_data is not None
+            and self.config.check_collision is None
+        )
+
         while not self._stop_event.is_set():
             try:
-                result = pipe.submit_batch(check_collision=self.config.check_collision)
+                check_fn = (
+                    None
+                    if use_gpu_collision
+                    else self.config.check_collision
+                )
+                result = pipe.submit_batch(check_collision=check_fn)
 
                 # 保存碰撞命中
                 if result.hit_indices and self.config.on_hit is not None:

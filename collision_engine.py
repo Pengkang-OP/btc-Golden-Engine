@@ -1074,17 +1074,23 @@ def _run_gpu_mode(
                 privkey_int,
             )
 
+    # P2-10: 当目标集有 Bloom 数据时启用 GPU 侧碰撞检测，
+    # 将 check_collision 设为 None 以触发 _worker_loop 的 GPU 碰撞路径。
+    # 假阳性由 on_hit 回调中的 check_single_key() 全量验证。
+    gpu_bloom = target.bloom_data
     config = DispatcherConfig(
         batch_size=args.gpu_batch_size,
         device_indices=device_indices,
         total_keys=args.count,
         quiet=False,
-        check_collision=check_hit,
+        check_collision=(None if gpu_bloom is not None else check_hit),
         on_hit=on_hit,
         mode=args.gpu_mode,
         sequential_start=seq_start,
         tdr_safe=args.gpu_tdr_safe,
         max_kernel_time=args.gpu_max_kernel_time,
+        bloom_data=gpu_bloom,
+        bloom_m=target.bloom_m,
     )
 
     scheduler = GPUBatchScheduler(config)

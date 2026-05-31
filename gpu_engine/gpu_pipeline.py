@@ -6,7 +6,7 @@
   2. 写入 GPU 显存
   3. 启动 ec_mul_hash160 kernel → 直接得到 HASH160(20B × batch)
   4. 回读结果到 Host
-  5. 在 Host 端二分查找碰撞
+  5. P2-10: 若提供 bloom 数据则在 GPU 侧碰撞检测，否则 Host 端二分查找
 """
 
 from __future__ import annotations
@@ -54,8 +54,15 @@ class GPUPipeline:
         sequential_stride: int | None = None,
         tdr_safe: bool = True,
         max_kernel_time: float = 1.5,
+        bloom_data: bytes | None = None,  # P2-10: GPU 侧碰撞检测 bloom 位数组
+        bloom_m: int = 0,                 # P2-10: bloom 总位数
     ):
-        """初始化 GPU 管道：配置参数、创建 OpenCL 上下文、编译内核。"""
+        """初始化 GPU 管道：配置参数、创建 OpenCL 上下文、编译内核。
+
+        Args:
+            bloom_data: P2-10 GPU 侧碰撞检测的 bloom 位数组（None=使用 host 检测）
+            bloom_m: bloom 位数组总位数
+        """
         self.batch_size = batch_size
         self.quiet = quiet
         self.profile = profile
@@ -73,16 +80,31 @@ class GPUPipeline:
             enabled=tdr_safe,
             max_kernel_time=max_kernel_time,
         )
+        # P2-10: GPU 侧碰撞检测 bloom 数据
+        self._bloom_data = bloom_data
+        self._bloom_m = bloom_m
+
         self._ctx: Any = None
         self._queue: Any = None
         self._program: Any = None
         self._kernel_hash160: Any = None
         self._kernel_pubkey: Any = None
+        self._kernel_collision: Any = None  # P2-10: 碰撞检测 kernel
         self._d_privkeys: Any = None
         self._d_hash160s: Any = None
         self._d_pubkeys: Any = None
+        # P2-10: bloom / hit 设备缓冲区
+        self._d_bloom: Any = None
+        self._d_hit_count: Any = None
+        self._d_hit_buffer: Any = None
+        self._h_hit_count = np.zeros(1, dtype=np.int32)
+        self._h_hit_buffer: np.ndarray | None = None
+
         self._h_privkeys = np.zeros(batch_size * 32, dtype=np.uint8)
         self._h_hash160s = np.zeros(batch_size * 20, dtype=np.uint8)
+        # 按 vendor 优化（_init_opencl 中设置）
+        self._local_ws: int | None = None
+        self._kernel_build_options: list[str] = ["-cl-std=CL1.2"]
 
         self._init_opencl(device_index, platform_index)
 
@@ -142,7 +164,36 @@ class GPUPipeline:
                 driver_version=self._device.driver_version,
                 available=bool(self._device.available),
             )
-            logger.info("[GPU] 设备: %s", info)
+            logger.info("[GPU] 设备: %s | vendor=%s", info, self._device.vendor.strip())
+
+        # --- P0: 按 vendor 自动优化 ---
+        vendor = self._device.vendor.lower()
+        if "nvidia" in vendor:
+            self._local_ws = 128
+            self._kernel_build_options = [
+                "-cl-std=CL1.2", "-cl-mad-enable", "-cl-fast-relaxed-math",
+            ]
+        elif "intel" in vendor:
+            self._local_ws = 64
+            self._kernel_build_options = [
+                "-cl-std=CL3.0", "-cl-mad-enable", "-DARC_OPT",
+            ]
+        else:
+            self._local_ws = 64
+            self._kernel_build_options = ["-cl-std=CL1.2"]
+
+        # --- P0: 检查 max_mem_alloc_size 限制 ---
+        max_alloc = self._device.max_mem_alloc_size
+        max_safe_batch = int(max_alloc // (32 + 20))  # 每工作项 32B + 20B
+        if self.batch_size > max_safe_batch:
+            logger.warning(
+                "[GPU] batch_size %s 超过设备最大分配 %s，降为 %s",
+                f"{self.batch_size:,}", f"{max_alloc/1e9:.1f}GB", f"{max_safe_batch:,}"
+            )
+            self.batch_size = int(max_safe_batch)
+            # 重新分配 host 缓冲区
+            self._h_privkeys = np.zeros(self.batch_size * 32, dtype=np.uint8)
+            self._h_hash160s = np.zeros(self.batch_size * 20, dtype=np.uint8)
 
         # 创建 context 和 queue
         self._ctx = cl.Context([self._device])
@@ -155,35 +206,65 @@ class GPUPipeline:
             properties=props,  # type: ignore[arg-type]
         )
 
-        # 编译 kernel
+        # 编译 kernel（使用按 vendor 优化的编译选项）
         if not KERNEL_SRC_FILE.exists():
             raise FileNotFoundError(f"GPU kernel 源文件未找到: {KERNEL_SRC_FILE}")
         src = KERNEL_SRC_FILE.read_text(encoding="utf-8")
+        if not self.quiet:
+            logger.info("[GPU] 编译选项: %s", " ".join(self._kernel_build_options))
         self._program = cl.Program(self._ctx, src).build(
-            options=["-cl-std=CL1.2"],
+            options=self._kernel_build_options,
         )
 
         # 获取 kernel 函数
         self._kernel_hash160 = self._program.ec_mul_hash160
         self._kernel_pubkey = self._program.ec_mul_pubkey
+        try:
+            self._kernel_collision = self._program.ec_mul_hash160_collision
+        except Exception:
+            self._kernel_collision = None  # 旧 kernel 文件不含碰撞检测
 
-        # 分配设备端缓冲区
+        # 分配设备端缓冲区（USE_HOST_PTR 减少 PCIe 拷贝）
         mf = cl.mem_flags
         self._d_privkeys = cl.Buffer(
             self._ctx,
-            mf.READ_ONLY | mf.ALLOC_HOST_PTR,
+            mf.READ_ONLY | mf.USE_HOST_PTR | mf.ALLOC_HOST_PTR,
             size=self.batch_size * 32,
+            hostbuf=self._h_privkeys,
         )
         self._d_hash160s = cl.Buffer(
             self._ctx,
-            mf.WRITE_ONLY | mf.ALLOC_HOST_PTR,
+            mf.WRITE_ONLY | mf.USE_HOST_PTR | mf.ALLOC_HOST_PTR,
             size=self.batch_size * 20,
+            hostbuf=self._h_hash160s,
         )
+
         self._d_pubkeys = cl.Buffer(
             self._ctx,
             mf.WRITE_ONLY | mf.ALLOC_HOST_PTR,
             size=self.batch_size * 32,
         )
+
+        # --- P2-10: 分配 Bloom/命中缓冲区 ---
+        if self._bloom_data is not None and self._kernel_collision is not None:
+            bloom_bytes = (self._bloom_m + 7) // 8
+            self._d_bloom = cl.Buffer(
+                self._ctx,
+                mf.READ_ONLY | mf.COPY_HOST_PTR,
+                size=bloom_bytes,
+                hostbuf=np.frombuffer(self._bloom_data, dtype=np.uint8),
+            )
+            self._d_hit_count = cl.Buffer(
+                self._ctx,
+                mf.READ_WRITE | mf.ALLOC_HOST_PTR,
+                size=4,  # int32
+            )
+            self._d_hit_buffer = cl.Buffer(
+                self._ctx,
+                mf.WRITE_ONLY | mf.ALLOC_HOST_PTR,
+                size=self.batch_size * 4,  # uint per hit
+            )
+            self._h_hit_buffer = np.zeros(self.batch_size, dtype=np.int32)
 
         if not self.quiet:
             logger.info("[GPU] 内核编译完成 | batch=%s", f"{self.batch_size:,}")
@@ -299,9 +380,25 @@ class GPUPipeline:
         # 生成所有私钥（根据 mode，先填满 host 缓冲区）
         self._fill_privkeys(privkey_bytes)
 
+        # 判断是否使用 GPU 侧碰撞检测
+        use_gpu_collision = (
+            self._bloom_data is not None
+            and self._kernel_collision is not None
+            and check_collision is None  # 外部未传 collision 回调时自动启用
+        )
+
         # 将全部私钥写入设备
-        write_evt = cl.enqueue_copy(self._queue, self._d_privkeys, self._h_privkeys)
+        write_evt = cl.enqueue_copy(
+            self._queue, self._d_privkeys, self._h_privkeys
+        )
         write_evt.wait()
+
+        # --- P2-10: GPU 碰撞检测时初始化命中计数器 ---
+        if use_gpu_collision:
+            self._queue.enqueue_write_buffer(
+                self._d_hit_count,
+                np.zeros(1, dtype=np.int32),
+            )
 
         # --- 确定 sub-batch 大小（TDR 安全） ---
         if self._tdr_safe and self._timer.is_calibrated:
@@ -313,10 +410,21 @@ class GPUPipeline:
         else:
             sub_batch = self.batch_size
 
-        # 设置 kernel 参数（指向完整缓冲区，batch_size 传给 kernel 用于范围检查）
-        self._kernel_hash160.set_args(
-            self._d_privkeys, self._d_hash160s, np.uint32(self.batch_size)
-        )
+        # 设置 kernel 参数
+        if use_gpu_collision:
+            self._kernel_collision.set_args(
+                self._d_privkeys,
+                self._d_hash160s,
+                np.uint32(self.batch_size),
+                self._d_bloom,
+                np.uint32(self._bloom_m),
+                self._d_hit_count,
+                self._d_hit_buffer,
+            )
+        else:
+            self._kernel_hash160.set_args(
+                self._d_privkeys, self._d_hash160s, np.uint32(self.batch_size)
+            )
 
         # 如果没有校准且启用了 TDR 安全，运行一次小校准
         _ran_calib = False
@@ -328,14 +436,13 @@ class GPUPipeline:
                 self._run_sub_batch(0, calib_size)
                 calib_elapsed = time.perf_counter() - t0
                 self._timer.update(calib_elapsed, calib_size)
-                # 校准后重新计算 sub-batch 大小
                 sub_batch = self._timer.safe_sub_batch_size(
                     max_time_ms=self._max_kernel_time * 1000,
                     min_size=self._tdr_config.min_sub_batch,
                 )
                 sub_batch = min(sub_batch, self.batch_size)
             except Exception:
-                _ran_calib = False  # 校准失败，回退到全 batch
+                _ran_calib = False
 
         # --- 拆分执行 sub-batches ---
         processed = calib_size if _ran_calib else 0
@@ -347,7 +454,6 @@ class GPUPipeline:
             except Exception as e:
                 tdr_err = is_tdr_error(e)
                 if tdr_err and self._tdr_safe:
-                    # TDR 错误：激进降低 sub-batch 大小并重试
                     new_size = max(64, cur_size // 4)
                     if not self.quiet:
                         logger.warning(
@@ -356,46 +462,56 @@ class GPUPipeline:
                             cur_size,
                             new_size,
                         )
-                    # 等待 GPU 恢复
                     time.sleep(2.0)
-                    # 重试
                     sub_batch = new_size
-                    continue  # 不推进 processed，重试当前范围
+                    continue
                 elif tdr_err:
-                    # TDR 但未启用安全模式
                     if not self.quiet:
                         logger.error("[GPU][TDR] TDR 超时: %s", e)
                     raise
                 else:
-                    # 非 TDR 错误：直接抛出
                     raise
             processed += cur_size
 
-        # 回读全部结果
-        read_evt = cl.enqueue_copy(
-            self._queue,
-            self._h_hash160s,
-            self._d_hash160s,
-        )
-        read_evt.wait()
+        # 回读结果
+        if use_gpu_collision:
+            # P2-10: 读回命中计数和索引
+            self._queue.enqueue_read_buffer(
+                self._d_hit_count, self._h_hit_count
+            ).wait()
+            n_hits = int(self._h_hit_count[0])
+            n_hits = min(n_hits, self.batch_size)
+            if n_hits > 0:
+                hit_buf = self._h_hit_buffer[:n_hits]
+                self._queue.enqueue_read_buffer(
+                    self._d_hit_buffer, hit_buf
+                ).wait()
+                hit_indices_on_gpu = hit_buf.tolist()
+            else:
+                hit_indices_on_gpu = []
+
+        # 回读 HASH160（GPU 碰撞模式也要回读用于验证）
+        cl.enqueue_copy(
+            self._queue, self._h_hash160s, self._d_hash160s
+        ).wait()
 
         t1 = time.perf_counter()
         elapsed = t1 - t0
 
-        # 更新计时器（全校准，排除校准本身的批次）
+        # 更新计时器
         if not _ran_calib:
-            # 用完整的批次时间更新
             self._timer.update(elapsed, self.batch_size)
         elif not self._timer.is_calibrated:
-            # 校准运行过但失败了？忽略
             pass
 
         # 检查碰撞
         hit_indices: list[int] = []
-        if check_collision is not None:
+        if use_gpu_collision:
+            hit_indices = hit_indices_on_gpu
+        elif check_collision is not None:
+            h160_view = self._h_hash160s.reshape(-1, 20)
             for i in range(self.batch_size):
-                h160 = bytes(self._h_hash160s[i * 20 : (i + 1) * 20])
-                if check_collision(h160):
+                if check_collision(bytes(h160_view[i])):
                     hit_indices.append(i)
 
         # 顺序模式下自动推进起始值（按 stride 步进支持多 GPU 分区）
@@ -417,6 +533,7 @@ class GPUPipeline:
 
         利用 global_work_offset 让每个工作项读取正确的私钥并写入
         正确的 HASH160 输出位置，无需修改内核或创建子缓冲区。
+        自动使用碰撞检测 kernel（P2-10）或标准 kernel。
 
         Args:
             offset: 该 sub-batch 在完整 batch 中的起始索引
@@ -424,13 +541,27 @@ class GPUPipeline:
         """
         import pyopencl as cl
 
+        # P2-10: 选择正确的 kernel
+        kernel = (
+            self._kernel_collision
+            if self._bloom_data is not None and self._kernel_collision is not None
+            else self._kernel_hash160
+        )
+
+        # 确保 global_size 能被 local_ws 整除
+        lws = self._local_ws
+        if lws is not None:
+            gws = ((count + lws - 1) // lws) * lws
+        else:
+            gws = count
+
         kernel_evt = cl.enqueue_nd_range_kernel(
             self._queue,
-            self._kernel_hash160,
-            (count,),  # global_work_size
-            None,  # local_work_size
-            (offset,),  # global_work_offset
-            None,  # wait_for
+            kernel,
+            (gws,),
+            (lws,) if lws is not None else None,
+            (offset,),
+            None,
         )
         kernel_evt.wait()
 
@@ -446,7 +577,8 @@ class GPUPipeline:
         """释放 GPU 资源（显式调用 release() 确保底层 OpenCL 资源释放）。"""
         import pyopencl as cl  # noqa: F811
 
-        for buf_name in ("_d_privkeys", "_d_hash160s", "_d_pubkeys"):
+        for buf_name in ("_d_privkeys", "_d_hash160s", "_d_pubkeys",
+                         "_d_bloom", "_d_hit_count", "_d_hit_buffer"):
             buf = getattr(self, buf_name, None)
             if buf is not None:
                 try:
