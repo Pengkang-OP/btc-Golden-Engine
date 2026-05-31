@@ -14,7 +14,6 @@ from gpu_engine.tdr_handler import (
     _TDR_DELAY_KEY,
     _TDR_DEFAULT_TIMEOUT,
     _TDR_DDI_DELAY_KEY,
-    _TDR_REG_KEY,
 )
 
 

@@ -358,8 +358,6 @@ class TestSaveResult:
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """已损坏的 JSON 结果文件应被覆盖。"""
-        import json
-
         tmp_json = mock.MagicMock()
         tmp_json.exists.return_value = True
         tmp_json.read_text.return_value = "not valid json{{"
@@ -1358,12 +1356,13 @@ class TestHealthCheck:
     """_health_check 输出 JSON 状态。"""
 
     def test_basic_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """基本健康检查输出 JSON。"""
+        """基本健康检查输出 JSON（模拟 UTXO 文件存在）。"""
         import io
         ce._db = mock.MagicMock()
         ce._db.count_results.return_value = 42
         ce._config = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = False
+        monkeypatch.setattr(Path, "exists", lambda _: True)
         out = io.StringIO()
         monkeypatch.setattr(sys, "stdout", out)
         ce._health_check()
