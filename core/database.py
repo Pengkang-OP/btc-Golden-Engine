@@ -84,7 +84,7 @@ class ResultDB:
                 " ON collisions(address_type)"
             )
             self._conn.commit()
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, OSError) as exc:
             raise DatabaseError(f"数据库初始化失败: {exc}", original=exc) from exc
 
     def save_result(self, result: Any) -> int:
