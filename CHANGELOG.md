@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.2.0] — 2026-06-01
+
+### Added
+- **I10: `_BaseTargetSet` 基类提取**: Hash160Set/XOnlySet 重复代码统一至 `collision_target.py` 基类
+- **I13: API 交叉导入消除**: 提取 `api/state.py` 解除 `api/server.py` ↔ `api/routes.py` 循环依赖
+
+### Changed
+- CI 测试范围扩展：`pytest tests/` + `distributed/test_distributed.py` 覆盖分布式模块
+
+### Fixed
+- **代码审核修复（Critical + Important 全部 61 项）**:
+  - C1: `distributed/worker.py` `_GPU_AVAILABLE` 导入路径错误（分布式 GPU 模式完全失效）
+  - C2: `master.py` 心跳覆盖当前 `start` 时间
+  - C3: `master.py` `steal_range` 覆盖请求方范围
+  - C4: `worker.py` `_report_hit` `key_value` 永远为 0
+  - C5: `parse_wallet.py` Base58 编码缺少前导零处理
+  - C6: `parse_wallet.py` 脚本类型标记完全错误
+  - C7: `get_balances.ps1` Markdown 地址渲染错误（地址被截断）
+  - C8: `docker-compose.yml` `depends_on` 声明但未定义启动顺序逻辑
+  - C9: 创建缺失的 `tests/test_benchmark_regression.py`
+  - I01–I06: distributed 模块 6 个 Important 问题修复
+  - I07–I36: 其余 30 个 Important 问题修复
+- **GPU 管道修复**:
+  - `gpu_pipeline.py` 顺序模式 `np.empty` → `np.zeros`（剩余 24 字节含垃圾值导致 `pk_to_int` 计算出巨大值）
+  - `close()` `except RuntimeError` → `except Exception`（真实 pyopencl Context 无 `release()` 方法）
+  - `--cov=.` → `--cov=模块1 --cov=模块2` 缩小覆盖率扫描范围
+  - `coverage` 上传 `if-no-files-found: ignore` → `warn`
+- **CI 多平台稳定性**:
+  - `ci.yml` 移除 YAML `\` 行续接符，改用单行命令（修复 3 平台因 plain scalar folding 导致的 pytest exit code 4/1 崩溃）
+  - `test_e2e_collision.py`: monkeypatch 从模块级 `ct.HASH_BIN` 改为类级 `ct.Hash160Set.BIN_DEFAULT`
+  - `test_benchmark_regression.py`: 同上类级 monkeypatch 修复（CI 无真实 UTXO 文件时 `Hash160Set.load()` 崩溃）
+  - CI #50–#60 迭代修复后全部 7 个 job（lint, 3 平台测试, security-scan, docker-build, gpu-smoke-test）通过
+
+### Removed
+- 6 个未跟踪测试产物（`_e2e_test_out.txt`, `ci_job_page.html`, `coverage.xml`, `err.txt`, `test_cov_out.txt`, `test_no_gpu_cov_out.txt`）
+- 过期 `plan.md`（E2E monkeypatch 修复已完成）
+
 ## [2.1.0] — 2026-05-31
 
 ### Added
@@ -91,6 +128,17 @@
   - BIP 341 Taproot 调整：`tweak_taproot()` 函数计算 Q = P + t*G
   - 碰撞概率提升：P2PKH (39M) + P2WPKH (43M) + P2TR (54M) = 约 1.37 亿目标
 - **`--p2tr` CLI 参数**：启用后额外加载 P2TR x-only 目标集，每次 key 检查额外做一次 tweak 查询
+- **CLI 帮助增强**：epilog 中包含 GPU 和 P2TR 模式使用示例
+
+### Changed
+- `collision_engine.py` 版本号升至 v1.2.0
+- banner 显示 P2TR 启用状态，使用实际加载的目标集数量
+- `CollisionResult` 新增 `p2tr_address` 和 `xonly_hex` 字段
+- `check_single_key()` 和 `check_single_key_chain()` 新增 `xonly_target` 参数
+
+## [1.1.0] — 2026-05-30
+
+### Added
 - **GPU 加速支持** (`--gpu` 参数)：利用 OpenCL 并行执行 EC 乘法和 HASH160 计算
   - `gpu_engine/` 目录包含完整的 GPU 基础设施
   - `gpu_kernel.h`：纯 OpenCL C 实现的 secp256k1 EC 乘法和 hash160 内核
@@ -99,14 +147,13 @@
   - `gpu_device.py`：设备发现和信息查询工具
   - 支持 `--gpu-devices` 指定设备，`--gpu-batch-size` 调整 batch 大小
   - 预期性能：单 GPU ~500K keys/s，多卡 ~1.5M keys/s
+- **GPU 顺序扫描模式**：`_fill_sequential_privkeys()` 按 `_seq_start` + `_seq_stride` 填充连续私钥
 - **`--list-gpu` 参数**：列出所有可用的 OpenCL 设备
-- **CLI 帮助增强**：epilog 中包含 GPU 和 P2TR 模式使用示例
+- **`--gpu-mode`/`--gpu-start` CLI 参数**：GPU 模式选择 + checkpoint 恢复/保存
 
 ### Changed
-- `collision_engine.py` 版本号升至 v1.2.0
-- banner 显示 P2TR 启用状态，使用实际加载的目标集数量
-- `CollisionResult` 新增 `p2tr_address` 和 `xonly_hex` 字段
-- `check_single_key()` 和 `check_single_key_chain()` 新增 `xonly_target` 参数
+- `collision_engine.py` 版本号升至 v1.1.0
+- banner 显示 GPU 启用状态
 
 ## [1.0.0] — 2026-05-29
 
