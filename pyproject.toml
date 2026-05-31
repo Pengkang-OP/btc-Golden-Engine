@@ -31,6 +31,7 @@ dev = [
     "ruff>=0.5.0",
     "mypy>=1.10.0",
     "pytest>=8.0.0",
+    "httpx>=0.28.0",
     "pyopencl>=2024.1",
 ]
 all = [
@@ -42,10 +43,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/bitcoin-collision-finder"
-Repository = "https://github.com/your-org/bitcoin-collision-finder"
-Documentation = "https://github.com/your-org/bitcoin-collision-finder#readme"
-"Bug Tracker" = "https://github.com/your-org/bitcoin-collision-finder/issues"
+Homepage = "https://github.com/Pengkang-OP/btc-Golden-Engine"
+Repository = "https://github.com/Pengkang-OP/btc-Golden-Engine"
+Documentation = "https://github.com/Pengkang-OP/btc-Golden-Engine#readme"
+"Bug Tracker" = "https://github.com/Pengkang-OP/btc-Golden-Engine/issues"
 
 [project.scripts]
 collision-engine = "collision_engine:main"

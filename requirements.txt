@@ -15,8 +15,10 @@ jinja2>=3.1.0
 rich>=13.0.0
 websockets>=12.0
 
+# 测试
+httpx>=0.28.0  # FastAPI TestClient 依赖
+
 # 开发工具（可选）
 # ruff>=0.5.0
 # mypy>=1.10.0
 # pytest>=8.0.0
-# httpx>=0.28.0  (FastAPI TestClient 依赖)
