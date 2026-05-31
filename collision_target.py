@@ -613,13 +613,13 @@ class XOnlySet:
                 self._mmap.close()
             except Exception:
                 pass
-            self._mmap = None
+            self._mmap = None  # type: ignore[assignment]
         if hasattr(self, "_fd") and self._fd:
             try:
                 self._fd.close()
             except Exception:
                 pass
-            self._fd = None
+            self._fd = None  # type: ignore[assignment]
         self._bloom = None
 
     def reload(self, quiet: bool = False) -> None:
