@@ -16,7 +16,7 @@ import time
 from typing import Any, Optional
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, Response
 
 from .server import (
     _hash160_set,
@@ -235,7 +235,7 @@ async def get_workers() -> dict[str, Any]:
 
 
 @router.get("/api/target/download/{filename}")
-async def download_target_file(filename: str):
+async def download_target_file(filename: str) -> Response:
     """提供目标集文件下载（供 Worker 远程拉取）。"""
     from fastapi.responses import FileResponse
     from pathlib import Path

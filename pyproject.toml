@@ -104,6 +104,34 @@ disable_error_code = [
     "untyped-decorator",
 ]
 
+# protobuf 生成代码：动态属性、无类型注解
+[[tool.mypy.overrides]]
+module = [
+    "distributed.protocol_pb2",
+    "distributed.protocol_pb2_grpc",
+]
+disable_error_code = [
+    "attr-defined",
+    "no-untyped-def",
+]
+
+# 分布式扫描模块：依赖 protobuf/gRPC 动态代码，降低 strict 要求
+[[tool.mypy.overrides]]
+module = [
+    "distributed.master",
+    "distributed.worker",
+    "distributed.models",
+    "distributed.test_distributed",
+]
+disable_error_code = [
+    "attr-defined",
+    "no-untyped-call",
+    "no-untyped-def",
+    "arg-type",
+    "union-attr",
+    "no-any-return",
+]
+
 # GPU 下调模块：部分内部辅助函数无需 strict 注解
 [[tool.mypy.overrides]]
 module = [
