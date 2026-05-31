@@ -63,9 +63,9 @@ class _BaseTargetSet:
 
     RECORD_SIZE: int = 0
     RECORD_NAME: str = ""
-    BIN_DEFAULT: str = ""
-    IDX_DEFAULT: str = ""
-    BLOOM_DEFAULT: str = ""
+    BIN_DEFAULT: os.PathLike[str] | str = ""
+    IDX_DEFAULT: os.PathLike[str] | str = ""
+    BLOOM_DEFAULT: os.PathLike[str] | str = ""
     EXTRACT_SCRIPT: str = ""
 
     __slots__ = (
@@ -168,7 +168,7 @@ class _BaseTargetSet:
 
     def _try_load_bloom(self, bin_path: str) -> bool:
         """尝试从磁盘加载缓存的 Bloom Filter。"""
-        if not self.BLOOM_DEFAULT.exists():
+        if not os.path.exists(self.BLOOM_DEFAULT):
             return False
 
         try:
@@ -393,7 +393,7 @@ class Hash160Set(_BaseTargetSet):
     EXTRACT_SCRIPT = "extract_utxo_hash160.py"
 
 
-def _file_sha256(path: str) -> bytes:
+def _file_sha256(path: os.PathLike[str] | str) -> bytes:
     """快速计算文件的 SHA-256 摘要（64 KB 块读取）。"""
     h = hashlib.sha256()
     with open(path, "rb") as f:
