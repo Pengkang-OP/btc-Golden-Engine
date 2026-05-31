@@ -63,6 +63,7 @@ from core import (  # noqa: E402
     EngineConfig,
     setup_logger,
     DatabaseError,
+    Notifier,
     ResultDB,
 )
 from coincurve import PrivateKey, PublicKey  # noqa: E402
@@ -96,6 +97,7 @@ CHECKPOINT_INTERVAL = 60_000  # 每 N 个 key 保存一次 checkpoint
 _logger: Any = None
 _config: EngineConfig | None = None
 _db: ResultDB | None = None
+_notifier: Notifier | None = None
 _shutdown_requested = False
 
 # ── UTXO 自动刷新全局状态 ─────────────────────────────────────
@@ -643,6 +645,10 @@ def save_result(result: CollisionResult) -> None:
         result.xonly_hex,
         "=" * 70,
     )
+
+    # 异步通知（如已配置）
+    if _notifier is not None:
+        _notifier.on_hit(result)
 
 
 # ── 检查点管理 ────────────────────────────────────────────────
@@ -1581,10 +1587,16 @@ def _cleanup(
     target: TargetProtocol,
     xonly_target: TargetProtocol | None,
 ) -> None:
-    """清理资源：关闭目标集和数据库连接。"""
+    """清理资源：关闭目标集、通知器和数据库连接。"""
     target.close()
     if xonly_target is not None:
         xonly_target.close()
+
+    if _notifier is not None:
+        try:
+            _notifier.shutdown(wait=True)
+        except Exception as exc:
+            _logger.warning("通知器关闭异常: %s", exc)
 
     if _db is not None:
         try:
@@ -1620,6 +1632,16 @@ def main() -> None:
         assert _config is not None
         _config.utxo_refresh_interval = args.utxo_refresh_interval
         _logger.info("UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval)
+
+    # ── 初始化通知器 ──
+    if _config is not None and _config.notify_on_hit:
+        _notifier = Notifier(_config)
+        _logger.info(
+            "通知已启用 (SMTP=%s, Webhook=%s, Telegram=%s)",
+            "✓" if _config.smtp_host else "✗",
+            "✓" if _config.webhook_url else "✗",
+            "✓" if _config.telegram_bot_token else "✗",
+        )
 
     # ── 健康检查 ──
     if args.health:

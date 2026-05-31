@@ -84,9 +84,9 @@ class Notifier:
             except NotifierError:
                 pass
 
-        # Telegram：使用配置中的 bot_token 和 chat_id
-        bot_token = getattr(self.config, "telegram_bot_token", "")
-        chat_id = getattr(self.config, "telegram_chat_id", "")
+        # Telegram
+        bot_token = self.config.telegram_bot_token
+        chat_id = self.config.telegram_chat_id
         if bot_token and chat_id:
             try:
                 self.send_telegram(bot_token, chat_id, body)
@@ -221,7 +221,11 @@ class Notifier:
         """检查是否有至少一个通知通道已配置。"""
         if not self.config.notify_on_hit:
             return False
-        return bool(self._should_email() or self._webhook_url())
+        return bool(
+            self._should_email()
+            or self._webhook_url()
+            or (self.config.telegram_bot_token and self.config.telegram_chat_id)
+        )
 
     def _should_email(self) -> bool:
         """检查邮件通知是否已配置。"""

@@ -60,6 +60,8 @@ class EngineConfig:
     smtp_from: str = ""
     smtp_to: str = ""
     webhook_url: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
     # ── 统计 (Phase 2 使用) ──
     stats_window_seconds: int = 3600  # 滑动窗口大小 (1 小时)
