@@ -1111,7 +1111,7 @@ def _run_gpu_mode(
 
 
 def _report_progress(current_key: int, local_count: int, thread_id: int) -> None:
-    """记录进度（周期性进度信息）"""
+    """记录进度（周期性进度信息）+ 写入引擎状态文件。"""
     elapsed = time.time() - _global_start_time
     with _counter_lock:
         total = _global_checked
@@ -1125,6 +1125,59 @@ def _report_progress(current_key: int, local_count: int, thread_id: int) -> None
         elapsed,
         key_str[:32],
     )
+    # 写入状态文件供 API 读取（降频：每 30 秒写一次）
+    if int(elapsed) % 30 < 5:
+        _write_engine_status(
+            running=True,
+            mode=_config.mode if _config else "unknown",
+            keys_per_second=rate,
+            total_keys=total,
+            elapsed_seconds=elapsed,
+        )
+
+
+# ── 引擎状态文件写入（供 API 读取）─────────────────────────────
+_STATUS_FILE_PATH = Path(__file__).resolve().parent / "collision_engine_status.json"
+
+
+def _write_engine_status(
+    running: bool,
+    mode: str,
+    keys_per_second: float = 0.0,
+    total_keys: int = 0,
+    elapsed_seconds: float = 0.0,
+) -> None:
+    """写入引擎运行状态 JSON 文件，供 API 读取。
+
+    包含运行状态、扫描速率、UTXO 刷新状态等信息。
+    """
+    status: dict[str, Any] = {
+        "running": running,
+        "mode": mode,
+        "keys_per_second": keys_per_second,
+        "total_keys": total_keys,
+        "elapsed_seconds": elapsed_seconds,
+    }
+    # ── UTXO 刷新状态 ──
+    refresh_enabled = _config is not None and _config.enable_utxo_auto_refresh
+    status["utxo_refresh"] = {
+        "enabled": refresh_enabled,
+        "last_refresh_time": (
+            time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(_refresh_last_time))
+            if _refresh_last_time > 0
+            else "never"
+        ),
+        "last_result": _refresh_last_result,
+    }
+    if refresh_enabled and _swappable_target is not None:
+        status["utxo_refresh"]["current_count"] = len(_swappable_target)
+
+    try:
+        _STATUS_FILE_PATH.write_text(
+            json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+    except OSError:
+        pass  # 写入失败不影响引擎运行
 
 
 # ── 健康检查 ──────────────────────────────────────────────────
@@ -1512,6 +1565,16 @@ def _print_final_report() -> None:
         hit_count,
         "=" * 70,
     )
+    # 写入引擎已停止状态
+    _write_engine_status(
+        running=False,
+        mode="stopped",
+        keys_per_second=rate,
+        total_keys=final_checked,
+        elapsed_seconds=elapsed,
+    )
+
+
 
 
 def _cleanup(

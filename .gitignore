@@ -38,10 +38,11 @@ utxo_xonly.bin
 utxo_xonly.idx
 utxo_xonly.bloom
 
-# Database
+# Database & engine status (runtime generated)
 collision_results.db
 collision_results.db-shm
 collision_results.db-wal
+collision_engine_status.json
 
 # Logs
 logs/
