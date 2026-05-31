@@ -240,10 +240,18 @@ async def download_target_file(filename: str):
     from fastapi.responses import FileResponse
     from pathlib import Path
 
-    allowed = {"utxo_hash160.bin", "utxo_hash160.idx", "utxo_hash160.bloom", "utxo_xonly.bin", "utxo_xonly.idx", "utxo_xonly.bloom"}
+    allowed = {
+        "utxo_hash160.bin",
+        "utxo_hash160.idx",
+        "utxo_hash160.bloom",
+        "utxo_xonly.bin",
+        "utxo_xonly.idx",
+        "utxo_xonly.bloom",
+    }
 
     if filename not in allowed:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=404,
             content={"error": f"不允许的文件名: {filename}"},
@@ -253,6 +261,7 @@ async def download_target_file(filename: str):
     file_path = root / filename
     if not file_path.exists():
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=404,
             content={"error": f"文件不存在: {filename}"},

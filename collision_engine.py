@@ -1644,13 +1644,18 @@ def main() -> None:
 
     # ── 分布式扫描模式 ──
     if args.distributed:
-        _logger.info("启用分布式扫描模式 (master=%s, worker=%s)", args.master_addr, args.worker_id)
+        _logger.info(
+            "启用分布式扫描模式 (master=%s, worker=%s)",
+            args.master_addr,
+            args.worker_id,
+        )
         try:
             from distributed.worker import DistributedScanner
 
             worker_id = args.worker_id
             if not worker_id:
                 import os as _os
+
                 worker_id = f"worker-{_os.urandom(4).hex()}"
 
             scanner = DistributedScanner(

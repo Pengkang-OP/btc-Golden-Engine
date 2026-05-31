@@ -217,14 +217,18 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
                 from concurrent import futures
                 import grpc
                 from distributed.master import MasterService, WorkerRegistry
-                from distributed.protocol_pb2_grpc import add_MasterServiceServicer_to_server
+                from distributed.protocol_pb2_grpc import (
+                    add_MasterServiceServicer_to_server,
+                )
                 from .routes import _set_worker_registry
 
                 _worker_registry = WorkerRegistry()
                 _set_worker_registry(_worker_registry)
 
                 _grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-                add_MasterServiceServicer_to_server(MasterService(_worker_registry), _grpc_server)
+                add_MasterServiceServicer_to_server(
+                    MasterService(_worker_registry), _grpc_server
+                )
                 _grpc_server.add_insecure_port(f"[::]:{grpc_port}")
                 _grpc_server.start()
                 logger.info("gRPC Master 服务已启动 (port=%d)", grpc_port)
@@ -289,7 +293,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="API Dashboard 服务器")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="监听地址")
     parser.add_argument("--port", type=int, default=8080, help="HTTP 端口")
-    parser.add_argument("--with-grpc", action="store_true", help="同时启动 gRPC Master 服务")
+    parser.add_argument(
+        "--with-grpc", action="store_true", help="同时启动 gRPC Master 服务"
+    )
     parser.add_argument("--grpc-port", type=int, default=50051, help="gRPC 端口")
     args = parser.parse_args()
 

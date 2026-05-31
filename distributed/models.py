@@ -22,13 +22,13 @@ class WorkerInfo:
     version: str
 
     # ── 运行时状态 ──
-    current_start: int = 0        # 当前分配 range 起始（包含）
-    current_end: int = 0          # 当前分配 range 结束（不包含）
-    keys_checked: int = 0         # 累计检查 key 数
-    last_heartbeat: float = 0.0   # 上次心跳 Unix 时间戳
-    status: str = "idle"          # "registering" / "scanning" / "idle" / "error"
-    error_message: str = ""       # 可选错误信息
-    registered_at: float = 0.0    # 注册时间戳
+    current_start: int = 0  # 当前分配 range 起始（包含）
+    current_end: int = 0  # 当前分配 range 结束（不包含）
+    keys_checked: int = 0  # 累计检查 key 数
+    last_heartbeat: float = 0.0  # 上次心跳 Unix 时间戳
+    status: str = "idle"  # "registering" / "scanning" / "idle" / "error"
+    error_message: str = ""  # 可选错误信息
+    registered_at: float = 0.0  # 注册时间戳
 
     @property
     def is_alive(self) -> bool:
@@ -55,9 +55,9 @@ class WorkerInfo:
 class Assignment:
     """分配给 Worker 的 key 范围。"""
 
-    start_key: int    # 包含
-    end_key: int      # 不包含；0 表示无限
-    cursor: int       # 全局 cursor（统计用途）
+    start_key: int  # 包含
+    end_key: int  # 不包含；0 表示无限
+    cursor: int  # 全局 cursor（统计用途）
 
     @property
     def range_size(self) -> int:

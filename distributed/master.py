@@ -42,9 +42,9 @@ _logger = logging.getLogger(__name__)
 
 # ── 常量 ──────────────────────────────────────────────────────
 DEFAULT_PORT = 50051
-HEARTBEAT_TIMEOUT = 30.0     # worker 心跳超时秒数
+HEARTBEAT_TIMEOUT = 30.0  # worker 心跳超时秒数
 DEFAULT_ASSIGNMENT_SIZE = 10**12  # 每次分配的 range 大小
-MAX_WORKERS = 100            # 最大 worker 数量
+MAX_WORKERS = 100  # 最大 worker 数量
 SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 
@@ -150,7 +150,10 @@ class WorkerRegistry:
             for wid, w in list(self._workers.items()):
                 if wid == worker_id:
                     continue
-                if w.status == "scanning" and (now - w.last_heartbeat) > HEARTBEAT_TIMEOUT:
+                if (
+                    w.status == "scanning"
+                    and (now - w.last_heartbeat) > HEARTBEAT_TIMEOUT
+                ):
                     _logger.warning(
                         "[Master] Worker %s 心跳超时 (%ds)，回收其 range [%d, %d)",
                         wid,
@@ -166,7 +169,9 @@ class WorkerRegistry:
                         return None
                     worker.current_start = w.current_start
                     mid = w.current_start + (w.current_end - w.current_start) // 2
-                    self._global_cursor = mid if mid > self._global_cursor else self._global_cursor
+                    self._global_cursor = (
+                        mid if mid > self._global_cursor else self._global_cursor
+                    )
                     worker.current_end = w.current_end
                     worker.status = "scanning"
                     w.current_start = 0
@@ -215,6 +220,7 @@ class WorkerRegistry:
 
 # ── gRPC 服务实现 ──────────────────────────────────────────
 
+
 class MasterService(MasterServiceServicer):
     """gRPC MasterService 服务端实现。"""
 
@@ -222,7 +228,9 @@ class MasterService(MasterServiceServicer):
         self._registry = registry
         self._hit_count = 0
 
-    def Register(self, request: RegisterRequest, context: grpc.ServicerContext) -> RegisterResponse:
+    def Register(
+        self, request: RegisterRequest, context: grpc.ServicerContext
+    ) -> RegisterResponse:
         info = WorkerInfo(
             worker_id=request.worker_id,
             address=request.address,
@@ -247,7 +255,9 @@ class MasterService(MasterServiceServicer):
             message=msg,
         )
 
-    def Heartbeat(self, request: HeartbeatRequest, context: grpc.ServicerContext) -> HeartbeatResponse:
+    def Heartbeat(
+        self, request: HeartbeatRequest, context: grpc.ServicerContext
+    ) -> HeartbeatResponse:
         found = self._registry.update_heartbeat(
             worker_id=request.worker_id,
             keys_checked=request.keys_checked,
@@ -256,7 +266,9 @@ class MasterService(MasterServiceServicer):
             error_message=request.error_message,
         )
         if not found:
-            return HeartbeatResponse(acknowledged=False, cancel_requested=True, message="worker 未注册")
+            return HeartbeatResponse(
+                acknowledged=False, cancel_requested=True, message="worker 未注册"
+            )
         return HeartbeatResponse(acknowledged=True, cancel_requested=False)
 
     def GetAssignment(
@@ -284,7 +296,9 @@ class MasterService(MasterServiceServicer):
             cursor=assignment.cursor,
         )
 
-    def ReportHit(self, request: HitReport, context: grpc.ServicerContext) -> ReportResponse:
+    def ReportHit(
+        self, request: HitReport, context: grpc.ServicerContext
+    ) -> ReportResponse:
         self._hit_count += 1
         _logger.info(
             "[Master] HIT(%s): privkey=%s, key_value=%d (total hits=%d)",
@@ -336,6 +350,7 @@ class MasterService(MasterServiceServicer):
 
 # ── 启动入口 ──────────────────────────────────────────────
 
+
 def run_master(
     port: int = DEFAULT_PORT,
     assignment_size: int = DEFAULT_ASSIGNMENT_SIZE,
@@ -347,7 +362,9 @@ def run_master(
     add_MasterServiceServicer_to_server(MasterService(registry), server)
     server.add_insecure_port(f"[::]:{port}")
     server.start()
-    _logger.info("[Master] gRPC 服务已启动 (port=%d, assignment_size=%d)", port, assignment_size)
+    _logger.info(
+        "[Master] gRPC 服务已启动 (port=%d, assignment_size=%d)", port, assignment_size
+    )
     return server
 
 
@@ -356,8 +373,18 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="分布式扫描 Master 节点")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"gRPC 端口 (default: {DEFAULT_PORT})")
-    parser.add_argument("--assignment-size", type=int, default=DEFAULT_ASSIGNMENT_SIZE, help="每次分配的 range 大小")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"gRPC 端口 (default: {DEFAULT_PORT})",
+    )
+    parser.add_argument(
+        "--assignment-size",
+        type=int,
+        default=DEFAULT_ASSIGNMENT_SIZE,
+        help="每次分配的 range 大小",
+    )
     parser.add_argument("--max-workers", type=int, default=10, help="gRPC 线程池大小")
     args = parser.parse_args()
 
@@ -366,7 +393,11 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
-    server = run_master(port=args.port, assignment_size=args.assignment_size, max_workers=args.max_workers)
+    server = run_master(
+        port=args.port,
+        assignment_size=args.assignment_size,
+        max_workers=args.max_workers,
+    )
     _logger.info("[Master] 按 Ctrl+C 停止")
     try:
         server.wait_for_termination()

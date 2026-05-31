@@ -26,28 +26,38 @@ from distributed.models import WorkerInfo, Assignment
 
 class TestWorkerInfo:
     def test_create_default(self) -> None:
-        w = WorkerInfo(worker_id="test", address="addr", cpu_cores=4, gpu_count=0, version="1.0")
+        w = WorkerInfo(
+            worker_id="test", address="addr", cpu_cores=4, gpu_count=0, version="1.0"
+        )
         assert w.worker_id == "test"
         assert w.status == "idle"
         assert w.keys_checked == 0
         assert w.is_alive is False  # last_heartbeat = 0
 
     def test_is_alive_within_timeout(self) -> None:
-        w = WorkerInfo(worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0")
+        w = WorkerInfo(
+            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+        )
         w.last_heartbeat = time.time()
         assert w.is_alive is True
 
     def test_is_alive_expired(self) -> None:
-        w = WorkerInfo(worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0")
+        w = WorkerInfo(
+            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+        )
         w.last_heartbeat = time.time() - 31  # 超过 30s 超时
         assert w.is_alive is False
 
     def test_scan_rate_zero_uptime(self) -> None:
-        w = WorkerInfo(worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0")
+        w = WorkerInfo(
+            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+        )
         assert w.scan_rate == 0.0
 
     def test_uptime_not_registered(self) -> None:
-        w = WorkerInfo(worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0")
+        w = WorkerInfo(
+            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+        )
         assert w.uptime_seconds == 0.0
 
 
@@ -85,16 +95,26 @@ class TestWorkerRegistry:
         return WorkerRegistry(assignment_size=100)
 
     def test_register_new(self, registry: Any) -> None:
-        info = WorkerInfo(worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0")
+        info = WorkerInfo(
+            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         accepted, msg = registry.register(info)
         assert accepted is True
         assert "注册成功" in msg
         assert registry.get_worker("node-1") is not None
 
     def test_register_reconnect(self, registry: Any) -> None:
-        info = WorkerInfo(worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0")
+        info = WorkerInfo(
+            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         registry.register(info)
-        info2 = WorkerInfo(worker_id="node-1", address="new-addr", cpu_cores=8, gpu_count=2, version="1.0")
+        info2 = WorkerInfo(
+            worker_id="node-1",
+            address="new-addr",
+            cpu_cores=8,
+            gpu_count=2,
+            version="1.0",
+        )
         accepted, msg = registry.register(info2)
         assert accepted is True
         assert "重新注册" in msg
@@ -103,13 +123,17 @@ class TestWorkerRegistry:
         assert w.cpu_cores == 8  # 更新了
 
     def test_unregister(self, registry: Any) -> None:
-        info = WorkerInfo(worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0")
+        info = WorkerInfo(
+            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         registry.register(info)
         assert registry.unregister("node-1") is True
         assert registry.get_worker("node-1") is None
 
     def test_update_heartbeat(self, registry: Any) -> None:
-        info = WorkerInfo(worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0")
+        info = WorkerInfo(
+            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         registry.register(info)
         found = registry.update_heartbeat("node-1", 100, 50, "scanning")
         assert found is True
@@ -124,7 +148,9 @@ class TestWorkerRegistry:
         assert found is False
 
     def test_assign_range(self, registry: Any) -> None:
-        info = WorkerInfo(worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0")
+        info = WorkerInfo(
+            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         registry.register(info)
         assignment = registry.assign_range("node-1")
         assert assignment is not None
@@ -216,7 +242,10 @@ class TestWorkerRegistry:
                 with lock:
                     errors.append(e)
 
-        threads = [threading.Thread(target=register_and_assign, args=(f"w{i}",)) for i in range(5)]
+        threads = [
+            threading.Thread(target=register_and_assign, args=(f"w{i}",))
+            for i in range(5)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -257,7 +286,9 @@ class TestMasterService:
     def test_register_handler(self, service: Any) -> None:
         from distributed.protocol_pb2 import RegisterRequest
 
-        req = RegisterRequest(worker_id="node-1", cpu_cores=4, gpu_count=1, version="1.0")
+        req = RegisterRequest(
+            worker_id="node-1", cpu_cores=4, gpu_count=1, version="1.0"
+        )
         resp = service.Register(req, FakeContext())
         assert resp.accepted is True
         assert resp.heartbeat_interval_sec == 5
@@ -267,10 +298,15 @@ class TestMasterService:
         from distributed.protocol_pb2 import RegisterRequest, HeartbeatRequest
 
         # 先注册
-        service.Register(RegisterRequest(worker_id="n1", cpu_cores=2, gpu_count=0, version="1.0"), FakeContext())
+        service.Register(
+            RegisterRequest(worker_id="n1", cpu_cores=2, gpu_count=0, version="1.0"),
+            FakeContext(),
+        )
 
         # 心跳
-        req = HeartbeatRequest(worker_id="n1", keys_checked=100, current_key=50, status="scanning")
+        req = HeartbeatRequest(
+            worker_id="n1", keys_checked=100, current_key=50, status="scanning"
+        )
         resp = service.Heartbeat(req, FakeContext())
         assert resp.acknowledged is True
         assert resp.cancel_requested is False
@@ -278,7 +314,9 @@ class TestMasterService:
     def test_heartbeat_unknown(self, service: Any) -> None:
         from distributed.protocol_pb2 import HeartbeatRequest
 
-        req = HeartbeatRequest(worker_id="unknown", keys_checked=0, current_key=0, status="idle")
+        req = HeartbeatRequest(
+            worker_id="unknown", keys_checked=0, current_key=0, status="idle"
+        )
         resp = service.Heartbeat(req, FakeContext())
         assert resp.acknowledged is False
         assert resp.cancel_requested is True
@@ -286,7 +324,10 @@ class TestMasterService:
     def test_get_assignment(self, service: Any) -> None:
         from distributed.protocol_pb2 import RegisterRequest, AssignmentRequest
 
-        service.Register(RegisterRequest(worker_id="n1", cpu_cores=2, gpu_count=0, version="1.0"), FakeContext())
+        service.Register(
+            RegisterRequest(worker_id="n1", cpu_cores=2, gpu_count=0, version="1.0"),
+            FakeContext(),
+        )
 
         req = AssignmentRequest(worker_id="n1")
         resp = service.GetAssignment(req, FakeContext())
@@ -297,7 +338,9 @@ class TestMasterService:
     def test_get_assignment_no_worker(self, service: Any) -> None:
         from distributed.protocol_pb2 import AssignmentRequest
 
-        resp = service.GetAssignment(AssignmentRequest(worker_id="unknown"), FakeContext())
+        resp = service.GetAssignment(
+            AssignmentRequest(worker_id="unknown"), FakeContext()
+        )
         assert resp.has_work is False
 
     def test_report_hit(self, service: Any) -> None:

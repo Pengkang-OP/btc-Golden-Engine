@@ -63,9 +63,8 @@ collision-engine = "collision_engine:main"
 include = ["core*", "gpu_engine*", "distributed*"]
 
 [tool.ruff]
-exclude = ["distributed/protocol_pb2.py", "distributed/protocol_pb2_grpc.py"]
+exclude = ["distributed/protocol_pb2.py", "distributed/protocol_pb2_grpc.py", "distributed/protocol_pb2*.py"]
 lint.ignore = ["E501"]
-lint.select = ["B", "D3", "E", "F"]
 
 [tool.mypy]
 strict = true

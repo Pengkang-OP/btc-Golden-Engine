@@ -39,7 +39,7 @@ from distributed.protocol_pb2_grpc import MasterServiceStub  # noqa: E402
 _logger = logging.getLogger(__name__)
 
 # ── 常量 ──────────────────────────────────────────────────────
-HEARTBEAT_INTERVAL = 5     # 心跳间隔（秒）
+HEARTBEAT_INTERVAL = 5  # 心跳间隔（秒）
 CHECKPOINT_FILE = _src_root / "distributed_checkpoint.json"
 
 
@@ -88,7 +88,9 @@ class DistributedScanner:
         try:
             self._channel = grpc.insecure_channel(self._master_addr)
             self._stub = MasterServiceStub(self._channel)
-            _logger.info("[Worker %s] 连接到 Master: %s", self._worker_id, self._master_addr)
+            _logger.info(
+                "[Worker %s] 连接到 Master: %s", self._worker_id, self._master_addr
+            )
 
             # 注册
             resp = self._stub.Register(
@@ -136,7 +138,11 @@ class DistributedScanner:
                 # 1. 获取下一个作业范围
                 assignment = self._get_assignment()
                 if assignment is None or not assignment.has_work:
-                    _logger.info("[Worker %s] 无可用作业，等待 %ds 后重试...", self._worker_id, 10)
+                    _logger.info(
+                        "[Worker %s] 无可用作业，等待 %ds 后重试...",
+                        self._worker_id,
+                        10,
+                    )
                     self._send_heartbeat(status="idle")
                     time.sleep(10)
                     continue
@@ -157,7 +163,9 @@ class DistributedScanner:
                 # 2. 加载目标集 TODO: 支持远程下载
                 target, xonly_target = self._load_targets()
                 if target is None:
-                    _logger.error("[Worker %s] 目标集加载失败，跳过作业", self._worker_id)
+                    _logger.error(
+                        "[Worker %s] 目标集加载失败，跳过作业", self._worker_id
+                    )
                     self._send_heartbeat(status="error", error_message="目标集加载失败")
                     time.sleep(10)
                     continue
@@ -174,12 +182,18 @@ class DistributedScanner:
                 _logger.warning("[Worker %s] 用户中断", self._worker_id)
                 break
             except Exception as exc:
-                _logger.error("[Worker %s] 扫描异常: %s", self._worker_id, exc, exc_info=True)
+                _logger.error(
+                    "[Worker %s] 扫描异常: %s", self._worker_id, exc, exc_info=True
+                )
                 self._send_heartbeat(status="error", error_message=str(exc))
                 time.sleep(5)
 
         self._save_local_checkpoint()
-        _logger.info("[Worker %s] 扫描结束，共检查 %d 个私钥", self._worker_id, self._keys_checked)
+        _logger.info(
+            "[Worker %s] 扫描结束，共检查 %d 个私钥",
+            self._worker_id,
+            self._keys_checked,
+        )
 
     # ── 核心扫描 ──────────────────────────────────────────
 
@@ -232,7 +246,9 @@ class DistributedScanner:
 
                 # 首次完整 EC 乘法，后续点加法链加速
                 result, pubkey_point = check_single_key_chain(
-                    k, target, stride_bytes if not first else None,
+                    k,
+                    target,
+                    stride_bytes if not first else None,
                     pubkey_point if not first else None,
                     xonly_target,
                 )
@@ -269,7 +285,9 @@ class DistributedScanner:
             for f in as_completed(futures):
                 exc = f.exception()
                 if exc:
-                    _logger.error("[Worker %s] CPU 扫描线程异常: %s", self._worker_id, exc)
+                    _logger.error(
+                        "[Worker %s] CPU 扫描线程异常: %s", self._worker_id, exc
+                    )
 
     def _scan_gpu(self, start_key: int, end_key: int, target, xonly_target) -> None:
         """GPU 模式扫描。"""
@@ -307,14 +325,18 @@ class DistributedScanner:
 
             scheduler = GPUBatchScheduler(config)
             if not scheduler.initialize():
-                _logger.error("[Worker %s] GPU 初始化失败，回退到 CPU 模式", self._worker_id)
+                _logger.error(
+                    "[Worker %s] GPU 初始化失败，回退到 CPU 模式", self._worker_id
+                )
                 self._scan_cpu(start_key, end_key, target, xonly_target)
                 return
 
             scheduler.run()
 
         except ImportError:
-            _logger.warning("[Worker %s] GPU 引擎不可用，回退到 CPU 模式", self._worker_id)
+            _logger.warning(
+                "[Worker %s] GPU 引擎不可用，回退到 CPU 模式", self._worker_id
+            )
             self._scan_cpu(start_key, end_key, target, xonly_target)
 
     # ── 目标集 ──────────────────────────────────────────
@@ -336,7 +358,9 @@ class DistributedScanner:
 
             target = Hash160Set()
             target.load(quiet=True)
-            _logger.info("[Worker %s] 已加载 %s 个 HASH160", self._worker_id, f"{len(target):,}")
+            _logger.info(
+                "[Worker %s] 已加载 %s 个 HASH160", self._worker_id, f"{len(target):,}"
+            )
 
             xonly_target = None
             if self._p2tr:
@@ -359,7 +383,9 @@ class DistributedScanner:
         try:
             from distributed.protocol_pb2 import TargetInfoRequest
 
-            resp = self._stub.GetTargetInfo(TargetInfoRequest(worker_id=self._worker_id))
+            resp = self._stub.GetTargetInfo(
+                TargetInfoRequest(worker_id=self._worker_id)
+            )
             if not resp.hash160_available:
                 _logger.error("[Worker %s] Master 无可用目标集", self._worker_id)
                 return False
@@ -371,13 +397,19 @@ class DistributedScanner:
         master_host = self._master_addr.split(":")[0]
         base_url = f"http://{master_host}:{self._master_http_port}"
 
-        files_to_download = ["utxo_hash160.bin", "utxo_hash160.idx", "utxo_hash160.bloom"]
+        files_to_download = [
+            "utxo_hash160.bin",
+            "utxo_hash160.idx",
+            "utxo_hash160.bloom",
+        ]
         success = True
 
         for fname in files_to_download:
             local_path = _src_root / fname
             if local_path.exists():
-                _logger.info("[Worker %s] 文件已存在: %s，跳过下载", self._worker_id, fname)
+                _logger.info(
+                    "[Worker %s] 文件已存在: %s，跳过下载", self._worker_id, fname
+                )
                 continue
 
             url = f"{base_url}/api/target/download/{fname}"
@@ -386,7 +418,9 @@ class DistributedScanner:
                 urllib.request.urlretrieve(url, local_path)
                 _logger.info("[Worker %s] 下载完成: %s", self._worker_id, fname)
             except Exception as exc:
-                _logger.error("[Worker %s] 下载失败 %s: %s", self._worker_id, fname, exc)
+                _logger.error(
+                    "[Worker %s] 下载失败 %s: %s", self._worker_id, fname, exc
+                )
                 success = False
 
         return success
@@ -399,7 +433,9 @@ class DistributedScanner:
             return None
         return self._stub.GetAssignment(AssignmentRequest(worker_id=self._worker_id))
 
-    def _send_heartbeat(self, status: str = "scanning", error_message: str = "") -> bool:
+    def _send_heartbeat(
+        self, status: str = "scanning", error_message: str = ""
+    ) -> bool:
         """发送心跳。返回是否成功。"""
         if self._stub is None:
             return False
@@ -458,7 +494,9 @@ class DistributedScanner:
             CHECKPOINT_FILE.write_text(json.dumps(data, indent=2))
             _logger.info("[Worker %s] 本地 checkpoint 已保存", self._worker_id)
         except Exception as exc:
-            _logger.warning("[Worker %s] 保存 checkpoint 失败: %s", self._worker_id, exc)
+            _logger.warning(
+                "[Worker %s] 保存 checkpoint 失败: %s", self._worker_id, exc
+            )
 
     # ── 辅助 ──────────────────────────────────────────
 
@@ -495,13 +533,21 @@ def main() -> None:
         default=8080,
         help="Master HTTP 端口 (FastAPI, default: 8080)",
     )
-    parser.add_argument("--cpu-cores", type=int, default=0, help="CPU 核心数 (default: auto)")
+    parser.add_argument(
+        "--cpu-cores", type=int, default=0, help="CPU 核心数 (default: auto)"
+    )
     parser.add_argument("--no-gpu", action="store_true", help="禁用 GPU 扫描")
-    parser.add_argument("--gpu-devices", type=str, default="", help="GPU 设备索引 (逗号分隔)")
-    parser.add_argument("--gpu-batch-size", type=int, default=65536, help="GPU batch 大小")
+    parser.add_argument(
+        "--gpu-devices", type=str, default="", help="GPU 设备索引 (逗号分隔)"
+    )
+    parser.add_argument(
+        "--gpu-batch-size", type=int, default=65536, help="GPU batch 大小"
+    )
     parser.add_argument("--count", type=int, default=0, help="扫描上限 (0=无限)")
     parser.add_argument("--p2tr", action="store_true", help="启用 P2TR 匹配")
-    parser.add_argument("--xonly-file", type=str, default="", help="P2TR x-only pubkey 文件路径")
+    parser.add_argument(
+        "--xonly-file", type=str, default="", help="P2TR x-only pubkey 文件路径"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
