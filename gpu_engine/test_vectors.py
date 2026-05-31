@@ -60,7 +60,7 @@ def main():
     ]
     vec_file = Path(__file__).parent / "kernel_test_vectors.json"
     vec_file.write_text(json.dumps(vec, indent=2), encoding="utf-8")
-    print(f"测试向量已保存至: {vec_file}")
+    print(f"Test vectors saved to: {vec_file}")
 
 
 if __name__ == "__main__":
