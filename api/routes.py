@@ -132,9 +132,7 @@ async def get_results(
     db = get_db()
     try:
         total = db.count_results(address_type=address_type)
-        items = db.list_results(
-            limit=limit, offset=offset, address_type=address_type
-        )
+        items = db.list_results(limit=limit, offset=offset, address_type=address_type)
     except Exception as exc:
         return {"error": str(exc), "total": 0, "items": []}
 
@@ -146,10 +144,7 @@ async def get_results(
         else:
             item["privkey_hex_short"] = pk
         # 截断 WIF
-        wif = (
-            item.get("wif_compressed", "")
-            or item.get("wif_uncompressed", "")
-        )
+        wif = item.get("wif_compressed", "") or item.get("wif_uncompressed", "")
         if len(wif) > 16:
             item["wif_short"] = wif[:8] + "..." + wif[-8:]
         else:

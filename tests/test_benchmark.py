@@ -33,7 +33,11 @@ def _make_utxo(tmp_dir: Path, n: int = 10) -> dict[str, Any]:
         idx[f"{fb:02x}"] = [ii[0], ii[-1], False] if ii else [0, -1, True]
     idx_p = tmp_dir / "utxo_hash160.idx"
     idx_p.write_text(json.dumps({"total": n, "index": idx}))
-    return {"bin": str(bin_p), "idx": str(idx_p), "bloom": str(tmp_dir / "utxo_hash160.bloom")}
+    return {
+        "bin": str(bin_p),
+        "idx": str(idx_p),
+        "bloom": str(tmp_dir / "utxo_hash160.bloom"),
+    }
 
 
 # ── CPU 基准测试 ──────────────────────────────────────────────

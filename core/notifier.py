@@ -18,7 +18,7 @@ import ssl
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from email.mime.text import MIMEText
-from typing import Any, Optional
+from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Collision Engine Dashboard</title>
     <style>
-        /* ── Reset & Base ────────────────────────────────── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -16,8 +15,6 @@
         }
         a { color: #58a6ff; text-decoration: none; }
         a:hover { text-decoration: underline; }
-
-        /* ── Layout ──────────────────────────────────────── */
         .container { max-width: 1400px; margin: 0 auto; }
 
         /* ── Header ──────────────────────────────────────── */
@@ -38,17 +35,9 @@
             padding: 6px 16px; border-radius: 20px;
             font-size: 13px; font-weight: 600;
         }
-        .status-badge.running {
-            background: rgba(46, 213, 115, 0.15); color: #2ed573;
-            border: 1px solid rgba(46, 213, 115, 0.3);
-        }
-        .status-badge.stopped {
-            background: rgba(255, 71, 87, 0.15); color: #ff4757;
-            border: 1px solid rgba(255, 71, 87, 0.3);
-        }
-        .status-dot {
-            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-        }
+        .status-badge.running { background: rgba(46, 213, 115, 0.15); color: #2ed573; border: 1px solid rgba(46, 213, 115, 0.3); }
+        .status-badge.stopped { background: rgba(255, 71, 87, 0.15); color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.3); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .status-dot.running { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
         .status-dot.stopped { background: #ff4757; }
         .header .links { display: flex; gap: 16px; font-size: 13px; }
@@ -66,10 +55,7 @@
             position: relative; overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
         .stat-card .label {
             font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
             color: #8b93b0; margin-bottom: 8px;
@@ -82,9 +68,7 @@
         .stat-card .value.green { color: #2ed573; }
         .stat-card .value.blue { color: #58a6ff; }
         .stat-card .value.purple { color: #a855f7; }
-        .stat-card .sub {
-            font-size: 11px; color: #5a6280; margin-top: 4px;
-        }
+        .stat-card .sub { font-size: 11px; color: #5a6280; margin-top: 4px; }
         .stat-card::after {
             content: ''; position: absolute; top: 0; left: 0;
             width: 100%; height: 3px;
@@ -95,7 +79,16 @@
         .stat-card.card-collisions::after { background: linear-gradient(90deg, #a855f7, #d946ef); }
         .stat-card.card-target::after { background: linear-gradient(90deg, #f97316, #ef4444); }
 
-        /* ── Results Table ────────────────────────────────── */
+        /* ── Chart ───────────────────────────────────────── */
+        .chart-container {
+            background: #161b2e; border: 1px solid #2a3050;
+            border-radius: 12px; padding: 16px; margin-bottom: 24px;
+        }
+        .chart-container canvas {
+            width: 100%; height: 200px; display: block;
+        }
+
+        /* ── Results Table ───────────────────────────────── */
         .section { margin-bottom: 24px; }
         .section-title {
             font-size: 16px; font-weight: 600; margin-bottom: 12px;
@@ -137,9 +130,7 @@
             color: #c0c8e0; padding: 6px 14px; border-radius: 6px;
             cursor: pointer; font-size: 13px; transition: all 0.2s;
         }
-        .pagination button:hover:not(:disabled) {
-            background: #2a3050; border-color: #58a6ff;
-        }
+        .pagination button:hover:not(:disabled) { background: #2a3050; border-color: #58a6ff; }
         .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
         .pagination .info { color: #5a6280; font-size: 13px; }
 
@@ -150,9 +141,7 @@
             display: flex; gap: 32px; flex-wrap: wrap;
         }
         .target-info .item { display: flex; align-items: center; gap: 8px; }
-        .target-info .item .dot {
-            width: 6px; height: 6px; border-radius: 50%;
-        }
+        .target-info .item .dot { width: 6px; height: 6px; border-radius: 50%; }
         .target-info .item .dot.loaded { background: #2ed573; }
         .target-info .item .dot.unloaded { background: #ff4757; }
         .target-info .item .num { color: #e0e6ed; font-weight: 600; }
@@ -167,10 +156,7 @@
             width: 6px; height: 6px; border-radius: 50%;
             background: #2ed573; animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         /* ── Responsive ────────────────────────────────────── */
         @media (max-width: 768px) {
@@ -179,6 +165,7 @@
             .stat-card .value { font-size: 22px; }
             th, td { padding: 8px 10px; font-size: 12px; }
             .target-info { gap: 16px; }
+            .chart-container canvas { height: 140px; }
         }
     </style>
 </head>
@@ -188,20 +175,18 @@
     <!-- Header -->
     <div class="header">
         <div style="display:flex;align-items:center;gap:12px;">
-            <h1>⚡ Collision Engine</h1>
+            <h1>Collision Engine</h1>
             <span id="statusBadge" class="status-badge {{ 'running' if stats.get('engine_running') else 'stopped' }}">
                 <span id="statusDot" class="status-dot {{ 'running' if stats.get('engine_running') else 'stopped' }}"></span>
                 <span id="statusText">{{ 'Running' if stats.get('engine_running') else 'Stopped' }}</span>
             </span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;">
-            <div class="refresh-indicator">
-                <span class="refresh-dot"></span>
-                <span>实时更新</span>
-            </div>
+            <div class="refresh-indicator"><span class="refresh-dot"></span><span>实时更新</span></div>
             <div class="links">
                 <a href="/api/stats">/api/stats</a>
                 <a href="/api/health">/api/health</a>
+                <a href="/api/status">/api/status</a>
             </div>
         </div>
     </div>
@@ -220,8 +205,14 @@
         </div>
         <div class="stat-card card-time">
             <div class="label">运行时间</div>
-            <div class="value green" id="elapsedTime">{{ "{:.1f}".format(stats.get('elapsed_seconds', 0)) }}</div>
-            <div class="sub">秒</div>
+            <div class="value green" id="elapsedTime">
+                {% set secs = stats.get('elapsed_seconds', 0) | int %}
+                {% set h = secs // 3600 %}
+                {% set m = (secs % 3600) // 60 %}
+                {% set s = secs % 60 %}
+                {{ "%02d:%02d:%02d"|format(h, m, s) }}
+            </div>
+            <div class="sub">HH:MM:SS</div>
         </div>
         <div class="stat-card card-collisions">
             <div class="label">碰撞命中</div>
@@ -230,14 +221,18 @@
         </div>
         <div class="stat-card card-target">
             <div class="label">目标地址</div>
-            <div class="value gold" id="targetCount">
-                {{ "{:,}".format(stats.get('target_count', {}).get('hash160', 0)) }}
-            </div>
+            <div class="value gold" id="targetCount">{{ "{:,}".format(stats.get('target_count', {}).get('hash160', 0)) }}</div>
             <div class="sub">Hash160 in UTXO set</div>
         </div>
     </div>
 
-    <!-- Target Info -->
+    <!-- Real-time Chart -->
+    <div class="chart-container">
+        <div class="section-title">扫描速率趋势 (keys/s, 近 2 分钟)</div>
+        <canvas id="rateChart"></canvas>
+    </div>
+
+    <!-- Target Info & GPU Info -->
     <div class="target-info" id="targetInfo">
         <div class="item">
             <span class="dot {{ 'loaded' if stats.get('target_count', {}).get('hash160_loaded') else 'unloaded' }}"></span>
@@ -252,6 +247,10 @@
         <div class="item">
             <span class="desc">引擎模式:</span>
             <span class="num" id="engineMode">{{ stats.get('engine_mode', 'unknown') }}</span>
+        </div>
+        <div class="item" id="gpuInfoItem" style="display:none;">
+            <span class="desc">GPU:</span>
+            <span class="num" id="gpuInfo"></span>
         </div>
     </div>
 
@@ -271,9 +270,7 @@
                     </tr>
                 </thead>
                 <tbody id="resultsBody">
-                    <tr class="empty-row">
-                        <td colspan="6">加载中...</td>
-                    </tr>
+                    <tr class="empty-row"><td colspan="6">加载中...</td></tr>
                 </tbody>
             </table>
             <div class="pagination">
@@ -291,31 +288,143 @@
     let currentPage = 0;
     const PAGE_SIZE = 50;
 
+    // Chart state: last 120 seconds of data
+    const CHART_POINTS = 60; // 60 points × 2s interval = 120s window
+    const chartData = new Float64Array(CHART_POINTS);
+    let chartIndex = 0;
+    let chartCount = 0;
+
+    // ── Formatting ──────────────────────────────────────────
+    function fmtNum(n) { return Number(n).toLocaleString(); }
+    function fmtFloat(n, d) { return Number(n).toFixed(d || 1); }
+    function fmtTime(secs) {
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = Math.floor(secs % 60);
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    // ── Canvas Chart ──────────────────────────────────────────
+    function drawChart() {
+        const canvas = document.getElementById('rateChart');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = 200 * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = '200px';
+
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        if (chartCount === 0) {
+            ctx.fillStyle = '#5a6280';
+            ctx.font = Math.round(14 * dpr) + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('暂无数据', W / 2, H / 2);
+            return;
+        }
+
+        const padding = { top: 10 * dpr, right: 10 * dpr, bottom: 25 * dpr, left: 55 * dpr };
+        const plotW = W - padding.left - padding.right;
+        const plotH = H - padding.top - padding.bottom;
+
+        // Find max
+        let maxVal = 0;
+        const n = Math.min(chartCount, CHART_POINTS);
+        for (let i = 0; i < n; i++) {
+            const idx = (chartIndex - n + i + CHART_POINTS) % CHART_POINTS;
+            const v = chartData[idx];
+            if (v > maxVal) maxVal = v;
+        }
+        if (maxVal === 0) maxVal = 1;
+
+        // Grid lines
+        ctx.strokeStyle = '#1e2440';
+        ctx.lineWidth = 1 * dpr;
+        const gridLines = 4;
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + plotH - (i / gridLines) * plotH;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(padding.left + plotW, y);
+            ctx.stroke();
+        }
+
+        // Y-axis labels
+        ctx.fillStyle = '#5a6280';
+        ctx.font = Math.round(11 * dpr) + 'px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + plotH - (i / gridLines) * plotH;
+            const val = (maxVal * i / gridLines);
+            ctx.fillText(fmtFloat(val, val < 1 ? 3 : (val < 100 ? 1 : 0)), padding.left - 6 * dpr, y);
+        }
+
+        // Line chart
+        if (n >= 2) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#f7931a';
+            ctx.lineWidth = 2 * dpr;
+            ctx.lineJoin = 'round';
+
+            for (let i = 0; i < n; i++) {
+                const idx = (chartIndex - n + i + CHART_POINTS) % CHART_POINTS;
+                const x = padding.left + (i / (n - 1)) * plotW;
+                const y = padding.top + plotH - (chartData[idx] / maxVal) * plotH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Fill area under curve
+            const lastIdx = (chartIndex - 1 + CHART_POINTS) % CHART_POINTS;
+            const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + plotH);
+            grad.addColorStop(0, 'rgba(247, 147, 26, 0.2)');
+            grad.addColorStop(1, 'rgba(247, 147, 26, 0.0)');
+            ctx.lineTo(padding.left + plotW, padding.top + plotH);
+            ctx.lineTo(padding.left, padding.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        // Current value label
+        if (n > 0) {
+            const lastVal = chartData[(chartIndex - 1 + CHART_POINTS) % CHART_POINTS];
+            ctx.fillStyle = '#f7931a';
+            ctx.font = 'bold ' + Math.round(12 * dpr) + 'px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(fmtFloat(lastVal, 1) + ' keys/s', padding.left + 4 * dpr, padding.top + plotH);
+        }
+    }
+
     // ── Stats Update ──────────────────────────────────────────
-    function fmtNum(n) {
-        return Number(n).toLocaleString();
-    }
-
-    function fmtFloat(n, d) {
-        return Number(n).toFixed(d || 1);
-    }
-
     function updateStats(data) {
-        document.getElementById('keysPerSecond').textContent = fmtFloat(data.keys_per_second, 1);
+        const kps = data.keys_per_second || 0;
+        document.getElementById('keysPerSecond').textContent = fmtFloat(kps, 1);
         document.getElementById('totalKeys').textContent = fmtNum(data.total_keys);
-        document.getElementById('elapsedTime').textContent = fmtFloat(data.elapsed_seconds, 1);
+        document.getElementById('elapsedTime').textContent = fmtTime(data.elapsed_seconds || 0);
         document.getElementById('totalCollisions').textContent = fmtNum(data.total_collisions);
 
-        // 状态
-        const running = data.engine_running;
-        const badge = document.getElementById('statusBadge');
-        const dot = document.getElementById('statusDot');
-        const text = document.getElementById('statusText');
-        badge.className = 'status-badge ' + (running ? 'running' : 'stopped');
-        dot.className = 'status-dot ' + (running ? 'running' : 'stopped');
-        text.textContent = running ? 'Running' : 'Stopped';
+        // Push chart data
+        chartData[chartIndex] = kps;
+        chartIndex = (chartIndex + 1) % CHART_POINTS;
+        if (chartCount < CHART_POINTS) chartCount++;
+        drawChart();
 
-        // 目标信息
+        // Status
+        const running = data.engine_running;
+        document.getElementById('statusBadge').className = 'status-badge ' + (running ? 'running' : 'stopped');
+        document.getElementById('statusDot').className = 'status-dot ' + (running ? 'running' : 'stopped');
+        document.getElementById('statusText').textContent = running ? 'Running' : 'Stopped';
+
+        // Target info
         if (data.target_count) {
             document.getElementById('hash160Count').textContent = fmtNum(data.target_count.hash160);
             document.getElementById('xonlyCount').textContent = fmtNum(data.target_count.xonly || 0);
@@ -325,11 +434,31 @@
         }
     }
 
+    // ── GPU Info Fetch ─────────────────────────────────────────
+    async function fetchGpuInfo() {
+        try {
+            const resp = await fetch('/api/status');
+            const status = await resp.json();
+            const gpu = status.gpu_info;
+            if (gpu && Object.keys(gpu).length > 0) {
+                const el = document.getElementById('gpuInfo');
+                if (gpu.device_name) {
+                    const units = gpu.compute_units || '?';
+                    const mem = gpu.global_mem_size ? (gpu.global_mem_size / 1e9).toFixed(1) + ' GB' : '?';
+                    el.textContent = gpu.device_name + ' (' + units + ' CU, ' + mem + ')';
+                } else {
+                    el.textContent = JSON.stringify(gpu);
+                }
+                document.getElementById('gpuInfoItem').style.display = 'flex';
+            }
+        } catch (_) { /* GPU info unavailable */ }
+    }
+
     // ── Results Fetch ─────────────────────────────────────────
     async function fetchResults(page) {
         const offset = page * PAGE_SIZE;
         try {
-            const resp = await fetch(`/api/results?limit=${PAGE_SIZE}&offset=${offset}`);
+            const resp = await fetch('/api/results?limit=' + PAGE_SIZE + '&offset=' + offset);
             const data = await resp.json();
             renderResults(data);
         } catch (e) {
@@ -354,7 +483,6 @@
             updatePagination(data.total || 0);
             return;
         }
-
         let html = '';
         for (const item of data.items) {
             const ts = (item.timestamp || '').substring(0, 19).replace('T', ' ');
@@ -391,17 +519,19 @@
             const resp = await fetch('/api/stats');
             const data = await resp.json();
             updateStats(data);
-        } catch (e) {
-            // 静默失败
-        }
+        } catch (_) { /* silent */ }
     }
 
-    // ── WebSocket (fallback for future use) ───────────────────
-    // Optional: can be enabled when server supports WS
-    // const ws = new WebSocket('ws://' + location.host + '/ws');
+    // ── Resize handler ──────────────────────────────────────
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(drawChart, 200);
+    });
 
     // ── Init ──────────────────────────────────────────────────
     fetchResults(0);
+    fetchGpuInfo();
     setInterval(pollStats, 2000);
 </script>
 </body>

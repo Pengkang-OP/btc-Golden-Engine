@@ -184,7 +184,9 @@ def parse():
     total_x = sum(len(b) // 32 for b in buckets)
     rate = f"{parsed / elapsed:,.0f}" if elapsed > 0 else "N/A"
     print(f"\n  解析完成: {elapsed:.0f}s  {rate} outputs/s")
-    print(f"  P2TR x-only 提取: {total_x:,}  (compact={p2tr_compact:,}  raw={p2tr_raw:,})")
+    print(
+        f"  P2TR x-only 提取: {total_x:,}  (compact={p2tr_compact:,}  raw={p2tr_raw:,})"
+    )
     print(f"  Zero amount: {zero_amount:,}  错误: {errs}")
 
     stats = {
@@ -272,7 +274,7 @@ def main():
 
     n = stats["total"]
     if n > 0:
-        print(f"\n  [OK] P2TR 数据准备就绪!")
+        print("\n  [OK] P2TR 数据准备就绪!")
         print(f"  P2TR x-only: {n:,}")
         print(f"  碰撞概率提升: +{n / 93_283_974 * 100:.0f}%")
     else:

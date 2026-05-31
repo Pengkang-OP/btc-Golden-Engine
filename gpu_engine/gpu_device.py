@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -51,9 +50,7 @@ def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
     try:
         import pyopencl as cl
     except ImportError:
-        logger.warning(
-            "[GPU] pyopencl 未安装。使用 pip install pyopencl 安装。"
-        )
+        logger.warning("[GPU] pyopencl 未安装。使用 pip install pyopencl 安装。")
         return []
 
     type_map = {

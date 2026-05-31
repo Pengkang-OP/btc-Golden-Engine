@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import time
 import threading
 from dataclasses import dataclass
@@ -159,9 +158,7 @@ class GPUBatchScheduler:
                 if not self.config.quiet:
                     logger.info("  [%d] %s [OK]", i, dev_info.device_name)
             except Exception as e:
-                logger.error(
-                    "  [%d] %s [FAIL]: %s", i, dev_info.device_name, e
-                )
+                logger.error("  [%d] %s [FAIL]: %s", i, dev_info.device_name, e)
                 self._workers.append(WorkerResult(device_name=str(dev_info)))
 
         return len(self._pipelines) > 0
@@ -198,9 +195,7 @@ class GPUBatchScheduler:
                 with self._lock:
                     worker.errors += 1
                 if not self.config.quiet:
-                    logger.error(
-                        "\n[GPU][%d] 错误: %s", pipe_index, e
-                    )
+                    logger.error("\n[GPU][%d] 错误: %s", pipe_index, e)
                 # 出错时短暂暂停
                 self._stop_event.wait(1.0)
                 if self._stop_event.is_set():
@@ -248,7 +243,8 @@ class GPUBatchScheduler:
         """记录运行汇总。"""
         logger.info(
             "\n%s\n  GPU 碰撞扫描结果\n%s",
-            "=" * 60, "=" * 60,
+            "=" * 60,
+            "=" * 60,
         )
         for i, w in enumerate(self._workers):
             rate = w.keys_checked / w.total_elapsed if w.total_elapsed > 0 else 0
@@ -256,9 +252,12 @@ class GPUBatchScheduler:
                 "  [%d] %s\n"
                 "       检查: %s | 命中: %d\n"
                 "       速率: %s keys/s | 错误: %d",
-                i, w.device_name,
-                f"{w.keys_checked:,}", w.hits,
-                f"{rate:,.0f}", w.errors,
+                i,
+                w.device_name,
+                f"{w.keys_checked:,}",
+                w.hits,
+                f"{rate:,.0f}",
+                w.errors,
             )
 
         total_rate = self._total_checked / total_time if total_time > 0 else 0

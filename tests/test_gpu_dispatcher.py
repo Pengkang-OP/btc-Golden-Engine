@@ -9,10 +9,7 @@
 from __future__ import annotations
 
 import logging
-import threading
-import time
-from dataclasses import asdict
-from typing import Any, Generator
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -37,6 +34,7 @@ from gpu_engine.gpu_device import DeviceInfo  # noqa: E402
 # 辅助：构造伪造的 DeviceInfo
 # ═══════════════════════════════════════════════════════════
 
+
 def _fake_device_info(name: str = "Mock GPU", units: int = 16) -> DeviceInfo:
     return DeviceInfo(
         platform_name="MockPlatform",
@@ -57,6 +55,7 @@ def _fake_device_info(name: str = "Mock GPU", units: int = 16) -> DeviceInfo:
 # ═══════════════════════════════════════════════════════════
 # DispatcherConfig
 # ═══════════════════════════════════════════════════════════
+
 
 class TestDispatcherConfig:
     def test_defaults(self) -> None:
@@ -101,6 +100,7 @@ class TestDispatcherConfig:
 # WorkerResult
 # ═══════════════════════════════════════════════════════════
 
+
 class TestWorkerResult:
     def test_defaults(self) -> None:
         w = WorkerResult(device_name="Test GPU")
@@ -127,6 +127,7 @@ class TestWorkerResult:
 # ═══════════════════════════════════════════════════════════
 # GPUBatchScheduler — _resolve_device_indices 静态方法
 # ═══════════════════════════════════════════════════════════
+
 
 class TestResolveDeviceIndices:
     """_resolve_device_indices 静态方法（需 mock pyopencl）。"""
@@ -180,13 +181,16 @@ def _make_platforms(
         driver_version = "1.0"
         available = True
         platform = mock.MagicMock()
+
         def __repr__(self) -> str:
             return "FakeDev"
 
     class FakePlatform:
         name = "MockPlatform"
+
         def __init__(self, n_gpu: int):
             self._devices = [FakeDev() for _ in range(n_gpu)]
+
         def get_devices(self) -> list[FakeDev]:
             return self._devices
 
@@ -206,6 +210,7 @@ def _make_platforms(
 # GPUBatchScheduler — initialize
 # ═══════════════════════════════════════════════════════════
 
+
 class TestInitialize:
     def test_initialize_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _make_platforms(monkeypatch, n_platforms=1, n_gpu=2)
@@ -222,10 +227,13 @@ class TestInitialize:
         assert scheduler.initialize() is False
         assert len(scheduler._pipelines) == 0
 
-    def test_initialize_sequential_partition(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_initialize_sequential_partition(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         _make_platforms(monkeypatch, n_platforms=1, n_gpu=3)
-        cfg = DispatcherConfig(quiet=True, mode="sequential", sequential_start=100,
-                                batch_size=64)
+        cfg = DispatcherConfig(
+            quiet=True, mode="sequential", sequential_start=100, batch_size=64
+        )
         scheduler = GPUBatchScheduler(cfg)
         assert scheduler.initialize() is True
         assert len(scheduler._pipelines) == 3
@@ -233,12 +241,13 @@ class TestInitialize:
         for i, pipe in enumerate(scheduler._pipelines):
             assert pipe.sequential_start == 100 + i * 64, f"GPU {i} wrong start"
 
-    def test_initialize_pipeline_failure_continues(self, monkeypatch: pytest.MonkeyPatch,
-                                                   caplog: pytest.LogCaptureFixture) -> None:
+    def test_initialize_pipeline_failure_continues(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         _make_platforms(monkeypatch, n_platforms=1, n_gpu=2)
         # 让第一个 GPUPipeline 创建失败
         from gpu_engine import gpu_dispatcher as gd
-        orig_pipeline = gd.GPUPipeline
+
         call_count = 0
 
         class FailingPipeline:
@@ -261,19 +270,25 @@ class TestInitialize:
 # GPUBatchScheduler — run / stop / close
 # ═══════════════════════════════════════════════════════════
 
+
 class TestRunStopClose:
     @pytest.fixture
-    def initialized_scheduler(self, monkeypatch: pytest.MonkeyPatch) -> GPUBatchScheduler:
+    def initialized_scheduler(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> GPUBatchScheduler:
         """构建一个 initialize 成功的 scheduler（mock GPU 依赖）。"""
         import gpu_engine.gpu_dispatcher as gd
+
         _make_platforms(monkeypatch, n_platforms=1, n_gpu=2)
 
         class MockPipeline:
             sequential_start = 0
             sequential_stride = 0
+
             def __init__(self, **kwargs: Any) -> None:
                 self.sequential_start = kwargs.get("sequential_start", 0)
                 self.sequential_stride = kwargs.get("sequential_stride", 0)
+
             def close(self) -> None:
                 pass
 
@@ -285,7 +300,8 @@ class TestRunStopClose:
         return sched
 
     def test_run_returns_worker_results(
-        self, initialized_scheduler: GPUBatchScheduler,
+        self,
+        initialized_scheduler: GPUBatchScheduler,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """mock _worker_loop 直接写入 keys_checked，避免线程时序问题。"""
@@ -298,9 +314,7 @@ class TestRunStopClose:
             worker.hits = 0
             sched_self._total_checked += 128
 
-        monkeypatch.setattr(
-            gd.GPUBatchScheduler, "_worker_loop", mock_worker_loop
-        )
+        monkeypatch.setattr(gd.GPUBatchScheduler, "_worker_loop", mock_worker_loop)
         workers = initialized_scheduler.run()
         assert len(workers) == 2
         for w in workers:
@@ -308,20 +322,20 @@ class TestRunStopClose:
             assert w.total_elapsed > 0
 
     def test_run_respects_total_keys(
-        self, initialized_scheduler: GPUBatchScheduler,
+        self,
+        initialized_scheduler: GPUBatchScheduler,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """mock _worker_loop 验证总调用次数。"""
         import gpu_engine.gpu_dispatcher as gd
+
         call_count = 0
 
         def mock_worker_loop(sched_self: Any, pipe_index: int) -> None:
             nonlocal call_count
             call_count += 1
 
-        monkeypatch.setattr(
-            gd.GPUBatchScheduler, "_worker_loop", mock_worker_loop
-        )
+        monkeypatch.setattr(gd.GPUBatchScheduler, "_worker_loop", mock_worker_loop)
         workers = initialized_scheduler.run()
         assert len(workers) == 2
         assert call_count == 2
@@ -359,15 +373,18 @@ class TestRunStopClose:
 # GPUBatchScheduler — _print_summary
 # ═══════════════════════════════════════════════════════════
 
+
 class TestPrintSummary:
     def test_logs_summary(self, caplog: pytest.LogCaptureFixture) -> None:
         cfg = DispatcherConfig(quiet=False)
         scheduler = GPUBatchScheduler(cfg)
         scheduler._workers = [
-            WorkerResult(device_name="GPU-0", keys_checked=5000, total_elapsed=2.0,
-                         hits=1),
-            WorkerResult(device_name="GPU-1", keys_checked=3000, total_elapsed=1.5,
-                         hits=0),
+            WorkerResult(
+                device_name="GPU-0", keys_checked=5000, total_elapsed=2.0, hits=1
+            ),
+            WorkerResult(
+                device_name="GPU-1", keys_checked=3000, total_elapsed=1.5, hits=0
+            ),
         ]
         scheduler._total_checked = 8000
         scheduler._total_hits = 1

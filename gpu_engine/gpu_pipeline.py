@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import time
 import numpy as np
 from pathlib import Path
@@ -22,8 +21,8 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-from .gpu_device import DeviceInfo
-from .tdr_handler import TDRConfig, KernelTimer, is_tdr_error
+from .gpu_device import DeviceInfo  # noqa: E402
+from .tdr_handler import TDRConfig, KernelTimer, is_tdr_error  # noqa: E402
 
 KERNEL_SRC_FILE = Path(__file__).parent / "gpu_kernel.h"
 
@@ -86,7 +85,9 @@ class GPUPipeline:
 
         self._init_opencl(device_index, platform_index)
 
-    def _init_opencl(self, device_index: int | None, platform_index: int | None) -> None:
+    def _init_opencl(
+        self, device_index: int | None, platform_index: int | None
+    ) -> None:
         """初始化 OpenCL 上下文和命令队列。"""
         try:
             import pyopencl as cl
@@ -315,9 +316,7 @@ class GPUPipeline:
         calib_size = 0
         if self._tdr_safe and not self._timer.is_calibrated and self.batch_size > 256:
             _ran_calib = True
-            calib_size = min(
-                self._tdr_config.calibration_keys, self.batch_size
-            )
+            calib_size = min(self._tdr_config.calibration_keys, self.batch_size)
             try:
                 self._run_sub_batch(0, calib_size)
                 calib_elapsed = time.perf_counter() - t0

@@ -81,8 +81,13 @@ class TestCheckpointError:
 
     def test_raise_and_catch_base(self):
         """验证所有异常可被 CollisionEngineError 统一捕获。"""
-        for exc_cls in [ConfigError, DatabaseError, GPUSetupError,
-                        NotifierError, CheckpointError]:
+        for exc_cls in [
+            ConfigError,
+            DatabaseError,
+            GPUSetupError,
+            NotifierError,
+            CheckpointError,
+        ]:
             try:
                 raise exc_cls("test")
             except CollisionEngineError:

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import time
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +34,11 @@ def _make_utxo(tmp_dir: Path, hash160s: list[bytes]) -> dict[str, Any]:
             idx[f"{fb:02x}"] = [ii[0], ii[-1], False]
     idx_p = tmp_dir / "utxo_hash160.idx"
     idx_p.write_text(json.dumps({"total": len(hash160s), "index": idx}))
-    return {"bin": str(bin_p), "idx": str(idx_p), "bloom": str(tmp_dir / "utxo_hash160.bloom")}
+    return {
+        "bin": str(bin_p),
+        "idx": str(idx_p),
+        "bloom": str(tmp_dir / "utxo_hash160.bloom"),
+    }
 
 
 def _make_xonly(tmp_dir: Path, xonlys: list[bytes]) -> dict[str, Any]:
@@ -58,7 +60,11 @@ def _make_xonly(tmp_dir: Path, xonlys: list[bytes]) -> dict[str, Any]:
             idx[f"{fb:02x}"] = [ii[0], ii[-1], False]
     idx_p = tmp_dir / "utxo_xonly.idx"
     idx_p.write_text(json.dumps({"total": len(xonlys), "index": idx}))
-    return {"bin": str(bin_p), "idx": str(idx_p), "bloom": str(tmp_dir / "utxo_xonly.bloom")}
+    return {
+        "bin": str(bin_p),
+        "idx": str(idx_p),
+        "bloom": str(tmp_dir / "utxo_xonly.bloom"),
+    }
 
 
 def _mk_cfg(tmp_dir: Path) -> Path:
@@ -75,8 +81,14 @@ def _mk_cfg(tmp_dir: Path) -> Path:
     return p
 
 
-def _patch_all(monkeypatch: pytest.MonkeyPatch, ce: Any, ct: Any,
-               tmp_dir: Path, mock: dict, mock_xonly: dict | None = None):
+def _patch_all(
+    monkeypatch: pytest.MonkeyPatch,
+    ce: Any,
+    ct: Any,
+    tmp_dir: Path,
+    mock: dict,
+    mock_xonly: dict | None = None,
+):
     """monkeypatch collision_target 和 collision_engine 的路径常量。"""
     monkeypatch.setattr(ct, "HASH_BIN", Path(mock["bin"]))
     monkeypatch.setattr(ct, "HASH_IDX", Path(mock["idx"]))
@@ -89,9 +101,14 @@ def _patch_all(monkeypatch: pytest.MonkeyPatch, ce: Any, ct: Any,
     monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json")
 
 
-def _init_and_scan(tmp_dir: Path, ce: Any, ct: Any,
-                   start: int = 1, limit: int = 10,
-                   xonly_target: Any = None) -> list[dict[str, Any]]:
+def _init_and_scan(
+    tmp_dir: Path,
+    ce: Any,
+    ct: Any,
+    start: int = 1,
+    limit: int = 10,
+    xonly_target: Any = None,
+) -> list[dict[str, Any]]:
     """初始化引擎、加载目标集、运行扫描、返回碰撞结果列表。"""
     cfg_path = _mk_cfg(tmp_dir)
     ce._init_core(str(cfg_path))

@@ -48,7 +48,7 @@ from typing import Any, Optional
 
 # ── 将项目根加入 sys.path ─────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-_local_pkg = (Path(__file__).resolve().parent / ".local-packages")
+_local_pkg = Path(__file__).resolve().parent / ".local-packages"
 if _local_pkg.is_dir():
     sys.path.insert(0, str(_local_pkg))
 
@@ -116,7 +116,8 @@ def _handle_signal(signum: int, frame: object | None = None) -> None:
 
 
 def _start_config_watcher(
-    config: EngineConfig, interval: float = 5.0,
+    config: EngineConfig,
+    interval: float = 5.0,
     logger: logging.Logger | None = None,
 ) -> None:
     """后台线程：定期检查配置文件是否变更并热重载。"""
@@ -186,9 +187,7 @@ def _run_bitcoin_cli_dumptxoutset(
         True 表示成功，False 表示失败。
     """
     try:
-        logger.info(
-            "[UTXO][刷新] 运行 bitcoin-cli dumptxoutset ..."
-        )
+        logger.info("[UTXO][刷新] 运行 bitcoin-cli dumptxoutset ...")
         result = subprocess.run(
             [
                 bitcoin_cli,
@@ -250,16 +249,16 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         return False
 
     # 2) dumptxoutset
-    if not _run_bitcoin_cli_dumptxoutset(
-        bitcoin_cli, datadir, snapshot_path, logger
-    ):
+    if not _run_bitcoin_cli_dumptxoutset(bitcoin_cli, datadir, snapshot_path, logger):
         _refresh_last_result = "dumptxoutset 失败"
         return False
 
     # 3) 检查快照文件
     if not Path(snapshot_path).is_file():
         _refresh_last_result = "快照文件未生成"
-        logger.error("[UTXO][刷新] dumptxoutset 完成后快照文件不存在: %s", snapshot_path)
+        logger.error(
+            "[UTXO][刷新] dumptxoutset 完成后快照文件不存在: %s", snapshot_path
+        )
         return False
 
     # 4) 提取 Hash160
@@ -333,10 +332,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
     # 8) 更新状态
     old_count = len(_swappable_target) if _swappable_target else 0
     _refresh_last_time = time.time()
-    _refresh_last_result = (
-        f"成功 ({new_count:,} 个 Hash160, "
-        f"之前 {old_count:,})"
-    )
+    _refresh_last_result = f"成功 ({new_count:,} 个 Hash160, 之前 {old_count:,})"
     logger.info(
         "[UTXO][刷新] 目标集已更新: %s 个 Hash160 (之前: %s)",
         f"{new_count:,}" if new_count else "N/A",
@@ -420,9 +416,7 @@ def _init_core(cfg_path: str | None = None) -> None:
     # 若 config_path 有效（从文件加载），启动监视器
     if _config.config_path is not None:
         _start_config_watcher(_config, interval=5.0, logger=_logger)
-        _logger.info(
-            "配置热重载已启动: path=%s, interval=5s", _config.config_path
-        )
+        _logger.info("配置热重载已启动: path=%s, interval=5s", _config.config_path)
 
 
 # ── 哈希工具 ──────────────────────────────────────────────────
@@ -697,7 +691,7 @@ class SequentialCounter:
 def check_single_key(
     privkey_int: int,
     target: object,
-    xonly_target: XOnlySet | None = None,
+    xonly_target: object | None = None,
 ) -> Optional[CollisionResult]:
     """检查一个私钥：推导 2 种 HASH160 + P2TR Tweaked Key → 在 UTXO 集中查询"""
     try:
@@ -761,9 +755,7 @@ def check_single_key(
                 )
 
     except Exception as exc:
-        _logger and _logger.warning(
-            "check_single_key 异常: %s", exc, exc_info=True
-        )
+        _logger and _logger.warning("check_single_key 异常: %s", exc, exc_info=True)
     return None
 
 
@@ -772,7 +764,7 @@ def check_single_key_chain(
     target: object,
     stride_bytes: bytes,
     prev_pubkey_point: object | None = None,
-    xonly_target: XOnlySet | None = None,
+    xonly_target: object | None = None,
 ) -> tuple[Optional[CollisionResult], object | None]:
     """顺序链式检查：利用点加法链加速公钥推导。
 
@@ -889,7 +881,7 @@ def worker_sequential(
     target: object,
     thread_id: int,
     stride_bytes: bytes | None = None,
-    xonly_target: XOnlySet | None = None,
+    xonly_target: object | None = None,
 ) -> int:
     """顺序模式工作线程（点加法链加速）。
 
@@ -959,7 +951,7 @@ def worker_random(
     target: object,
     thread_id: int,
     check_limit: int = 0,
-    xonly_target: XOnlySet | None = None,
+    xonly_target: object | None = None,
 ) -> int:
     """随机模式工作线程"""
     global _global_checked
@@ -997,7 +989,7 @@ def worker_random(
 def _run_gpu_mode(
     target: object,
     args: argparse.Namespace,
-    xonly_target: XOnlySet | None = None,
+    xonly_target: object | None = None,
 ) -> None:
     """GPU 加速的碰撞扫描入口。"""
     # 解析设备索引
@@ -1005,14 +997,10 @@ def _run_gpu_mode(
     if args.gpu_devices:
         try:
             device_indices = [
-                int(s.strip())
-                for s in args.gpu_devices.split(",")
-                if s.strip()
+                int(s.strip()) for s in args.gpu_devices.split(",") if s.strip()
             ]
         except ValueError:
-            _logger.error(
-                "[错误] --gpu-devices 格式无效: %s", args.gpu_devices
-            )
+            _logger.error("[错误] --gpu-devices 格式无效: %s", args.gpu_devices)
             sys.exit(1)
 
     # 顺序模式 checkpoint 恢复
@@ -1025,13 +1013,11 @@ def _run_gpu_mode(
             else int(args.gpu_start, 16)
         )
         cp = load_checkpoint()
-        if (cp.get("mode") == "gpu_sequential"
-                and cp.get("next_key", 0) > seq_start):
+        if cp.get("mode") == "gpu_sequential" and cp.get("next_key", 0) > seq_start:
             seq_start = cp["next_key"]
             total_checked_pre = cp.get("checked", 0)
             _logger.info(
-                "[GPU][恢复] 从 checkpoint 恢复: next_key=0x%064x"
-                " (已检查 %s)",
+                "[GPU][恢复] 从 checkpoint 恢复: next_key=0x%064x (已检查 %s)",
                 seq_start,
                 f"{total_checked_pre:,}",
             )
@@ -1039,9 +1025,7 @@ def _run_gpu_mode(
         _logger.info("[GPU][开始] 顺序扫描 起始: 0x%064x", seq_start)
         _logger.info("        按 Ctrl+C 停止")
         tdr_tag = "TDR 安全" if args.gpu_tdr_safe else "TDR 未保护"
-        _logger.info(
-            "        batch=%s | %s", f"{args.gpu_batch_size:,}", tdr_tag
-        )
+        _logger.info("        batch=%s | %s", f"{args.gpu_batch_size:,}", tdr_tag)
 
     # TDR 诊断（Windows 平台）
     if args.gpu_tdr_safe:
@@ -1089,9 +1073,7 @@ def _run_gpu_mode(
             # 取第一个管道的当前起始值作为下一个检查点的 next_key
             # （多 GPU 时取最小的起始值，此方案保守但安全）
             next_k = min(p.sequential_start for p in scheduler._pipelines)
-            checked = (
-                max(seq_start, total_checked_pre) + scheduler._total_checked
-            )
+            checked = max(seq_start, total_checked_pre) + scheduler._total_checked
             save_checkpoint(
                 {
                     "mode": "gpu_sequential",
@@ -1099,9 +1081,7 @@ def _run_gpu_mode(
                     "checked": checked,
                 }
             )
-            _logger.info(
-                "[GPU][检查点] 已保存 (next_key=0x%064x)", next_k
-            )
+            _logger.info("[GPU][检查点] 已保存 (next_key=0x%064x)", next_k)
     finally:
         scheduler.close()
 
@@ -1114,8 +1094,7 @@ def _report_progress(current_key: int, local_count: int, thread_id: int) -> None
     rate = total / elapsed if elapsed > 0 else 0
     key_str = f"0x{current_key:064x}" if current_key else "random"
     _logger.info(
-        "[进度] T%d | 已检查: %s | 速率: %s keys/s | "
-        "耗时: %.0fs | 当前: %s",
+        "[进度] T%d | 已检查: %s | 速率: %s keys/s | 耗时: %.0fs | 当前: %s",
         thread_id,
         f"{total:,}",
         f"{rate:,.0f}",
@@ -1159,24 +1138,18 @@ def _health_check() -> None:
         )
 
     # UTXO 自动刷新状态
-    refresh_enabled = (
-        _config is not None and _config.enable_utxo_auto_refresh
-    )
+    refresh_enabled = _config is not None and _config.enable_utxo_auto_refresh
     status["checks"]["utxo_refresh"] = {
         "enabled": refresh_enabled,
         "last_refresh_time": (
-            time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.gmtime(_refresh_last_time)
-            )
+            time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(_refresh_last_time))
             if _refresh_last_time > 0
             else "never"
         ),
         "last_result": _refresh_last_result,
     }
     if refresh_enabled and _swappable_target is not None:
-        status["checks"]["utxo_refresh"]["current_count"] = len(
-            _swappable_target
-        )
+        status["checks"]["utxo_refresh"]["current_count"] = len(_swappable_target)
 
     # GPU 可用性
     status["checks"]["gpu"] = {"available": _GPU_AVAILABLE}
@@ -1199,6 +1172,7 @@ def _health_check() -> None:
 
 
 # ── 主入口 ────────────────────────────────────────────────────
+
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     """构建 CLI 参数解析器。"""
@@ -1370,17 +1344,15 @@ def _load_targets(
         xonly_target_set.load(bin_path=xonly_path, quiet=True)
         swappable_xonly = SwappableTarget(initial_set=xonly_target_set)
         _swappable_xonly = swappable_xonly
-        _logger.info(
-            " [OK] 已加载 %s 个 x-only pubkey", f"{len(xonly_target_set):,}"
-        )
+        _logger.info(" [OK] 已加载 %s 个 x-only pubkey", f"{len(xonly_target_set):,}")
 
     return swappable_target, swappable_xonly
 
 
 def _display_banner(
-    target: Hash160Set,
+    target: object,
     args: argparse.Namespace,
-    xonly_target: XOnlySet | None,
+    xonly_target: object | None,
 ) -> None:
     """打印引擎启动 banner。"""
     _logger.info("\n%s", "#" * 70)
@@ -1402,7 +1374,7 @@ def _display_banner(
 def _run_cpu_mode(
     target: object,
     args: argparse.Namespace,
-    xonly_target: XOnlySet | None,
+    xonly_target: object | None,
 ) -> None:
     """运行 CPU 扫描（顺序或随机模式）。包含 checkpoing 恢复/保存逻辑。"""
     global _global_start_time, _global_checked
@@ -1418,12 +1390,9 @@ def _run_cpu_mode(
             )
 
             cp = load_checkpoint()
-            if (cp.get("mode") == "sequential"
-                    and cp.get("next_key", 0) > start_val):
+            if cp.get("mode") == "sequential" and cp.get("next_key", 0) > start_val:
                 start_val = cp["next_key"]
-                _logger.info(
-                    "[恢复] 从 checkpoint 恢复: next_key=0x%064x", start_val
-                )
+                _logger.info("[恢复] 从 checkpoint 恢复: next_key=0x%064x", start_val)
                 _global_checked = cp.get("checked", 0)
 
             _logger.info("[开始] 顺序扫描 起始: 0x%064x", start_val)
@@ -1470,14 +1439,8 @@ def _run_cpu_mode(
             save_checkpoint(
                 {
                     "mode": "sequential",
-                    "next_key": (
-                        counter.current
-                        if hasattr(counter, "current") else 0
-                    ),
-                    "checked": (
-                        counter.checked
-                        if hasattr(counter, "checked") else 0
-                    ),
+                    "next_key": (counter.current if hasattr(counter, "current") else 0),
+                    "checked": (counter.checked if hasattr(counter, "checked") else 0),
                 }
             )
             _logger.info("[检查点] 已保存")
@@ -1565,9 +1528,7 @@ def main() -> None:
         )
     if args.utxo_refresh_interval > 0:
         _config.utxo_refresh_interval = args.utxo_refresh_interval
-        _logger.info(
-            "UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval
-        )
+        _logger.info("UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval)
 
     # ── 健康检查 ──
     if args.health:

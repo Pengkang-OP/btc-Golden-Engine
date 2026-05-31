@@ -20,8 +20,9 @@ class TestTDRConfig:
         assert cfg.calibration_keys == 256
 
     def test_custom_values(self):
-        cfg = TDRConfig(enabled=False, max_kernel_time=0.5,
-                        min_sub_batch=32, calibration_keys=128)
+        cfg = TDRConfig(
+            enabled=False, max_kernel_time=0.5, min_sub_batch=32, calibration_keys=128
+        )
         assert cfg.enabled is False
         assert cfg.max_kernel_time == 0.5
         assert cfg.min_sub_batch == 32

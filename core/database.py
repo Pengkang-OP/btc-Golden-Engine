@@ -77,8 +77,7 @@ class ResultDB:
             """)
             # 索引: 按时间戳排序查询、按地址类型过滤
             self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_timestamp"
-                " ON collisions(timestamp)"
+                "CREATE INDEX IF NOT EXISTS idx_timestamp ON collisions(timestamp)"
             )
             self._conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_address_type"
@@ -188,9 +187,7 @@ class ResultDB:
                        ORDER BY id DESC LIMIT ? OFFSET ?""",
                     (limit, offset),
                 )
-            return [
-                self._row_to_dict(row, cursor) for row in cursor.fetchall()
-            ]
+            return [self._row_to_dict(row, cursor) for row in cursor.fetchall()]
         except sqlite3.Error as exc:
             raise DatabaseError(f"列出碰撞结果失败: {exc}", original=exc) from exc
 

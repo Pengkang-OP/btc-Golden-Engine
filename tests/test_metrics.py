@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from api.metrics import MetricsRegistry, get_registry, reset_registry
 
@@ -23,7 +22,7 @@ class TestMetricsRegistry:
         registry.gauge("temp", 100.0)
         registry.gauge("temp", 200.0)
         output = registry.render()
-        lines = [l for l in output.splitlines() if l.startswith("temp ")]
+        lines = [line for line in output.splitlines() if line.startswith("temp ")]
         assert len(lines) == 1
         assert lines[0] == "temp 200.0"
 
@@ -53,8 +52,8 @@ class TestMetricsRegistry:
         lines = output.strip().split("\n")
         assert len(lines) >= 1
         # 只应有 python_info 行
-        metric_lines = [l for l in lines if not l.startswith("#") and l]
-        assert any(l.startswith("python_info") for l in metric_lines)
+        metric_lines = [line for line in lines if not line.startswith("#") and line]
+        assert any(line.startswith("python_info") for line in metric_lines)
 
     def test_python_info_present(self):
         registry = MetricsRegistry()

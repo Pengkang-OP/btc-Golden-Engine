@@ -11,7 +11,6 @@ Based on working v1, with ONLY these fixes:
 
 import struct
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -385,15 +384,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="从 Bitcoin Core dumptxoutset 快照提取 Hash160",
     )
-    parser.add_argument(
-        "--snapshot", type=str, default=None, help="快照文件路径"
-    )
+    parser.add_argument("--snapshot", type=str, default=None, help="快照文件路径")
     parser.add_argument(
         "--output-bin", type=str, default=None, help="输出二进制文件路径"
     )
-    parser.add_argument(
-        "--output-idx", type=str, default=None, help="输出索引文件路径"
-    )
+    parser.add_argument("--output-idx", type=str, default=None, help="输出索引文件路径")
     args = parser.parse_args()
 
     print("=" * 60)

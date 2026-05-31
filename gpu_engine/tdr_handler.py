@@ -84,9 +84,7 @@ class KernelTimer:
     def calib_count(self) -> int:
         return self._calib_count
 
-    def safe_sub_batch_size(
-        self, max_time_ms: float, min_size: int = 64
-    ) -> int:
+    def safe_sub_batch_size(self, max_time_ms: float, min_size: int = 64) -> int:
         """根据校准数据计算安全的 sub-batch 大小。
 
         Args:

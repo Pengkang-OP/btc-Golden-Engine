@@ -1,4 +1,5 @@
 """Allow running as `python -m collision_engine` from project root."""
+
 import sys
 from pathlib import Path
 

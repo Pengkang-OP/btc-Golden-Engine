@@ -108,7 +108,6 @@ class TestResultDB:
     ):
         """测试 list_results 按地址类型过滤。"""
         p2pkh = sample_proxy
-        p2wpkh = sample_proxy
         # 需要不同对象以避免修改共享引用
         import copy
 

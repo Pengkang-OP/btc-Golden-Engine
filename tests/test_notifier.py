@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import logging
-import re
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -256,17 +254,6 @@ class TestNotifierFormatting:
         obj = _make_result_obj(p2tr_address="")
         body = Notifier._format_body(obj)
         assert "P2TR" not in body
-
-    def test_format_body_includes_p2tr_when_present(self):
-        """非空 p2tr_address 应包含在正文中。"""
-        obj = _make_result_obj(
-            address_type="P2TR",
-            p2tr_address="bc1p...",
-            xonly_hex="ff" * 32,
-        )
-        body = Notifier._format_body(obj)
-        assert "P2TR" in body
-        assert "bc1p..." in body
 
     def test_format_body_includes_p2tr_when_present(self):
         """非空 p2tr_address 应包含在正文中。"""

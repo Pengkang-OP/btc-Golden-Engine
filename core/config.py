@@ -16,7 +16,7 @@ import logging
 import os
 import threading
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -76,6 +76,7 @@ class EngineConfig:
     # ── 内部状态 ──
     _base_dir: Path = field(default_factory=lambda: Path.cwd(), repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _mtime: float = 0.0  # 文件修改时间戳 (check_reload 使用)
 
     def __post_init__(self) -> None:
         """将相对路径转换为基于 _base_dir 的绝对路径。"""
@@ -101,10 +102,6 @@ class EngineConfig:
             val = getattr(self, field_name)
             if val and not Path(val).is_absolute():
                 setattr(self, field_name, str(base / val))
-
-        # 初始化 mtime 跟踪 (check_reload 使用)
-        if not hasattr(self, "_mtime"):
-            object.__setattr__(self, "_mtime", 0)
 
     def check_reload(self) -> bool:
         """检查配置文件是否已更改，若需要则重新加载。
@@ -167,14 +164,11 @@ class EngineConfig:
         raw = json.loads(path.read_text(encoding="utf-8"))
         # 过滤掉私有字段和 config_path (不在 JSON 中)
         filtered = {
-            k: v
-            for k, v in raw.items()
-            if not k.startswith("_") and k != "config_path"
+            k: v for k, v in raw.items() if not k.startswith("_") and k != "config_path"
         }
         config = cls(**filtered)
         config.config_path = path  # 记录配置文件路径用于 hot reload
-        # 初始化 _mtime (check_reload 使用)
-        object.__setattr__(config, "_mtime", path.stat().st_mtime)
+        config._mtime = path.stat().st_mtime
         return config
 
     def save(self, path: Optional[os.PathLike] = None) -> None:

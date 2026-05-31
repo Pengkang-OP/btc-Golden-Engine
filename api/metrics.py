@@ -13,10 +13,6 @@
 
 from __future__ import annotations
 
-import sys
-import time
-from collections import defaultdict
-
 
 class MetricsRegistry:
     """Simple Prometheus-compatible metrics registry.
@@ -31,7 +27,9 @@ class MetricsRegistry:
         self._gauges: dict[str, float] = {}
         self._counters: dict[str, int] = {}
 
-    def gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
+    def gauge(
+        self, name: str, value: float, labels: dict[str, str] | None = None
+    ) -> None:
         """记录 gauge 指标。
 
         Args:

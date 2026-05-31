@@ -27,6 +27,7 @@ for _p in (str(PROJECT_ROOT), str(_LOCAL_PKG)):
 
 class _MockTargetSet:
     """模拟 Hash160Set / XOnlySet。"""
+
     def __init__(self, size: int) -> None:
         self._size = size
 
@@ -78,7 +79,8 @@ def app(
 
     # ── 引擎状态 mock（避免文件 IO，且确保返回默认值）──
     monkeypatch.setattr(
-        api_server, "get_engine_status",
+        api_server,
+        "get_engine_status",
         lambda: {
             "running": False,
             "mode": "unknown",
@@ -90,7 +92,8 @@ def app(
 
     # ── 阻止 startup 事件加载 1.65 GB UTXO 数据 ──
     monkeypatch.setattr(
-        api_server, "load_target_sets",
+        api_server,
+        "load_target_sets",
         lambda: {
             "hash160_loaded": True,
             "hash160_count": 82_469_589,
@@ -132,9 +135,14 @@ class TestDashboard:
         assert resp.status_code == 200
         # 使用低层级存在的渲染标记验证
         lower = resp.text.lower()
-        assert any(kw in lower for kw in (
-            "keys/s", "keys_per_second", "keys per second",
-        ))
+        assert any(
+            kw in lower
+            for kw in (
+                "keys/s",
+                "keys_per_second",
+                "keys per second",
+            )
+        )
 
 
 class TestHealthCheck:
@@ -209,7 +217,9 @@ class TestResults:
         assert data["offset"] == 0
 
     def test_default_pagination(
-        self, client: TestClient, mock_db: Any,
+        self,
+        client: TestClient,
+        mock_db: Any,
     ) -> None:
         """插入 3 条结果后默认返回全部。"""
         self._seed_results(mock_db, 3)
@@ -219,7 +229,9 @@ class TestResults:
         assert len(data["items"]) == 3
 
     def test_limit_offset(
-        self, client: TestClient, mock_db: Any,
+        self,
+        client: TestClient,
+        mock_db: Any,
     ) -> None:
         """分页参数正确生效。"""
         self._seed_results(mock_db, 10)
@@ -237,7 +249,9 @@ class TestResults:
         assert resp.status_code == 422
 
     def test_address_type_filter(
-        self, client: TestClient, mock_db: Any,
+        self,
+        client: TestClient,
+        mock_db: Any,
     ) -> None:
         """address_type 参数过滤有效。"""
         self._seed_results(mock_db, 1, address_type="P2PKH")
@@ -252,7 +266,9 @@ class TestResults:
         assert p2wpkh["items"][0]["address_type"] == "P2WPKH"
 
     def test_privkey_truncation(
-        self, client: TestClient, mock_db: Any,
+        self,
+        client: TestClient,
+        mock_db: Any,
     ) -> None:
         """私钥应被截断显示 (前8+后8)。"""
         self._seed_results(mock_db, 1)
