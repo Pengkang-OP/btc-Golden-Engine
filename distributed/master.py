@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import threading
 import time
 from concurrent import futures
@@ -194,7 +193,6 @@ class WorkerRegistry:
     def alive_workers(self) -> int:
         """存活 worker 数量。"""
         with self._lock:
-            now = time.time()
             return sum(1 for w in self._workers.values() if w.is_alive)
 
     @property

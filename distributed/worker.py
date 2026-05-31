@@ -28,13 +28,13 @@ _local_pkg = _src_root / ".local-packages"
 if _local_pkg.is_dir():
     sys.path.insert(0, str(_local_pkg))
 
-from distributed.protocol_pb2 import (
+from distributed.protocol_pb2 import (  # noqa: E402
     RegisterRequest,
     HeartbeatRequest,
     AssignmentRequest,
     HitReport,
 )
-from distributed.protocol_pb2_grpc import MasterServiceStub
+from distributed.protocol_pb2_grpc import MasterServiceStub  # noqa: E402
 
 _logger = logging.getLogger(__name__)
 
@@ -213,7 +213,6 @@ class DistributedScanner:
         limit = (end_key - start_key) if end_key > 0 else self._count
         total_keys = limit if limit > 0 else self._count
         n_threads = min(self._cpu_cores, max(1, total_keys))
-        chunk_size = total_keys // n_threads + 1
         stride_bytes = n_threads.to_bytes(32, "big")
         acc_lock = threading.Lock()
 
@@ -354,7 +353,6 @@ class DistributedScanner:
 
     def _download_target(self) -> bool:
         """从 Master HTTP 端点下载目标集文件。返回是否成功。"""
-        import hashlib
         import urllib.request
 
         # 获取目标集信息

@@ -62,6 +62,11 @@ collision-engine = "collision_engine:main"
 [tool.setuptools.packages.find]
 include = ["core*", "gpu_engine*", "distributed*"]
 
+[tool.ruff]
+exclude = ["distributed/protocol_pb2.py", "distributed/protocol_pb2_grpc.py"]
+lint.ignore = ["E501"]
+lint.select = ["B", "D3", "E", "F"]
+
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
