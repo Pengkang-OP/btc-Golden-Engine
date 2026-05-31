@@ -48,6 +48,10 @@ MAX_WORKERS = 100  # 最大 worker 数量
 SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 
+# 连续超时次数阈值 — 超过此次数才回收 range（防止网络瞬断误回收）
+MAX_CONSECUTIVE_TIMEOUT = 3
+
+
 class WorkerRegistry:
     """线程安全的 Worker 注册表，管理所有已注册 worker 的状态。"""
 
@@ -57,6 +61,7 @@ class WorkerRegistry:
         self._assignment_size = assignment_size
         self._global_cursor: int = 1  # 全局 key cursor
         self._master_id = f"master-{os.urandom(4).hex()}"
+        self._consecutive_timeout: dict[str, int] = {}  # I03: 累计超时计数
 
     @property
     def master_id(self) -> str:
@@ -107,7 +112,10 @@ class WorkerRegistry:
         status: str,
         error_message: str = "",
     ) -> bool:
-        """更新 worker 心跳。返回 worker 是否存在。"""
+        """更新 worker 心跳。返回 worker 是否存在。
+
+        I03: 收到有效心跳时重置累计超时计数。
+        """
         with self._lock:
             worker = self._workers.get(worker_id)
             if worker is None:
@@ -116,12 +124,17 @@ class WorkerRegistry:
             worker.keys_checked = keys_checked
             worker.status = status
             worker.error_message = error_message
+            self._consecutive_timeout.pop(worker_id, None)  # 收到心跳，重置超时计数
             return True
 
     # ── 任务分配 ──────────────────────────────────────────
 
     def assign_range(self, worker_id: str) -> Optional[Assignment]:
-        """分配下一个 key 范围给 worker。返回 Assignment 或 None（无可用范围）。"""
+        """分配下一个 key 范围给 worker。返回 Assignment 或 None（无可用范围）。
+
+        I02: 分配前先清理掉线 worker 的 range。
+        """
+        self._cleanup_dead_workers()
         with self._lock:
             worker = self._workers.get(worker_id)
             if worker is None:
@@ -143,25 +156,39 @@ class WorkerRegistry:
             return Assignment(start_key=start, end_key=end, cursor=start)
 
     def steal_range(self, worker_id: str) -> Optional[Assignment]:
-        """尝试取回超时 worker 的未完成 range 并重新分配。"""
+        """尝试取回超时 worker 的未完成 range 并重新分配。
+
+        I03: 要求连续超时超过 MAX_CONSECUTIVE_TIMEOUT 次才回收，
+        防止网络瞬断误回收。
+        """
         with self._lock:
             now = time.time()
             for wid, w in list(self._workers.items()):
                 if wid == worker_id:
                     continue
-                if (
-                    w.status == "scanning"
-                    and (now - w.last_heartbeat) > HEARTBEAT_TIMEOUT
-                ):
+                if w.status != "scanning":
+                    continue
+                elapsed = now - w.last_heartbeat
+                if elapsed > HEARTBEAT_TIMEOUT:
+                    # 累计超时计数
+                    cnt = self._consecutive_timeout.get(wid, 0) + 1
+                    self._consecutive_timeout[wid] = cnt
+                    if cnt < MAX_CONSECUTIVE_TIMEOUT:
+                        _logger.warning(
+                            "[Master] Worker %s 心跳超时 %ds (第 %d/%d 次，暂不回收)",
+                            wid, elapsed, cnt, MAX_CONSECUTIVE_TIMEOUT,
+                        )
+                        continue
                     _logger.warning(
-                        "[Master] Worker %s 心跳超时 (%ds)，回收其 range [%d, %d)",
+                        "[Master] Worker %s 连续 %d 次心跳超时 (%ds)，回收其 range [%d, %d)",
                         wid,
+                        cnt,
                         HEARTBEAT_TIMEOUT,
                         w.current_start,
                         w.current_end,
                     )
                     w.status = "error"
-                    w.error_message = "heartbeat timeout"
+                    w.error_message = f"heartbeat timeout ({cnt}x consec)"
                     # 仅当请求方 worker 无活跃范围时，才分配被回收的 range，
                     # 避免覆盖 worker 自身的当前作业范围
                     worker = self._workers.get(worker_id)
@@ -176,6 +203,7 @@ class WorkerRegistry:
                                 self._global_cursor = mid
                         w.current_start = 0
                         w.current_end = 0
+                        self._consecutive_timeout.pop(wid, None)
                         return None  # 由 assign_range 正常分配
                     worker.current_start = w.current_start
                     mid = w.current_start + (w.current_end - w.current_start) // 2
@@ -186,12 +214,50 @@ class WorkerRegistry:
                     worker.status = "scanning"
                     w.current_start = 0
                     w.current_end = 0
+                    self._consecutive_timeout.pop(wid, None)
                     return Assignment(
                         start_key=worker.current_start,
                         end_key=worker.current_end,
                         cursor=worker.current_start,
                     )
             return None
+
+    def _cleanup_dead_workers(self) -> int:
+        """I02: 清理掉线 worker 并回收其 range 到全局 pool。
+
+        遍历所有 worker，将超过心跳超时且未在 steal_range 中被回收的
+        掉线 worker 的 range 归还到 _global_cursor。
+        返回清理掉的 worker 数量。
+        """
+        with self._lock:
+            now = time.time()
+            cleaned = 0
+            for wid, w in list(self._workers.items()):
+                if w.status != "scanning":
+                    continue
+                elapsed = now - w.last_heartbeat
+                if elapsed <= HEARTBEAT_TIMEOUT:
+                    continue
+                cnt = self._consecutive_timeout.get(wid, 0) + 1
+                self._consecutive_timeout[wid] = cnt
+                if cnt < MAX_CONSECUTIVE_TIMEOUT:
+                    continue
+                _logger.warning(
+                    "[Master] Worker %s 持续掉线 (%ds, 第%d次)，清理其 range [%d, %d)",
+                    wid, elapsed, cnt, w.current_start, w.current_end,
+                )
+                # 回收未完成的 range
+                if w.current_start > 0 and w.current_end > w.current_start:
+                    mid = w.current_start + (w.current_end - w.current_start) // 2
+                    if mid > self._global_cursor:
+                        self._global_cursor = mid
+                w.status = "error"
+                w.error_message = f"cleaned up after {cnt}x consec timeout"
+                w.current_start = 0
+                w.current_end = 0
+                self._consecutive_timeout.pop(wid, None)
+                cleaned += 1
+            return cleaned
 
     # ── 查询 ──────────────────────────────────────────────
 
@@ -361,21 +427,44 @@ class MasterService(MasterServiceServicer):
 # ── 启动入口 ──────────────────────────────────────────────
 
 
+CLEANUP_INTERVAL = 15.0  # 周期性清理间隔（秒）
+
+
+def _run_cleanup_loop(registry: WorkerRegistry, stop_event: threading.Event) -> None:
+    """I02: 后台线程周期性清理掉线 worker。"""
+    while not stop_event.is_set():
+        cleaned = registry._cleanup_dead_workers()
+        if cleaned:
+            _logger.info("[Master] 清理了 %d 个掉线 worker", cleaned)
+        stop_event.wait(CLEANUP_INTERVAL)
+
+
 def run_master(
     port: int = DEFAULT_PORT,
     assignment_size: int = DEFAULT_ASSIGNMENT_SIZE,
     max_workers: int = 10,
-) -> grpc.Server:
-    """启动 Master gRPC 服务器。返回 grpc.Server 实例供外部控制生命周期。"""
+) -> tuple[grpc.Server, threading.Event]:
+    """启动 Master gRPC 服务器。返回 (grpc.Server, stop_event) 供外部控制生命周期。
+
+    同时启动后台线程周期性清理掉线 worker。
+    """
     registry = WorkerRegistry(assignment_size=assignment_size)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
     add_MasterServiceServicer_to_server(MasterService(registry), server)
     server.add_insecure_port(f"[::]:{port}")
     server.start()
-    _logger.info(
-        "[Master] gRPC 服务已启动 (port=%d, assignment_size=%d)", port, assignment_size
+    stop_event = threading.Event()
+    cleanup_thread = threading.Thread(
+        target=_run_cleanup_loop, args=(registry, stop_event), daemon=True
     )
-    return server
+    cleanup_thread.start()
+    _logger.info(
+        "[Master] gRPC 服务已启动 (port=%d, assignment_size=%d, cleanup_interval=%ds)",
+        port,
+        assignment_size,
+        CLEANUP_INTERVAL,
+    )
+    return server, stop_event
 
 
 def main() -> None:
@@ -403,7 +492,7 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
-    server = run_master(
+    server, stop_event = run_master(
         port=args.port,
         assignment_size=args.assignment_size,
         max_workers=args.max_workers,
@@ -413,6 +502,7 @@ def main() -> None:
         server.wait_for_termination()
     except KeyboardInterrupt:
         _logger.info("[Master] 用户中断，停止中...")
+        stop_event.set()
         server.stop(grace=5)
 
 

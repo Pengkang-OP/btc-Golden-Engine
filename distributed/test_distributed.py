@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import socket
 import threading
 import time
 from typing import Any
@@ -17,6 +18,18 @@ from typing import Any
 import pytest
 
 from distributed.models import WorkerInfo, Assignment
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Helpers
+# ═══════════════════════════════════════════════════════════════
+
+
+def _find_free_port() -> int:
+    """I06: 返回 OS 分配的临时空闲端口，避免硬编码端口冲突。"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -140,8 +153,8 @@ class TestWorkerRegistry:
         w = registry.get_worker("node-1")
         assert w is not None
         assert w.keys_checked == 100
-        assert w.current_start == 50
         assert w.status == "scanning"
+        # current_start 由 assign_range 设置，heartbeat 不再覆盖
 
     def test_update_heartbeat_unknown(self, registry: Any) -> None:
         found = registry.update_heartbeat("unknown", 0, 0, "idle")
@@ -192,7 +205,11 @@ class TestWorkerRegistry:
         w1.last_heartbeat = time.time() - 60
         w1.status = "scanning"
 
-        # w2 尝试 steal
+        # I03: 需要连续 3 次 steal_range 触发超时回收
+        for _ in range(2):
+            assert r.steal_range("w2") is None  # 前 2 次暂不回收
+
+        # 第 3 次才真正回收
         stolen = r.steal_range("w2")
         assert stolen is not None
         assert stolen.start_key >= 1

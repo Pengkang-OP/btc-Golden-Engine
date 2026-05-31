@@ -54,6 +54,7 @@ class DistributedScanner:
         gpu_enabled: bool = True,
         gpu_devices: str = "",
         gpu_batch_size: int = 65536,
+        gpu_start: int = 0,
         count: int = 0,
         p2tr: bool = False,
         xonly_file: str = "",
@@ -66,6 +67,7 @@ class DistributedScanner:
         self._gpu_enabled = gpu_enabled
         self._gpu_devices = gpu_devices
         self._gpu_batch_size = gpu_batch_size
+        self._gpu_start = gpu_start
         self._count = count
         self._p2tr = p2tr
         self._xonly_file = xonly_file
@@ -80,6 +82,10 @@ class DistributedScanner:
         self._assignment_cursor = 0
         self._heartbeat_interval = HEARTBEAT_INTERVAL
         self._last_heartbeat_time = 0.0
+
+        # 重试退避
+        self._retry_delay = 1.0  # 初始退避秒数
+        self._max_retry_delay = 60.0  # 最大退避秒数
 
     # ── 生命周期 ──────────────────────────────────────────
 
@@ -139,14 +145,16 @@ class DistributedScanner:
                 assignment = self._get_assignment()
                 if assignment is None or not assignment.has_work:
                     _logger.info(
-                        "[Worker %s] 无可用作业，等待 %ds 后重试...",
+                        "[Worker %s] 无可用作业，等待 %.1fs 后重试...",
                         self._worker_id,
-                        10,
+                        self._retry_delay,
                     )
                     self._send_heartbeat(status="idle")
-                    time.sleep(10)
+                    time.sleep(self._retry_delay)
+                    self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
                     continue
 
+                self._retry_delay = 1.0  # 成功获取作业，重置退避
                 start_key = assignment.start_key
                 end_key = assignment.end_key
                 self._current_key = start_key
@@ -167,7 +175,8 @@ class DistributedScanner:
                         "[Worker %s] 目标集加载失败，跳过作业", self._worker_id
                     )
                     self._send_heartbeat(status="error", error_message="目标集加载失败")
-                    time.sleep(10)
+                    time.sleep(self._retry_delay)
+                    self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
                     continue
 
                 # 3. 执行扫描
@@ -186,7 +195,8 @@ class DistributedScanner:
                     "[Worker %s] 扫描异常: %s", self._worker_id, exc, exc_info=True
                 )
                 self._send_heartbeat(status="error", error_message=str(exc))
-                time.sleep(5)
+                time.sleep(self._retry_delay)
+                self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
 
         self._save_local_checkpoint()
         _logger.info(
@@ -204,15 +214,21 @@ class DistributedScanner:
         target,
         xonly_target,
     ) -> None:
-        """扫描指定 key 范围。尝试 GPU 模式，回退到 CPU 模式。"""
+        """扫描指定 key 范围。尝试 GPU 模式，回退到 CPU 模式。
+
+        若指定了 gpu_start（非零），CPU 回退从此值而非 start_key 开始，
+        避免重复扫描 GPU 已处理的部分。
+        """
         from collision_engine import _GPU_AVAILABLE as gpu_available
 
         use_gpu = self._gpu_enabled and gpu_available
 
+        actual_start = max(start_key, self._gpu_start) if self._gpu_start else start_key
+
         if use_gpu:
-            self._scan_gpu(start_key, end_key, target, xonly_target)
+            self._scan_gpu(actual_start, end_key, target, xonly_target)
         else:
-            self._scan_cpu(start_key, end_key, target, xonly_target)
+            self._scan_cpu(actual_start, end_key, target, xonly_target)
 
     def _scan_cpu(self, start_key: int, end_key: int, target, xonly_target) -> None:
         """CPU 模式扫描：多线程 + 点加法链加速。
@@ -543,6 +559,12 @@ def main() -> None:
     parser.add_argument(
         "--gpu-batch-size", type=int, default=65536, help="GPU batch 大小"
     )
+    parser.add_argument(
+        "--gpu-first",
+        type=int,
+        default=0,
+        help="GPU 起始扫描值（非零时 GPU 从此开始，CPU 回退时也使用此值避免重复）",
+    )
     parser.add_argument("--count", type=int, default=0, help="扫描上限 (0=无限)")
     parser.add_argument("--p2tr", action="store_true", help="启用 P2TR 匹配")
     parser.add_argument(
@@ -563,6 +585,7 @@ def main() -> None:
         gpu_enabled=not args.no_gpu,
         gpu_devices=args.gpu_devices,
         gpu_batch_size=args.gpu_batch_size,
+        gpu_start=args.gpu_first,
         count=args.count,
         p2tr=args.p2tr,
         xonly_file=args.xonly_file,
