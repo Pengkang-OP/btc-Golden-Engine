@@ -18,7 +18,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.responses import HTMLResponse, Response
 
-from .server import (
+from .state import (
     get_hash160_set,
     get_xonly_set,
     _jinja_env,

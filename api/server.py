@@ -14,17 +14,14 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sys
-import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncGenerator, Optional
+from typing import AsyncGenerator
 
-import jinja2
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -33,173 +30,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.metrics import get_registry  # noqa: E402
-from core.database import ResultDB  # noqa: E402
-
 # ── 日志 ──────────────────────────────────────────────────────
 logger = logging.getLogger("api.server")
 
-
-# ── 全局共享状态 ──────────────────────────────────────────────
-class EngineStatus:
-    """引擎运行时状态（跨进程共享 via JSON 文件）。"""
-
-    STATUS_FILE = PROJECT_ROOT / "collision_engine_status.json"
-
-    def __init__(self) -> None:
-        """初始化引擎状态缓存，设置缓存超时时间。"""
-        self._last_read: float = 0.0
-        self._cache_timeout: float = 1.0  # 缓存 1 秒
-        self._cached: dict[str, Any] = {}
-        self._cached_ok: bool = False
-
-    def read(self) -> dict[str, Any]:
-        """从状态文件读取引擎当前运行状态。"""
-        now = time.monotonic()
-        if self._cached_ok and (now - self._last_read) < self._cache_timeout:
-            return self._cached
-
-        self._last_read = now
-        try:
-            data = json.loads(self.STATUS_FILE.read_text(encoding="utf-8"))
-            self._cached = data
-            self._cached_ok = True
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            self._cached = {
-                "running": False,
-                "mode": "unknown",
-                "keys_per_second": 0.0,
-                "total_keys": 0,
-                "elapsed_seconds": 0.0,
-                "error": "引擎未运行或状态文件不可用",
-            }
-            self._cached_ok = True
-        return self._cached
-
-    def write(self, data: dict[str, Any]) -> None:  # pragma: no cover
-        """写入引擎状态（由引擎进程调用）。"""
-        try:
-            self.STATUS_FILE.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            logger.warning("写入状态文件失败: %s", exc)
-
-
-# 单例
-_engine_status = EngineStatus()
-
-
-def get_engine_status() -> dict[str, Any]:
-    """返回引擎当前运行状态（含缓存）。"""
-    return _engine_status.read()
-
-
-# ── Hash160 目标集加载 ────────────────────────────────────────
-_hash160_set: Any = None
-_xonly_set: Any = None
-
-
-def get_hash160_set() -> Any:
-    """获取全局 Hash160 目标集引用。"""
-    return _hash160_set
-
-
-def get_xonly_set() -> Any:
-    """获取全局 x-only pubkey 目标集引用。"""
-    return _xonly_set
-
-
-def load_target_sets() -> dict[str, Any]:
-    """尝试加载 Hash160 和 x-only 目标集，返回描述信息。"""
-    global _hash160_set, _xonly_set
-    result: dict[str, Any] = {
-        "hash160_loaded": False,
-        "hash160_count": 0,
-        "xonly_loaded": False,
-        "xonly_count": 0,
-    }
-
-    try:
-        from collision_target import Hash160Set, XOnlySet
-    except ImportError:
-        return result
-
-    # 加载 Hash160
-    try:
-        _hash160_set = Hash160Set()
-        _hash160_set.load(quiet=True)
-        result["hash160_loaded"] = True
-        result["hash160_count"] = len(_hash160_set)
-    except (FileNotFoundError, Exception) as exc:
-        logger.info("Hash160Set 未加载: %s", exc)
-
-    # 加载 x-only
-    try:
-        _xonly_set = XOnlySet()
-        _xonly_set.load(quiet=True)
-        result["xonly_loaded"] = True
-        result["xonly_count"] = len(_xonly_set)
-    except (FileNotFoundError, Exception) as exc:
-        logger.info("XOnlySet 未加载: %s", exc)
-
-    return result
-
-
-# ── WebSocket 连接管理 ───────────────────────────────────────
-_websocket_clients: set[WebSocket] = set()
-
-
-async def broadcast_stats(stats: dict[str, Any]) -> None:
-    """广播统计信息到所有已连接的 WebSocket 客户端。"""
-    dead: list[WebSocket] = []
-    for ws in list(_websocket_clients):
-        try:
-            await ws.send_json(stats)
-        except WebSocketDisconnect:
-            dead.append(ws)
-        except Exception:
-            dead.append(ws)
-    for ws in dead:
-        _websocket_clients.discard(ws)
-
-    # ── 更新 Prometheus 指标 ──
-    registry = get_registry()
-    registry.gauge("keys_per_second", stats.get("keys_per_second", 0.0))
-    registry.gauge("total_keys_scanned", float(stats.get("total_keys", 0)))
-    registry.gauge("collision_count", float(stats.get("total_collisions", 0)))
-    elapsed = stats.get("elapsed_seconds", 0.0)
-    registry.gauge("uptime_seconds", elapsed)
-
-
-# ── Jinja2 模板 ─────────────────────────────────────────────
-_TEMPLATES_DIR = Path(__file__).parent / "templates"
-_jinja_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(str(_TEMPLATES_DIR)),
-    autoescape=True,
-)
-
-# ── 数据库 ──────────────────────────────────────────────────
-_db: Optional[ResultDB] = None
-
-
-def get_db() -> ResultDB:
-    """返回全局 ResultDB 单例（惰性初始化）。"""
-    global _db
-    if _db is None:
-        _db = ResultDB(str(PROJECT_ROOT / "collision_results.db"))
-    return _db
-
-
-# ── 分布式 WorkerRegistry 引用 ──────────────────────────────
-_grpc_server: Any = None
-_worker_registry: Any = None
-
-
-def get_worker_registry() -> Any:
-    """返回全局 WorkerRegistry 实例。"""
-    return _worker_registry
+# ── 共享状态（托管在 state.py 中消除交叉导入） ──────────────
+from . import state as _state  # noqa: E402
+from .metrics import get_registry  # noqa: E402
 
 
 # ── 应用工厂 ────────────────────────────────────────────────
@@ -212,7 +48,7 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
         """应用生命周期管理（替代已弃用的 on_event）。"""
         # startup
         logger.info("API 服务启动中...")
-        target_info = load_target_sets()
+        target_info = _state.load_target_sets()
         logger.info(
             "目标集: Hash160=%s(%d), XOnly=%s(%d)",
             "✓" if target_info["hash160_loaded"] else "✗",
@@ -222,7 +58,6 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
         )
 
         # 可选启动 gRPC Master
-        global _grpc_server, _worker_registry
         if enable_grpc_master:
             try:
                 from concurrent import futures
@@ -233,15 +68,17 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
                 )
                 from .routes import _set_worker_registry
 
-                _worker_registry = WorkerRegistry()
-                _set_worker_registry(_worker_registry)
+                _state._worker_registry = WorkerRegistry()
+                _set_worker_registry(_state._worker_registry)
 
-                _grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-                add_MasterServiceServicer_to_server(
-                    MasterService(_worker_registry), _grpc_server
+                _state._grpc_server = grpc.server(
+                    futures.ThreadPoolExecutor(max_workers=10)
                 )
-                _grpc_server.add_insecure_port(f"[::]:{grpc_port}")
-                _grpc_server.start()
+                add_MasterServiceServicer_to_server(
+                    MasterService(_state._worker_registry), _state._grpc_server
+                )
+                _state._grpc_server.add_insecure_port(f"[::]:{grpc_port}")
+                _state._grpc_server.start()
                 logger.info("gRPC Master 服务已启动 (port=%d)", grpc_port)
             except Exception as exc:
                 logger.warning("gRPC Master 启动失败: %s", exc)
@@ -249,19 +86,18 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
         yield
 
         # shutdown
-        global _db
-        if _grpc_server is not None:
+        if _state._grpc_server is not None:
             try:
-                _grpc_server.stop(grace=5)
+                _state._grpc_server.stop(grace=5)
                 logger.info("gRPC 服务已停止")
             except Exception as exc:
                 logger.warning("gRPC 服务停止异常: %s", exc)
-        if _db is not None:
-            _db.close()
-        if _hash160_set is not None:
-            _hash160_set.close()
-        if _xonly_set is not None:
-            _xonly_set.close()
+        if _state._db is not None:
+            _state._db.close()
+        if _state._hash160_set is not None:
+            _state._hash160_set.close()
+        if _state._xonly_set is not None:
+            _state._xonly_set.close()
         logger.info("API 服务关闭")
 
     app = FastAPI(

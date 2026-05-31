@@ -62,26 +62,27 @@ def app(
 ) -> Generator:
     """创建 patched 后的 FastAPI app 实例。
 
-    在调用 create_app() 前 monkeypatch api.server 的全变量，
+    在调用 create_app() 前 monkeypatch api.state 的全变量，
     使得 routes.py 首次 import 时拿到 patched 引用。
     """
     import api.server as api_server
+    import api.state as api_state
 
     # ── 强制 routes.py 重新导入（清除 sys.modules 缓存）──
-    #    确保 routes.py 的 from .server import _hash160_set 拿到 patched 值
+    #    确保 routes.py 的 from .state import ... 拿到 patched 值
     sys.modules.pop("api.routes", None)
 
     # ── 数据库 ──
-    monkeypatch.setattr(api_server, "get_db", lambda: mock_db)
-    monkeypatch.setattr(api_server, "_db", mock_db)
+    monkeypatch.setattr(api_state, "get_db", lambda: mock_db)
+    monkeypatch.setattr(api_state, "_db", mock_db)
 
     # ── 目标集 mock ──
-    monkeypatch.setattr(api_server, "_hash160_set", _MockTargetSet(82_469_589))
-    monkeypatch.setattr(api_server, "_xonly_set", _MockTargetSet(54_000_000))
+    monkeypatch.setattr(api_state, "_hash160_set", _MockTargetSet(82_469_589))
+    monkeypatch.setattr(api_state, "_xonly_set", _MockTargetSet(54_000_000))
 
     # ── 引擎状态 mock（避免文件 IO，且确保返回默认值）──
     monkeypatch.setattr(
-        api_server,
+        api_state,
         "get_engine_status",
         lambda: {
             "running": False,
@@ -94,7 +95,7 @@ def app(
 
     # ── 阻止 startup 事件加载 1.65 GB UTXO 数据 ──
     monkeypatch.setattr(
-        api_server,
+        api_state,
         "load_target_sets",
         lambda: {
             "hash160_loaded": True,
@@ -375,9 +376,9 @@ class TestEngineStatusReadWrite:
     def test_read_cache_hit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """缓存命中（_cached_ok 且未超时）→ 直接返回缓存值。"""
         import time
-        import api.server as api_server
+        import api.state as api_state
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         cached = {"running": True, "mode": "gpu"}
         es._cached = cached
         es._cached_ok = True
@@ -399,10 +400,10 @@ class TestEngineStatusReadWrite:
 
     def test_read_cache_miss_file_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """缓存过期 + 文件读取成功 → 解析 JSON 并更新缓存。"""
-        import api.server as api_server
+        import api.state as api_state
         import time
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         es._cached_ok = False
         es._last_read = time.monotonic() - 10.0  # 超时
         file_data = {"running": True, "keys_per_second": 500.0}
@@ -415,9 +416,9 @@ class TestEngineStatusReadWrite:
 
     def test_read_file_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """文件不存在 → 返回默认状态字典。"""
-        import api.server as api_server
+        import api.state as api_state
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
         es.STATUS_FILE.read_text.side_effect = FileNotFoundError
@@ -429,9 +430,9 @@ class TestEngineStatusReadWrite:
 
     def test_read_json_decode_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """JSON 解析失败 → 返回默认状态字典。"""
-        import api.server as api_server
+        import api.state as api_state
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
         es.STATUS_FILE.read_text.side_effect = json.JSONDecodeError("bad token", "", 0)
@@ -442,9 +443,9 @@ class TestEngineStatusReadWrite:
 
     def test_read_os_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """OSError → 返回默认状态字典。"""
-        import api.server as api_server
+        import api.state as api_state
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
         es.STATUS_FILE.read_text.side_effect = OSError("permission denied")
@@ -457,9 +458,9 @@ class TestEngineStatusReadWrite:
 
     def test_write_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """写入状态文件成功。"""
-        import api.server as api_server
+        import api.state as api_state
 
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         mock_file = self._mock_status_file(es)
         data = {"running": True, "mode": "cpu"}
         es.write(data)
@@ -473,10 +474,10 @@ class TestEngineStatusReadWrite:
     ) -> None:
         """写入状态文件失败 → 记录警告日志。"""
         import logging
-        import api.server as api_server
+        import api.state as api_state
 
         caplog.set_level(logging.WARNING)
-        es = api_server.EngineStatus()
+        es = api_state.EngineStatus()
         mock_file = self._mock_status_file(es)
         mock_file.write_text.side_effect = OSError("disk full")
 
@@ -494,17 +495,17 @@ class TestLoadTargetSets:
 
     def test_import_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """collision_target 模块不可导入 → 返回全 False 描述。"""
-        import api.server as api_server
+        import api.state as api_state
 
         monkeypatch.setitem(sys.modules, "collision_target", None)
 
-        result = api_server.load_target_sets()
+        result = api_state.load_target_sets()
         assert result["hash160_loaded"] is False
         assert result["xonly_loaded"] is False
 
     def test_hash160_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Hash160Set.load() 抛出 FileNotFoundError → hash160 部分标记未加载。"""
-        import api.server as api_server
+        import api.state as api_state
 
         ct_mock = mock.MagicMock()
         ct_mock.Hash160Set.return_value.load.side_effect = FileNotFoundError(
@@ -514,14 +515,14 @@ class TestLoadTargetSets:
         ct_mock.XOnlySet.return_value.__len__.return_value = 50
         monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
 
-        result = api_server.load_target_sets()
+        result = api_state.load_target_sets()
         assert result["hash160_loaded"] is False
         assert result["xonly_loaded"] is True
         assert result["xonly_count"] == 50
 
     def test_xonly_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """XOnlySet.load() 抛出 FileNotFoundError → xonly 部分标记未加载。"""
-        import api.server as api_server
+        import api.state as api_state
 
         ct_mock = mock.MagicMock()
         ct_mock.Hash160Set.return_value.load.return_value = None
@@ -531,14 +532,14 @@ class TestLoadTargetSets:
         )
         monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
 
-        result = api_server.load_target_sets()
+        result = api_state.load_target_sets()
         assert result["hash160_loaded"] is True
         assert result["hash160_count"] == 100
         assert result["xonly_loaded"] is False
 
     def test_success_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """两个目标集均成功加载 → 全部标记为已加载。"""
-        import api.server as api_server
+        import api.state as api_state
 
         ct_mock = mock.MagicMock()
         ct_mock.Hash160Set.return_value.load.return_value = None
@@ -547,7 +548,7 @@ class TestLoadTargetSets:
         ct_mock.XOnlySet.return_value.__len__.return_value = 50
         monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
 
-        result = api_server.load_target_sets()
+        result = api_state.load_target_sets()
         assert result["hash160_loaded"] is True
         assert result["hash160_count"] == 100
         assert result["xonly_loaded"] is True
