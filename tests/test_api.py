@@ -569,6 +569,9 @@ class TestMainEntry:
         uvicorn_mock = mock.MagicMock()
         monkeypatch.setitem(sys.modules, "uvicorn", uvicorn_mock)
 
+        # main() 使用 argparse 解析 sys.argv，模拟干净的 CLI 环境
+        monkeypatch.setattr(sys, "argv", ["api_server"])
+
         # main() 引用模块级 app，需要预先设置
         api_server.app = mock.MagicMock()
         api_server.main()
@@ -589,6 +592,7 @@ class TestMainEntry:
         caplog.set_level(logging.INFO)
         uvicorn_mock = mock.MagicMock()
         monkeypatch.setitem(sys.modules, "uvicorn", uvicorn_mock)
+        monkeypatch.setattr(sys, "argv", ["api_server"])
         api_server.app = mock.MagicMock()
 
         # 测试 logging.basicConfig 被调用

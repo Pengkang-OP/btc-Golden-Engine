@@ -1395,6 +1395,30 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=0,
         help="UTXO 刷新间隔（秒，覆盖配置）",
     )
+    # ── 分布式扫描参数 ──
+    parser.add_argument(
+        "--distributed",
+        action="store_true",
+        help="启用分布式扫描模式（作为 Worker 节点运行）",
+    )
+    parser.add_argument(
+        "--master-addr",
+        type=str,
+        default="localhost:50051",
+        help="Master 地址 (host:port, default: localhost:50051)",
+    )
+    parser.add_argument(
+        "--worker-id",
+        type=str,
+        default="",
+        help="Worker 唯一标识 (default: auto-generated)",
+    )
+    parser.add_argument(
+        "--master-http-port",
+        type=int,
+        default=8080,
+        help="Master HTTP 端口 (FastAPI, default: 8080)",
+    )
     return parser
 
 
@@ -1617,6 +1641,40 @@ def main() -> None:
         args.gpu,
         args.p2tr,
     )
+
+    # ── 分布式扫描模式 ──
+    if args.distributed:
+        _logger.info("启用分布式扫描模式 (master=%s, worker=%s)", args.master_addr, args.worker_id)
+        try:
+            from distributed.worker import DistributedScanner
+
+            worker_id = args.worker_id
+            if not worker_id:
+                import os as _os
+                worker_id = f"worker-{_os.urandom(4).hex()}"
+
+            scanner = DistributedScanner(
+                master_addr=args.master_addr,
+                worker_id=worker_id,
+                master_http_port=args.master_http_port,
+                cpu_cores=args.threads,
+                gpu_enabled=args.gpu,
+                gpu_devices=args.gpu_devices,
+                gpu_batch_size=args.gpu_batch_size,
+                count=args.count,
+                p2tr=args.p2tr,
+                xonly_file=args.xonly_file,
+            )
+            if scanner.connect():
+                scanner.run()
+            else:
+                _logger.error("分布式 Worker 连接失败，退出")
+                sys.exit(1)
+            _cleanup(target=None, xonly_target=None)  # type: ignore[arg-type]
+            return
+        except ImportError as exc:
+            _logger.error("分布式模块不可用，请安装 grpcio/protobuf: %s", exc)
+            sys.exit(1)
 
     # ── 应用 UTXO 刷新 CLI 参数（覆盖配置） ──
     if args.utxo_refresh is not None:

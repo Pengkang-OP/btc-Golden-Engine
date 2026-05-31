@@ -1,0 +1,97 @@
+syntax = "proto3";
+package distributed;
+
+// ─────────────────────────────────────────────────────────────
+//  MasterService — 分布式碰撞扫描 gRPC 协议
+// ─────────────────────────────────────────────────────────────
+service MasterService {
+  // Worker 注册：建立身份并上报能力
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // 心跳 + 进度上报
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // 获取下一个作业范围
+  rpc GetAssignment(AssignmentRequest) returns (AssignmentResponse);
+
+  // 报告碰撞命中结果
+  rpc ReportHit(HitReport) returns (ReportResponse);
+
+  // 获取目标集信息（校验和、下载地址等）
+  rpc GetTargetInfo(TargetInfoRequest) returns (TargetInfoResponse);
+}
+
+// ── Register ────────────────────────────────────────────────
+message RegisterRequest {
+  string worker_id = 1;       // 唯一标识，如 "node-1"
+  int32 cpu_cores = 2;        // CPU 核心数
+  int32 gpu_count = 3;        // GPU 数量（0 = 无 GPU）
+  string address = 4;         // 可读地址（仅供日志/调试）
+  string version = 5;         // 引擎版本号
+}
+
+message RegisterResponse {
+  bool accepted = 1;          // 是否接受注册
+  string master_id = 2;       // Master 实例标识
+  int32 heartbeat_interval_sec = 3;  // 建议心跳间隔（秒）
+  int64 assignment_size = 4;  // 建议的 range size（例如 10^12）
+  string message = 5;         // 附注信息
+}
+
+// ── Heartbeat ───────────────────────────────────────────────
+message HeartbeatRequest {
+  string worker_id = 1;
+  int64 keys_checked = 2;     // 本 worker 累计检查数
+  int64 current_key = 3;      // 当前正扫描的 key
+  string status = 4;          // "scanning", "idle", "error"
+  string error_message = 5;   // 可选错误描述
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+  bool cancel_requested = 2;  // Master 要求停止当前 range
+  string message = 3;
+}
+
+// ── GetAssignment ───────────────────────────────────────────
+message AssignmentRequest {
+  string worker_id = 1;
+}
+
+message AssignmentResponse {
+  bool has_work = 1;
+  uint64 start_key = 2;       // 起始私钥（包含）
+  uint64 end_key = 3;         // 结束私钥（不包含，0=无限）
+  uint64 cursor = 4;          // 全局 cursor（日志/统计用途）
+}
+
+// ── ReportHit ───────────────────────────────────────────────
+message HitReport {
+  string worker_id = 1;
+  string privkey_hex = 2;     // 碰撞私钥（64 hex）
+  int64 key_value = 3;        // 私钥数值
+}
+
+message ReportResponse {
+  bool accepted = 1;
+  bool verified = 2;
+  string collision_id = 3;    // 数据库记录 ID
+  string message = 4;
+}
+
+// ── GetTargetInfo ───────────────────────────────────────────
+message TargetInfoRequest {
+  string worker_id = 1;
+}
+
+message TargetInfoResponse {
+  bool hash160_available = 1;
+  int64 hash160_count = 2;
+  int64 hash160_size_bytes = 3;     // 文件大小
+  bool xonly_available = 4;
+  int64 xonly_count = 5;
+  int64 xonly_size_bytes = 6;
+  string download_url = 7;          // HTTP 下载地址
+  string checksum_sha256 = 8;       // 目标集校验和
+  string bloom_url = 9;             // Bloom Filter 下载地址
+}

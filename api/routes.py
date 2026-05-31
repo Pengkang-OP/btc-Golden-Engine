@@ -169,6 +169,9 @@ async def get_status() -> dict[str, Any]:
     except Exception:
         collision_count = 0
 
+    # 分布式 worker 状态
+    workers = _get_worker_stats()
+
     return {
         "running": es.get("running", False),
         "mode": es.get("mode", "unknown"),
@@ -178,7 +181,84 @@ async def get_status() -> dict[str, Any]:
         "collision_count": collision_count,
         "gpu_info": es.get("gpu_info", {}),
         "error": es.get("error", None),
+        "distributed_workers": workers,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  分布式扫描端点
+# ═══════════════════════════════════════════════════════════════
+
+_WORKER_REGISTRY: Any = None
+
+
+def _set_worker_registry(registry: Any) -> None:
+    """设置 WorkerRegistry 引用（由 server.py 启动时注入）。"""
+    global _WORKER_REGISTRY
+    _WORKER_REGISTRY = registry
+
+
+def _get_worker_stats() -> list[dict[str, Any]]:
+    """获取所有 worker 的摘要信息。"""
+    if _WORKER_REGISTRY is None:
+        return []
+    try:
+        workers = _WORKER_REGISTRY.list_workers()
+        return [
+            {
+                "worker_id": w.worker_id,
+                "address": w.address,
+                "cpu_cores": w.cpu_cores,
+                "gpu_count": w.gpu_count,
+                "status": w.status,
+                "keys_checked": w.keys_checked,
+                "current_key": w.current_start,
+                "last_heartbeat": w.last_heartbeat,
+                "alive": w.is_alive,
+            }
+            for w in workers
+        ]
+    except Exception as exc:
+        logger.warning("获取 worker 状态失败: %s", exc)
+        return []
+
+
+@router.get("/api/workers")
+async def get_workers() -> dict[str, Any]:
+    """获取所有注册 worker 的状态。"""
+    workers = _get_worker_stats()
+    return {
+        "total": len(workers),
+        "alive": sum(1 for w in workers if w.get("alive")),
+        "workers": workers,
+    }
+
+
+@router.get("/api/target/download/{filename}")
+async def download_target_file(filename: str):
+    """提供目标集文件下载（供 Worker 远程拉取）。"""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+
+    allowed = {"utxo_hash160.bin", "utxo_hash160.idx", "utxo_hash160.bloom", "utxo_xonly.bin", "utxo_xonly.idx", "utxo_xonly.bloom"}
+
+    if filename not in allowed:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"不允许的文件名: {filename}"},
+        )
+
+    root = Path(__file__).resolve().parent.parent
+    file_path = root / filename
+    if not file_path.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"文件不存在: {filename}"},
+        )
+
+    return FileResponse(path=str(file_path), filename=filename)
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -181,8 +181,18 @@ def get_db() -> ResultDB:
     return _db
 
 
+# ── 分布式 WorkerRegistry 引用 ──────────────────────────────
+_grpc_server: Any = None
+_worker_registry: Any = None
+
+
+def get_worker_registry() -> Any:
+    """返回全局 WorkerRegistry 实例。"""
+    return _worker_registry
+
+
 # ── 应用工厂 ────────────────────────────────────────────────
-def create_app() -> FastAPI:
+def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> FastAPI:
     """创建并配置 FastAPI 应用实例。"""
 
     # ── 生命周期事件 ──────────────────────────────────────────
@@ -200,10 +210,37 @@ def create_app() -> FastAPI:
             target_info["xonly_count"],
         )
 
+        # 可选启动 gRPC Master
+        global _grpc_server, _worker_registry
+        if enable_grpc_master:
+            try:
+                from concurrent import futures
+                import grpc
+                from distributed.master import MasterService, WorkerRegistry
+                from distributed.protocol_pb2_grpc import add_MasterServiceServicer_to_server
+                from .routes import _set_worker_registry
+
+                _worker_registry = WorkerRegistry()
+                _set_worker_registry(_worker_registry)
+
+                _grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+                add_MasterServiceServicer_to_server(MasterService(_worker_registry), _grpc_server)
+                _grpc_server.add_insecure_port(f"[::]:{grpc_port}")
+                _grpc_server.start()
+                logger.info("gRPC Master 服务已启动 (port=%d)", grpc_port)
+            except Exception as exc:
+                logger.warning("gRPC Master 启动失败: %s", exc)
+
         yield
 
         # shutdown
         global _db
+        if _grpc_server is not None:
+            try:
+                _grpc_server.stop(grace=5)
+                logger.info("gRPC 服务已停止")
+            except Exception as exc:
+                logger.warning("gRPC 服务停止异常: %s", exc)
         if _db is not None:
             _db.close()
         if _hash160_set is not None:
@@ -245,8 +282,16 @@ def create_app() -> FastAPI:
 
 # ── 直接运行入口 ────────────────────────────────────────────
 def main() -> None:
-    """启动 uvicorn 服务器。"""
+    """启动 uvicorn 服务器（可选同时启动 gRPC Master）。"""
+    import argparse
     import uvicorn
+
+    parser = argparse.ArgumentParser(description="API Dashboard 服务器")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="监听地址")
+    parser.add_argument("--port", type=int, default=8080, help="HTTP 端口")
+    parser.add_argument("--with-grpc", action="store_true", help="同时启动 gRPC Master 服务")
+    parser.add_argument("--grpc-port", type=int, default=50051, help="gRPC 端口")
+    args = parser.parse_args()
 
     # 配置日志格式
     logging.basicConfig(
@@ -254,15 +299,17 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    host = "127.0.0.1"
-    port = 8080
+    host = args.host
+    port = args.port
 
-    print("╔══════════════════════════════════════════╗")
-    print("║  Bitcoin Collision Engine Dashboard      ║")
-    print(f"║  监听地址: http://{host}:{port}          ║")
-    print(f"║  REST API: http://{host}:{port}/api/     ║")
-    print(f"║  WebSocket: ws://{host}:{port}/ws        ║")
-    print("╚══════════════════════════════════════════╝")
+    print("╔═══════════════════════════════════════════════════╗")
+    print("║  Bitcoin Collision Engine Dashboard               ║")
+    print(f"║  监听地址: http://{host}:{port}                   ║")
+    print(f"║  REST API: http://{host}:{port}/api/              ║")
+    print(f"║  WebSocket: ws://{host}:{port}/ws                 ║")
+    if args.with_grpc:
+        print(f"║  gRPC Master: :{args.grpc_port}                   ║")
+    print("╚═══════════════════════════════════════════════════╝")
 
     uvicorn.run(
         app,
@@ -274,5 +321,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    app = create_app()
+    app = create_app(enable_grpc_master=True)
     main()
