@@ -89,7 +89,10 @@ jobs:
       - name: Run core module tests
         # 说明: --ignore 排除基准回归测试（由 benchmark.yml 单独处理）
         #       --ignore 排除 E2E 测试（预先存在失败，耗时 14+ 分钟）
-        run: pytest tests/ -v --tb=short -x --ignore=tests/test_benchmark_regression.py --ignore=tests/test_e2e_collision.py
+        #       distributed/test_distributed.py 在 tests/ 外，须显式添加
+        run: pytest tests/ distributed/test_distributed.py -v --tb=short -x \
+          --ignore=tests/test_benchmark_regression.py --ignore=tests/test_e2e_collision.py \
+          --cov=. --cov-report=xml
 
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest'
