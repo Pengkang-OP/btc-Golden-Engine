@@ -1021,7 +1021,11 @@ def _run_gpu_mode(
         )
         cp = load_checkpoint()
         next_key_val: object = cp.get("next_key", 0)
-        if cp.get("mode") == "gpu_sequential" and isinstance(next_key_val, int) and next_key_val > seq_start:
+        if (
+            cp.get("mode") == "gpu_sequential"
+            and isinstance(next_key_val, int)
+            and next_key_val > seq_start
+        ):
             seq_start = next_key_val
             checked_val: object = cp.get("checked", 0)
             total_checked_pre = checked_val if isinstance(checked_val, int) else 0
@@ -1400,7 +1404,11 @@ def _run_cpu_mode(
 
             cp = load_checkpoint()
             next_key_val2: object = cp.get("next_key", 0)
-            if cp.get("mode") == "sequential" and isinstance(next_key_val2, int) and next_key_val2 > start_val:
+            if (
+                cp.get("mode") == "sequential"
+                and isinstance(next_key_val2, int)
+                and next_key_val2 > start_val
+            ):
                 start_val = next_key_val2
                 _logger.info("[恢复] 从 checkpoint 恢复: next_key=0x%064x", start_val)
                 chk_val: object = cp.get("checked", 0)

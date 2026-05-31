@@ -80,7 +80,12 @@ class Hash160Set:
         self._bin_path = ""
         self._idx_path = ""
 
-    def load(self, bin_path: str | None = None, idx_path: str | None = None, quiet: bool = False) -> None:
+    def load(
+        self,
+        bin_path: str | None = None,
+        idx_path: str | None = None,
+        quiet: bool = False,
+    ) -> None:
         self._bin_path = bin_path or str(HASH_BIN)
         self._idx_path = idx_path or str(HASH_IDX)
         bin_path = self._bin_path
@@ -383,7 +388,12 @@ class XOnlySet:
         self._bin_path = ""
         self._idx_path = ""
 
-    def load(self, bin_path: str | None = None, idx_path: str | None = None, quiet: bool = False) -> None:
+    def load(
+        self,
+        bin_path: str | None = None,
+        idx_path: str | None = None,
+        quiet: bool = False,
+    ) -> None:
         self._bin_path = bin_path or str(XONLY_BIN)
         self._idx_path = idx_path or str(XONLY_IDX)
         bin_path = self._bin_path
