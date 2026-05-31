@@ -90,13 +90,13 @@ def _patch_all(
     mock_xonly: dict | None = None,
 ):
     """monkeypatch collision_target 和 collision_engine 的路径常量。"""
-    monkeypatch.setattr(ct, "HASH_BIN", Path(mock["bin"]))
-    monkeypatch.setattr(ct, "HASH_IDX", Path(mock["idx"]))
-    monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock["bloom"]))
+    monkeypatch.setattr(ct.Hash160Set, "BIN_DEFAULT", Path(mock["bin"]))
+    monkeypatch.setattr(ct.Hash160Set, "IDX_DEFAULT", Path(mock["idx"]))
+    monkeypatch.setattr(ct.Hash160Set, "BLOOM_DEFAULT", Path(mock["bloom"]))
     if mock_xonly:
-        monkeypatch.setattr(ct, "XONLY_BIN", Path(mock_xonly["bin"]))
-        monkeypatch.setattr(ct, "XONLY_IDX", Path(mock_xonly["idx"]))
-        monkeypatch.setattr(ct, "XONLY_BLOOM", Path(mock_xonly["bloom"]))
+        monkeypatch.setattr(ct.XOnlySet, "BIN_DEFAULT", Path(mock_xonly["bin"]))
+        monkeypatch.setattr(ct.XOnlySet, "IDX_DEFAULT", Path(mock_xonly["idx"]))
+        monkeypatch.setattr(ct.XOnlySet, "BLOOM_DEFAULT", Path(mock_xonly["bloom"]))
     monkeypatch.setattr(ce, "RESULTS_FILE", tmp_dir / "collision_results.json")
     monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json")
 
