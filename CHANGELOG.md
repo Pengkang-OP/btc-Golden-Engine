@@ -7,6 +7,11 @@
   - `core/config.py`: 新增 `telegram_bot_token`/`telegram_chat_id` 字段
   - `core/notifier.py`: 修复 `_is_configured()` 遗漏 Telegram 检查
   - `collision_engine.py`: `main()` 初始化 Notifier, `save_result()` 调用 `on_hit()`, `_cleanup()` 空安全关闭
+- **P3 #2: 性能基准自动回归 (pytest-benchmark)**:
+  - `tests/test_benchmark_regression.py`: 3 个 pytest-benchmark 回归测试（CPU single-key、点加法链、mock GPU）
+  - `.github/workflows/benchmark.yml`: CI 性能基准工作流（自动对比基线 + PR 注释告警）
+  - `tests/benchmark_baseline.json`: Git 版本控制的基线文件
+  - `pyproject.toml`: 添加 `pytest-benchmark>=4.0` 依赖
 - **ROADMAP #15**: 16 处缺失函数/方法 docstring 补全（collision_engine.py 6, collision_target.py 7, core/config.py 1, core/database.py 1, core/errors.py 1, core/logger.py 1）
 
 ### Changed
