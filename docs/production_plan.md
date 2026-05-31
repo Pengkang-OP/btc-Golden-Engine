@@ -66,7 +66,7 @@ python collision_engine.py --gpu --gpu-mode sequential
 
 ## 配置热重载
 
-设置 `ENGINE_REFRESH_INTERVAL=60` 环境变量后，引擎会每 60 秒自动检查配置文件变更并重载。<!-- TODO: 该环境变量尚未在 collision_engine.py 中实现 -->
+通过 `--utxo-refresh-interval` 参数可控制引擎自动检查配置变更和 UTXO 集刷新的间隔（默认 3600 秒）。例如 `--utxo-refresh-interval 60` 即每 60 秒检查一次。
 
 ## 优雅关闭
 
@@ -80,6 +80,6 @@ python collision_engine.py --gpu --gpu-mode sequential
 ## 后续规划
 
 - [x] Prometheus + Grafana 仪表板部署指南 → `docs/monitoring_guide.md`
-- [ ] 多引擎分布式扫描（分片 + 协调器）
+- [x] 多引擎分布式扫描（分片 + 协调器）— 参见 `distributed/` 模块
 - [ ] 告警通知（碰撞命中时邮件/Webhook）
 - [x] 性能基准自动回归测试设计方案 → `docs/benchmark_regression.md`

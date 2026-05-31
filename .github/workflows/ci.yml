@@ -88,10 +88,10 @@ jobs:
 
       - name: Run core module tests
         # 说明: --ignore 排除基准回归测试（由 benchmark.yml 单独处理）
-        #       --ignore 排除 E2E 测试（预先存在失败，耗时 14+ 分钟）
         #       distributed/test_distributed.py 在 tests/ 外，须显式添加
+        #       test_e2e_collision.py 已验证本地通过，取消 CI 排除以验证
         run: pytest tests/ distributed/test_distributed.py -v --tb=short -x \
-          --ignore=tests/test_benchmark_regression.py --ignore=tests/test_e2e_collision.py \
+          --ignore=tests/test_benchmark_regression.py \
           --cov=collision_engine --cov=collision_target --cov=core --cov=api \
           --cov=gpu_engine --cov=distributed --cov-report=xml
 

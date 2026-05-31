@@ -170,7 +170,7 @@ class DistributedScanner:
                     self._assignment_cursor,
                 )
 
-                # 2. 加载目标集 TODO: 支持远程下载
+                # 2. 加载目标集（支持本地预部署或从 Master 下载）
                 target, xonly_target = self._load_targets()
                 if target is None:
                     _logger.error(
