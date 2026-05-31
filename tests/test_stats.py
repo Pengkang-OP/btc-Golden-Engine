@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 
 from core.stats import StatsTracker
 
@@ -88,7 +89,10 @@ class TestStatsTrackerRecording:
         time.sleep(0.01)
         kps = s.keys_per_second()
         kpm = s.keys_per_minute()
-        assert abs(kpm - kps * 60) < 0.001
+        # 用 pytest.approx 容忍计时抖动：
+        # keys_per_second() 和 keys_per_minute() 内部各调用一次 time.monotonic()，
+        # 两次调用间时钟推进可导致速率差异（CI 慢机器上尤甚）。
+        assert kpm == pytest.approx(kps * 60, rel=0.1)
 
     def test_window_count_increases(self):
         """记录后窗口计数应增加。"""
