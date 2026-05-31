@@ -67,9 +67,9 @@ class TestBenchmarkRegression:
         import collision_target as ct
 
         mock_utxo = _make_utxo(tmp_dir)
-        monkeypatch.setattr(ct, "HASH_BIN", Path(mock_utxo["bin"]))
-        monkeypatch.setattr(ct, "HASH_IDX", Path(mock_utxo["idx"]))
-        monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock_utxo["bloom"]))
+        monkeypatch.setattr(ct.Hash160Set, "BIN_DEFAULT", Path(mock_utxo["bin"]))
+        monkeypatch.setattr(ct.Hash160Set, "IDX_DEFAULT", Path(mock_utxo["idx"]))
+        monkeypatch.setattr(ct.Hash160Set, "BLOOM_DEFAULT", Path(mock_utxo["bloom"]))
 
         target = ct.Hash160Set()
         target.load(quiet=True)
@@ -89,9 +89,9 @@ class TestBenchmarkRegression:
         import collision_target as ct
 
         mock_utxo = _make_utxo(tmp_dir)
-        monkeypatch.setattr(ct, "HASH_BIN", Path(mock_utxo["bin"]))
-        monkeypatch.setattr(ct, "HASH_IDX", Path(mock_utxo["idx"]))
-        monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock_utxo["bloom"]))
+        monkeypatch.setattr(ct.Hash160Set, "BIN_DEFAULT", Path(mock_utxo["bin"]))
+        monkeypatch.setattr(ct.Hash160Set, "IDX_DEFAULT", Path(mock_utxo["idx"]))
+        monkeypatch.setattr(ct.Hash160Set, "BLOOM_DEFAULT", Path(mock_utxo["bloom"]))
         monkeypatch.setattr(ce, "RESULTS_FILE", tmp_dir / "collision_results.json")
         monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json")
 
