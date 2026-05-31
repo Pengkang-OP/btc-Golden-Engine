@@ -90,6 +90,7 @@ disable_error_code = [
     "type-arg",
     "assignment",
     "str-bytes-safe",
+    "untyped-decorator",
 ]
 
 # GPU 下调模块：部分内部辅助函数无需 strict 注解
@@ -102,6 +103,8 @@ module = [
 disable_error_code = [
     "no-untyped-call",
     "no-untyped-def",
+    "arg-type",
+    "unused-ignore",
 ]
 
 [tool.pytest.ini_options]

@@ -42,7 +42,7 @@ def main():
         results.append((name, pub_comp.hex(), sha_mid, h160.hex()))
 
     print("=" * 70)
-    print("GPU Kernel 验证测试向量")
+    print("GPU Kernel Test Vectors")
     print("=" * 70)
     print()
     for name, pub, sha, h160 in results:
