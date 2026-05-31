@@ -2,6 +2,16 @@
 
 ## [2.0.1] — 2026-05-31
 
+### Added
+- **P3 #1: Collision Alert Notifications**: Notifier 集成到碰撞引擎 — `save_result()` 命中时自动触发邮件/Telegram/Webhook 通知
+  - `core/config.py`: 新增 `telegram_bot_token`/`telegram_chat_id` 字段
+  - `core/notifier.py`: 修复 `_is_configured()` 遗漏 Telegram 检查
+  - `collision_engine.py`: `main()` 初始化 Notifier, `save_result()` 调用 `on_hit()`, `_cleanup()` 空安全关闭
+- **ROADMAP #15**: 16 处缺失函数/方法 docstring 补全（collision_engine.py 6, collision_target.py 7, core/config.py 1, core/database.py 1, core/errors.py 1, core/logger.py 1）
+
+### Changed
+- Web UI: 地址类型筛选、搜索框、UTXO 刷新状态显示、双 Canvas 图表（速率趋势 + 累积碰撞）
+
 ### Fixed
 - CI #25–#28 迭代修复：4 处 mypy `type: ignore[assignment]` 遗漏、`Path.stat` mock 补充、ruff 格式纠正、未使用导入清理
 - 全部 7 个 CI job 通过（lint, 3 平台测试, security-scan, docker-build, gpu-smoke-test）
