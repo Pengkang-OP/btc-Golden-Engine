@@ -630,12 +630,12 @@ class TestRoutesErrorPaths:
     def test_build_stats_hash160_len_exception(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """_build_stats 中 len(_hash160_set) 抛出异常 → hash160_loaded=False。"""
+        """_build_stats 中 len(get_hash160_set()) 抛出异常 → hash160_loaded=False。"""
         import api.routes as routes
 
         bad_set = mock.MagicMock()
         bad_set.__len__.side_effect = Exception("len error")
-        monkeypatch.setattr(routes, "_hash160_set", bad_set)
+        monkeypatch.setattr(routes, "get_hash160_set", lambda: bad_set)
 
         resp = client.get("/api/stats")
         tc = resp.json()["target_count"]
@@ -644,12 +644,12 @@ class TestRoutesErrorPaths:
     def test_build_stats_xonly_len_exception(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """_build_stats 中 len(_xonly_set) 抛出异常 → xonly_loaded=False。"""
+        """_build_stats 中 len(get_xonly_set()) 抛出异常 → xonly_loaded=False。"""
         import api.routes as routes
 
         bad_set = mock.MagicMock()
         bad_set.__len__.side_effect = Exception("len error")
-        monkeypatch.setattr(routes, "_xonly_set", bad_set)
+        monkeypatch.setattr(routes, "get_xonly_set", lambda: bad_set)
 
         resp = client.get("/api/stats")
         tc = resp.json()["target_count"]

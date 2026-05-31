@@ -760,4 +760,4 @@ if __name__ == "__main__":
     for label, hexhash in test_addrs:
         if hexhash:
             h = bytes.fromhex(hexhash)
-            print(f"  {label}: {'命中!' if h in s else '未命中'}")
+            print(f"  {label}: {'命中！' if h in s else '未命中'}")

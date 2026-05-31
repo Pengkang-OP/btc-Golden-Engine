@@ -19,7 +19,7 @@ SNAPSHOT = BASE / "utxo_snapshot.dat"
 HASH_BIN = BASE / "utxo_hash160.bin"
 HASH_IDX = BASE / "utxo_hash160.idx"
 STATS = BASE / "utxo_hash160_stats.json"
-CHUNK = 100_000
+
 
 SNAPSHOT_MAGIC = b"utxo\xff"
 NETWORK_MAGIC = bytes.fromhex("f9beb4d9")

@@ -145,6 +145,19 @@ disable_error_code = [
     "unused-ignore",
 ]
 
+# 测试目录：测试代码中的类型注解允许宽松
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+]
+disable_error_code = [
+    "no-untyped-def",
+    "no-untyped-call",
+    "arg-type",
+    "assignment",
+    "union-attr",
+]
+
 [tool.pytest.ini_options]
 markers = [
     "gpu: 需要真实 GPU 硬件的测试（无 GPU 时自动跳过）",

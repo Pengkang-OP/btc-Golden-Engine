@@ -19,8 +19,8 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.responses import HTMLResponse, Response
 
 from .server import (
-    _hash160_set,
-    _xonly_set,
+    get_hash160_set,
+    get_xonly_set,
     _jinja_env,
     _websocket_clients,
     get_db,
@@ -51,15 +51,17 @@ def _build_stats() -> dict[str, Any]:
         "hash160_loaded": False,
         "xonly_loaded": False,
     }
-    if _hash160_set is not None:
+    hs = get_hash160_set()
+    if hs is not None:
         try:
-            target_info["hash160"] = len(_hash160_set)
+            target_info["hash160"] = len(hs)
             target_info["hash160_loaded"] = True
         except Exception as exc:
             logger.warning("获取 Hash160 目标集大小失败: %s", exc)
-    if _xonly_set is not None:
+    xs = get_xonly_set()
+    if xs is not None:
         try:
-            target_info["xonly"] = len(_xonly_set)
+            target_info["xonly"] = len(xs)
             target_info["xonly_loaded"] = True
         except Exception as exc:
             logger.warning("获取 XOnly 目标集大小失败: %s", exc)

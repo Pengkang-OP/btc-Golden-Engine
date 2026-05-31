@@ -18,7 +18,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+
 
 
 @dataclass
@@ -237,7 +237,7 @@ def load_config(path: Optional[os.PathLike[str]] = None) -> EngineConfig:
     return _default_config
 
 
-def save_config(config: EngineConfig, path: Optional[os.PathLike[str]] = None) -> None:
+def save_config(config: EngineConfig, path: os.PathLike[str] | None = None) -> None:
     """保存配置到 JSON 文件。"""
     config.save(path)
 

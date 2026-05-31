@@ -262,11 +262,12 @@ class ResultDB:
         try:
             data = json.loads(Path(json_path).read_text(encoding="utf-8"))
             count = 0
-            for item in data:
-                # 从字典创建 dataclass 兼容对象
-                class _ResultProxy:
-                    pass
 
+            # 从字典创建 dataclass 兼容对象
+            class _ResultProxy:
+                pass
+
+            for item in data:
                 proxy = _ResultProxy()
                 for k, v in item.items():
                     setattr(proxy, k, v)

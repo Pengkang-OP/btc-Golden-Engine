@@ -101,6 +101,16 @@ _hash160_set: Any = None
 _xonly_set: Any = None
 
 
+def get_hash160_set() -> Any:
+    """获取全局 Hash160 目标集引用。"""
+    return _hash160_set
+
+
+def get_xonly_set() -> Any:
+    """获取全局 x-only pubkey 目标集引用。"""
+    return _xonly_set
+
+
 def load_target_sets() -> dict[str, Any]:
     """尝试加载 Hash160 和 x-only 目标集，返回描述信息。"""
     global _hash160_set, _xonly_set

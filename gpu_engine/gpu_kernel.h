@@ -299,7 +299,6 @@ static uint rmd160_oneblock(const uchar *msg, uint msglen, uint hashout[5]) {
     h[3]=h[4]+a1+b2; h[4]=t0+b1+c2;
 
     hashout[0]=h[0];hashout[1]=h[1];hashout[2]=h[2];hashout[3]=h[3];hashout[4]=h[4];
-    return 0;
 }
 
 /* --- HASH160 综合: RIPEMD-160(SHA-256(msg)) --- */

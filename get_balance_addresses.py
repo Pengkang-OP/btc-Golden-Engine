@@ -10,6 +10,7 @@ Supports fallback to cached data when the daemon is offline.
 
 import subprocess
 import json
+from datetime import datetime
 from pathlib import Path
 
 BITCOIN_CLI_PATH = r"G:\Bitcoin\daemon\bitcoin-cli.exe"
@@ -247,7 +248,7 @@ def generate_markdown_table(addresses):
     md = "# 比特币钱包地址余额表\n\n"
     md += f"**钱包名称**: {WALLET_NAME}\n"
     md += f"**数据目录**: {BITCOIN_DATADIR}\n"
-    md += "**生成时间**: 2026-05-30\n"
+    md += f"**生成时间**: {datetime.now():%Y-%m-%d}\n"
     md += "**排序方式**: 按余额降序\n\n"
 
     md += "## 地址余额表\n\n"

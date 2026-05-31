@@ -1438,7 +1438,7 @@ def _load_targets(
     _logger.info("[...] 加载 UTXO HASH160 目标集...")
     target = Hash160Set()
     target.load(quiet=True)
-    _logger.info(" [OK] 已加载 %s 个 HASH160", f"{len(target):,}")
+    _logger.info("[OK] 已加载 %s 个 HASH160", f"{len(target):,}")
 
     swappable_target = SwappableTarget(initial_set=target)
     _swappable_target = swappable_target
@@ -1483,7 +1483,7 @@ def _run_cpu_mode(
     args: argparse.Namespace,
     xonly_target: TargetProtocol | None,
 ) -> None:
-    """运行 CPU 扫描（顺序或随机模式）。包含 checkpoing 恢复/保存逻辑。"""
+    """运行 CPU 扫描（顺序或随机模式）。包含 checkpoint 恢复/保存逻辑。"""
     global _global_start_time, _global_checked
     _global_start_time = time.time()
     _global_checked = 0
