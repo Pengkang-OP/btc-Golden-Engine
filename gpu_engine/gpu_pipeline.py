@@ -236,7 +236,7 @@ class GPUPipeline:
         start = self._seq_start
         # numpy uint64 支持 64 位索引计算
         batch = self.batch_size
-        data = np.empty(batch * 32, dtype=np.uint8)
+        data = np.zeros(batch * 32, dtype=np.uint8)
         view = data.reshape(batch, 32)
 
         # 使用 int.to_bytes 逐私钥填充小端 32 字节
@@ -463,7 +463,7 @@ class GPUPipeline:
         if self._ctx is not None:
             try:
                 self._ctx.release()
-            except cl.RuntimeError:
+            except Exception:
                 pass
             self._ctx = None
 
