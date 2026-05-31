@@ -90,10 +90,8 @@ jobs:
         # 说明: --ignore 排除基准回归测试（由 benchmark.yml 单独处理）
         #       distributed/test_distributed.py 在 tests/ 外，须显式添加
         #       test_e2e_collision.py 已验证本地通过，取消 CI 排除以验证
-        run: pytest tests/ distributed/test_distributed.py -v --tb=short -x \
-          --ignore=tests/test_benchmark_regression.py \
-          --cov=collision_engine --cov=collision_target --cov=core --cov=api \
-          --cov=gpu_engine --cov=distributed --cov-report=xml
+        #       注意: 使用单行避免 YAML 标量折叠 + shell 续接符兼容性问题
+        run: pytest tests/ distributed/test_distributed.py -v --tb=short -x --ignore=tests/test_benchmark_regression.py --cov=collision_engine --cov=collision_target --cov=core --cov=api --cov=gpu_engine --cov=distributed --cov-report=xml
 
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest'
