@@ -310,12 +310,18 @@ class MasterService(MasterServiceServicer):
     """gRPC MasterService 服务端实现。"""
 
     def __init__(self, registry: WorkerRegistry):
+        """初始化 gRPC 服务实例。
+
+        Args:
+            registry: WorkerRegistry 实例，管理所有 worker 状态。
+        """
         self._registry = registry
         self._hit_count = 0
 
     def Register(
         self, request: RegisterRequest, context: grpc.ServicerContext
     ) -> RegisterResponse:
+        """处理 Worker 注册请求。返回接受状态和 Master 配置信息。"""
         info = WorkerInfo(
             worker_id=request.worker_id,
             address=request.address,
@@ -343,6 +349,7 @@ class MasterService(MasterServiceServicer):
     def Heartbeat(
         self, request: HeartbeatRequest, context: grpc.ServicerContext
     ) -> HeartbeatResponse:
+        """处理 Worker 心跳。未注册的 worker 会收到取消指令。"""
         found = self._registry.update_heartbeat(
             worker_id=request.worker_id,
             keys_checked=request.keys_checked,
@@ -359,6 +366,7 @@ class MasterService(MasterServiceServicer):
     def GetAssignment(
         self, request: AssignmentRequest, context: grpc.ServicerContext
     ) -> AssignmentResponse:
+        """分配任务范围。优先取回超时 worker 的 range，其次分配新范围。"""
         # 优先尝试取回超时 worker 的 range
         assignment = self._registry.steal_range(request.worker_id)
         if assignment is None:
@@ -384,6 +392,7 @@ class MasterService(MasterServiceServicer):
     def ReportHit(
         self, request: HitReport, context: grpc.ServicerContext
     ) -> ReportResponse:
+        """处理碰撞上报。记录日志并返回碰撞 ID。"""
         self._hit_count += 1
         _logger.info(
             "[Master] HIT(%s): privkey=%s, key_value=%d (total hits=%d)",
