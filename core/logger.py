@@ -88,8 +88,10 @@ def setup_logger(
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 
-    # 清除已有 handler (避免重复添加)
-    logger.handlers.clear()
+    # 关闭并移除已有 handler (避免文件句柄泄漏)
+    for handler in logger.handlers[:]:
+        handler.close()
+        logger.removeHandler(handler)
 
     # ── 文件 Handler (RotatingFileHandler) ──
     # 检查 LOG_FORMAT 环境变量，支持 json 格式输出

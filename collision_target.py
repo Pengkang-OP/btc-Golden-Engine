@@ -167,9 +167,8 @@ class Hash160Set:
                     return False
 
                 hdr = struct.unpack("<Q32sQ", f.read(8 + 32 + 8))
-                bloom_m = hdr[2]
-
-                # 校验 bin 文件 SHA-256（快速检查数据是否变更）
+                # hdr: [bloom_m (8B), bin_digest (32B), byte_size (8B)]
+                bloom_m = hdr[0]
                 bin_digest = hdr[1]
                 actual_digest = _file_sha256(bin_path)
                 if bin_digest != actual_digest:
@@ -184,7 +183,8 @@ class Hash160Set:
             self._bloom = bloom_bytes
             return True
 
-        except (OSError, struct.error, ValueError):
+        except (OSError, struct.error, ValueError) as e:
+            logger.warning("Bloom Filter 缓存加载失败: %s", e)
             return False
 
     def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
@@ -255,8 +255,8 @@ class Hash160Set:
             with open(BLOOM_FILE, "wb") as f:
                 f.write(header)
                 f.write(bloom)
-        except OSError:
-            pass  # 缓存写入失败不阻塞运行
+        except OSError as e:
+            logger.warning("Bloom Filter 缓存写入失败（不影响运行）: %s", e)
 
     # ── 碰撞查询 ──────────────────────────────────────────────
 
@@ -315,9 +315,17 @@ class Hash160Set:
 
     def close(self) -> None:
         if hasattr(self, "_mmap") and self._mmap:
-            self._mmap.close()
+            try:
+                self._mmap.close()
+            except Exception:
+                pass
+            self._mmap = None
         if hasattr(self, "_fd") and self._fd:
-            self._fd.close()
+            try:
+                self._fd.close()
+            except Exception:
+                pass
+            self._fd = None
         self._bloom = None
 
     def reload(self, quiet: bool = False) -> None:
@@ -467,7 +475,8 @@ class XOnlySet:
                 if cached_total != self._total:
                     return False
                 hdr = struct.unpack("<Q32sQ", f.read(8 + 32 + 8))
-                bloom_m = hdr[2]
+                # hdr: [bloom_m (8B), bin_digest (32B), byte_size (8B)]
+                bloom_m = hdr[0]
                 bin_digest = hdr[1]
                 actual_digest = _file_sha256(bin_path)
                 if bin_digest != actual_digest:
@@ -479,7 +488,8 @@ class XOnlySet:
             self._bloom_m = bloom_m
             self._bloom = bloom_bytes
             return True
-        except (OSError, struct.error, ValueError):
+        except (OSError, struct.error, ValueError) as e:
+            logger.warning("XOnly Bloom Filter 缓存加载失败: %s", e)
             return False
 
     def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
@@ -541,8 +551,8 @@ class XOnlySet:
             with open(XONLY_BLOOM, "wb") as f:
                 f.write(header)
                 f.write(bloom)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("XOnly Bloom Filter 缓存写入失败（不影响运行）: %s", e)
 
     # ── 碰撞查询 ──────────────────────────────────────────────
 
@@ -599,9 +609,17 @@ class XOnlySet:
 
     def close(self) -> None:
         if hasattr(self, "_mmap") and self._mmap:
-            self._mmap.close()
+            try:
+                self._mmap.close()
+            except Exception:
+                pass
+            self._mmap = None
         if hasattr(self, "_fd") and self._fd:
-            self._fd.close()
+            try:
+                self._fd.close()
+            except Exception:
+                pass
+            self._fd = None
         self._bloom = None
 
     def reload(self, quiet: bool = False) -> None:
@@ -686,8 +704,8 @@ class SwappableTarget:
             try:
                 if hasattr(old, "close"):
                     old.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("关闭旧目标集时出错: %s", e)
 
     def close(self) -> None:
         """关闭当前活跃的底层集合并置空。"""

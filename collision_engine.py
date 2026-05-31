@@ -130,8 +130,8 @@ def _start_config_watcher(
             try:
                 if config.check_reload():
                     log.info("配置文件已变更并自动重载")
-            except Exception:
-                pass
+            except Exception as exc:
+                _logger.warning("配置热重载异常: %s", exc)
             time.sleep(interval)
 
     t = threading.Thread(target=_watch, daemon=True)
@@ -322,8 +322,8 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
                     idx_path=xonly_idx,
                     quiet=True,
                 )
-            except Exception:
-                logger.warning("[UTXO][刷新] P2TR 目标集刷新失败（跳过）")
+            except Exception as exc:
+                logger.warning("[UTXO][刷新] P2TR 目标集刷新失败（跳过）: %s", exc)
 
     # 7) 原子交换
     _swappable_target.swap(new_set=new_target)
@@ -1056,6 +1056,11 @@ def _run_gpu_mode(
         result = check_single_key(privkey_int, target, xonly_target)
         if result is not None:
             save_result(result)
+        else:
+            _logger.error(
+                "[GPU] 碰撞命中但二次推导失败! privkey=0x%064x",
+                privkey_int,
+            )
 
     config = DispatcherConfig(
         batch_size=args.gpu_batch_size,
@@ -1394,13 +1399,10 @@ def _run_cpu_mode(
     _global_start_time = time.time()
     _global_checked = 0
 
+    counter: SequentialCounter | None = None
     try:
         if args.mode == "sequential":
-            start_val = (
-                int(args.start, 16)
-                if args.start.startswith("0x")
-                else int(args.start, 16)
-            )
+            start_val = int(args.start, 16)
 
             cp = load_checkpoint()
             next_key_val2: object = cp.get("next_key", 0)
@@ -1454,27 +1456,26 @@ def _run_cpu_mode(
 
     except KeyboardInterrupt:
         _logger.warning("\n\n[停止] 用户中断")
-        if args.mode == "sequential":
+        if args.mode == "sequential" and counter is not None:
             save_checkpoint(
                 {
                     "mode": "sequential",
-                    "next_key": (counter.current if hasattr(counter, "current") else 0),
-                    "checked": (counter.checked if hasattr(counter, "checked") else 0),
+                    "next_key": counter.current,
+                    "checked": counter.checked,
                 }
             )
             _logger.info("[检查点] 已保存")
 
-    if _shutdown_requested and args.mode == "sequential":
-        ck_current = counter.current if hasattr(counter, "current") else 0
-        ck_checked = counter.checked if hasattr(counter, "checked") else 0
+    # 信号处理器的优雅关闭（若 KeyboardInterrupt 未触发或未保存 checkpoint）
+    if _shutdown_requested and args.mode == "sequential" and counter is not None:
         save_checkpoint(
             {
                 "mode": "sequential",
-                "next_key": ck_current,
-                "checked": ck_checked,
+                "next_key": counter.current,
+                "checked": counter.checked,
             }
         )
-        _logger.info("优雅关闭 — checkpoint 已保存 (next_key=0x%064x)", ck_current)
+        _logger.info("优雅关闭 — checkpoint 已保存 (next_key=0x%064x)", counter.current)
 
 
 def _print_final_report() -> None:
@@ -1488,8 +1489,8 @@ def _print_final_report() -> None:
     if RESULTS_FILE.exists():
         try:
             hit_count = len(json.loads(RESULTS_FILE.read_text()))
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.warning("无法读取碰撞结果文件: %s", exc)
 
     _logger.info(
         "\n%s\n  扫描结束\n"
@@ -1520,8 +1521,8 @@ def _cleanup(
         try:
             _db.close()
             _logger.info("数据库连接已关闭")
-        except Exception:
-            pass
+        except Exception as exc:
+            _logger.warning("数据库关闭异常: %s", exc)
 
 
 def main() -> None:

@@ -100,11 +100,13 @@ class StatsTracker:
 
     def total_keys(self) -> int:
         """返回累计扫描的 key 总数。"""
-        return self.total
+        with self._lock:
+            return self.total
 
     def elapsed_seconds(self) -> float:
         """返回自创建以来经过的秒数。"""
-        return time.monotonic() - self._start_time
+        with self._lock:
+            return time.monotonic() - self._start_time
 
     def window_count(self) -> int:
         """返回当前滑动窗口内的数据点数量。"""
@@ -122,15 +124,34 @@ class StatsTracker:
 
     def get_snapshot(self) -> dict[str, object]:
         """返回当前所有统计指标的快照字典（用于 UI/API）。"""
-        kps = self.keys_per_second()
+        with self._lock:
+            self._trim(time.monotonic())
+            total_keys = self.total
+            window = list(self._window)
+            elapsed = time.monotonic() - self._start_time
+
+        # 在锁释放后计算派生指标
+        if not window:
+            kps = 0.0
+            window_count = 0
+            window_total = 0
+        else:
+            span = window[-1][0] - window[0][0]
+            if span < 0.001:
+                kps = 0.0
+            else:
+                kps = sum(c for _, c in window) / span
+            window_count = len(window)
+            window_total = sum(c for _, c in window)
+
         return {
-            "total_keys": self.total,
+            "total_keys": total_keys,
             "keys_per_second": round(kps, 1),
             "keys_per_minute": round(kps * 60, 1),
-            "elapsed_seconds": round(self.elapsed_seconds(), 1),
+            "elapsed_seconds": round(elapsed, 1),
             "window_seconds": self.window_seconds,
-            "window_count": self.window_count(),
-            "window_total": self.window_total(),
+            "window_count": window_count,
+            "window_total": window_total,
         }
 
     # ── 重置 ──────────────────────────────────────────────

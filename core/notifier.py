@@ -59,7 +59,10 @@ class Notifier:
         if not self._is_configured():
             return
 
-        self._executor.submit(self._send_all, result)
+        try:
+            self._executor.submit(self._send_all, result)
+        except RuntimeError:
+            logger.exception("通知提交失败 (executor 可能已关闭)")
 
     # ── 发送逻辑 ──────────────────────────────────────────
 
@@ -78,6 +81,15 @@ class Notifier:
             try:
                 payload = self._build_payload(result, subject)
                 self.send_webhook(payload)
+            except NotifierError:
+                pass
+
+        # Telegram：使用配置中的 bot_token 和 chat_id
+        bot_token = getattr(self.config, "telegram_bot_token", "")
+        chat_id = getattr(self.config, "telegram_chat_id", "")
+        if bot_token and chat_id:
+            try:
+                self.send_telegram(bot_token, chat_id, body)
             except NotifierError:
                 pass
 
@@ -148,7 +160,7 @@ class Notifier:
             logger.info("Webhook 通知发送成功 -> %s", url[:60])
             return True
 
-        except (URLError, OSError, json.JSONDecodeError) as exc:
+        except (URLError, OSError, TypeError) as exc:
             logger.warning("Webhook 通知发送失败: %s", exc)
             raise NotifierError(f"Webhook 发送失败: {exc}", original=exc) from exc
 
@@ -196,7 +208,7 @@ class Notifier:
             logger.info("Telegram 通知发送成功")
             return True
 
-        except (URLError, OSError, json.JSONDecodeError) as exc:
+        except (URLError, OSError, TypeError) as exc:
             logger.warning("Telegram 通知发送失败: %s", exc)
             raise NotifierError(
                 f"Telegram 发送失败: {exc}",

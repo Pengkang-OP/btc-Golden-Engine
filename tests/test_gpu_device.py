@@ -94,9 +94,15 @@ class TestListDevices:
             assert devices == []
 
     def test_no_devices(self):
-        with patch("gpu_engine.gpu_device.list_devices", return_value=[]):
-            # 使用 mock 验证 'list_devices' 返回空时 'pick_best_gpu' 返回 None
-            pass
+        import tests.test_gpu_device as this_mod
+
+        with patch("gpu_engine.gpu_device.list_devices", return_value=[]), (
+            patch.object(this_mod, "list_devices", return_value=[])
+        ):
+            devices = list_devices()
+            assert devices == []
+            best = pick_best_gpu()
+            assert best is None
 
     def test_with_devices(self):
         """通过直接 mock list_devices 验证设备列表处理。"""
@@ -126,7 +132,6 @@ class TestListDevices:
             driver_version="30.0",
             available=True,
         )
-        # patch 在 use-site (test module) 而非定义-site (gpu_device)
         import tests.test_gpu_device as this_mod
 
         with patch.object(this_mod, "list_devices", return_value=[dev1, dev2]):

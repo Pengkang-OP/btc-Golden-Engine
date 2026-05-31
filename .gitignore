@@ -64,6 +64,13 @@ pytest_full*.txt
 # Temporary mypy diagnostics
 _mypy_*.txt
 
+# Coverage data
+.coverage
+
+# Temporary test/output files
+out.txt
+_test_out.txt
+
 # Trunk (platform-specific tooling cache)
 .trunk/plugins/
 .trunk/tools/

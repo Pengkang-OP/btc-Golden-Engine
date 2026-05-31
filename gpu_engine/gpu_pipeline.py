@@ -438,13 +438,28 @@ class GPUPipeline:
         return bytes(batch_result.privkey_bytes[index * 32 : (index + 1) * 32])
 
     def close(self) -> None:
-        """释放 GPU 资源。"""
-        for buf in [self._d_privkeys, self._d_hash160s, self._d_pubkeys]:
+        """释放 GPU 资源（显式调用 release() 确保底层 OpenCL 资源释放）。"""
+        import pyopencl as cl  # noqa: F811
+
+        for buf_name in ("_d_privkeys", "_d_hash160s", "_d_pubkeys"):
+            buf = getattr(self, buf_name, None)
             if buf is not None:
-                buf = None
+                try:
+                    buf.release()
+                except cl.MemoryError:
+                    pass
+                setattr(self, buf_name, None)
         if self._queue is not None:
-            self._queue.finish()
+            try:
+                self._queue.release()
+            except cl.RuntimeError:
+                self._queue.finish()
+            self._queue = None
         if self._ctx is not None:
+            try:
+                self._ctx.release()
+            except cl.RuntimeError:
+                pass
             self._ctx = None
 
     def __enter__(self) -> GPUPipeline:

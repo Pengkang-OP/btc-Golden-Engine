@@ -135,8 +135,9 @@ class EngineConfig:
                         continue
                     setattr(self, field_name, getattr(new_config, field_name))
                 return True
-            except Exception:
-                # 解析失败时保持旧配置
+            except Exception as exc:
+                logger = logging.getLogger("config.check_reload")
+                logger.warning("配置热重载失败 (保留旧配置): %s", exc)
                 return False
 
     @classmethod
@@ -273,8 +274,8 @@ def start_config_watcher(
             try:
                 if config.check_reload():
                     logger.info("Configuration reloaded from file")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.exception("配置热重载轮询异常 (interval=%ss): %s", interval, exc)
             time.sleep(interval)
 
     thread = threading.Thread(target=_watcher_loop, daemon=True, name="config-watcher")

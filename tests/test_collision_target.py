@@ -143,6 +143,9 @@ class TestHash160Set:
             quiet=True,
         )
 
+        # 无 Bloom 缓存文件时，Bloom Filter 在 load() 内自动构建，最终 _bloom 非 None
+        assert hs._bloom is not None
+
         # 取已知存在的记录
         data = mock_hash160_files["data"]
         existing = data[20:40]  # 第二条记录

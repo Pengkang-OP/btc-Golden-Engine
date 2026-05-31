@@ -6,9 +6,11 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any, Generator
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -358,3 +360,354 @@ class TestWebSocket:
             assert "total_keys" in data
             assert "total_collisions" in data
             assert "timestamp" in data
+
+
+# ═══════════════════════════════════════════════════════════════
+#  EngineStatus 单元测试（不依赖 app/client fixture）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestEngineStatusReadWrite:
+    """EngineStatus.read/write 的缓存、文件 IO 和异常路径。"""
+
+    # ── read() 路径 ────────────────────────────────────────────
+
+    def test_read_cache_hit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """缓存命中（_cached_ok 且未超时）→ 直接返回缓存值。"""
+        import time
+        import api.server as api_server
+
+        es = api_server.EngineStatus()
+        cached = {"running": True, "mode": "gpu"}
+        es._cached = cached
+        es._cached_ok = True
+        es._last_read = time.monotonic()  # 在 1 秒缓存窗口内
+
+        result = es.read()
+        assert result == cached
+
+    @staticmethod
+    def _mock_status_file(es: Any, read_text_ret: Any | None = None, write_text_side_effect: Any = None) -> mock.MagicMock:
+        """用 MagicMock 替换 EngineStatus 实例的 STATUS_FILE。"""
+        mock_file = mock.MagicMock()
+        if read_text_ret is not None:
+            mock_file.read_text.return_value = read_text_ret
+        es.STATUS_FILE = mock_file
+        return mock_file
+
+    def test_read_cache_miss_file_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """缓存过期 + 文件读取成功 → 解析 JSON 并更新缓存。"""
+        import api.server as api_server
+        import time
+
+        es = api_server.EngineStatus()
+        es._cached_ok = False
+        es._last_read = time.monotonic() - 10.0  # 超时
+        file_data = {"running": True, "keys_per_second": 500.0}
+        self._mock_status_file(es, read_text_ret=json.dumps(file_data))
+
+        result = es.read()
+        assert result == file_data
+        assert es._cached == file_data
+        assert es._cached_ok is True
+
+    def test_read_file_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """文件不存在 → 返回默认状态字典。"""
+        import api.server as api_server
+
+        es = api_server.EngineStatus()
+        es._cached_ok = False
+        self._mock_status_file(es)
+        es.STATUS_FILE.read_text.side_effect = FileNotFoundError
+
+        result = es.read()
+        assert result["running"] is False
+        assert result["mode"] == "unknown"
+        assert "error" in result
+
+    def test_read_json_decode_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """JSON 解析失败 → 返回默认状态字典。"""
+        import api.server as api_server
+
+        es = api_server.EngineStatus()
+        es._cached_ok = False
+        self._mock_status_file(es)
+        es.STATUS_FILE.read_text.side_effect = json.JSONDecodeError("bad token", "", 0)
+
+        result = es.read()
+        assert result["running"] is False
+        assert "error" in result
+
+    def test_read_os_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OSError → 返回默认状态字典。"""
+        import api.server as api_server
+
+        es = api_server.EngineStatus()
+        es._cached_ok = False
+        self._mock_status_file(es)
+        es.STATUS_FILE.read_text.side_effect = OSError("permission denied")
+
+        result = es.read()
+        assert result["running"] is False
+        assert "error" in result
+
+    # ── write() 路径 ───────────────────────────────────────────
+
+    def test_write_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """写入状态文件成功。"""
+        import api.server as api_server
+
+        es = api_server.EngineStatus()
+        mock_file = self._mock_status_file(es)
+        data = {"running": True, "mode": "cpu"}
+        es.write(data)
+
+        mock_file.write_text.assert_called_once()
+        written = json.loads(mock_file.write_text.call_args[0][0])
+        assert written == data
+
+    def test_write_os_error(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """写入状态文件失败 → 记录警告日志。"""
+        import logging
+        import api.server as api_server
+
+        caplog.set_level(logging.WARNING)
+        es = api_server.EngineStatus()
+        mock_file = self._mock_status_file(es)
+        mock_file.write_text.side_effect = OSError("disk full")
+
+        es.write({"running": True})
+        assert any("写入状态文件失败" in rec.message for rec in caplog.records)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  load_target_sets 路径覆盖（通过 sys.modules mock）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestLoadTargetSets:
+    """load_target_sets 的 ImportError / FileNotFound / 成功路径。"""
+
+    def test_import_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """collision_target 模块不可导入 → 返回全 False 描述。"""
+        import api.server as api_server
+
+        monkeypatch.setitem(sys.modules, "collision_target", None)
+
+        result = api_server.load_target_sets()
+        assert result["hash160_loaded"] is False
+        assert result["xonly_loaded"] is False
+
+    def test_hash160_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Hash160Set.load() 抛出 FileNotFoundError → hash160 部分标记未加载。"""
+        import api.server as api_server
+
+        ct_mock = mock.MagicMock()
+        ct_mock.Hash160Set.return_value.load.side_effect = FileNotFoundError("no utxo file")
+        ct_mock.XOnlySet.return_value.load.return_value = None
+        ct_mock.XOnlySet.return_value.__len__.return_value = 50
+        monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
+
+        result = api_server.load_target_sets()
+        assert result["hash160_loaded"] is False
+        assert result["xonly_loaded"] is True
+        assert result["xonly_count"] == 50
+
+    def test_xonly_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """XOnlySet.load() 抛出 FileNotFoundError → xonly 部分标记未加载。"""
+        import api.server as api_server
+
+        ct_mock = mock.MagicMock()
+        ct_mock.Hash160Set.return_value.load.return_value = None
+        ct_mock.Hash160Set.return_value.__len__.return_value = 100
+        ct_mock.XOnlySet.return_value.load.side_effect = FileNotFoundError("no xonly file")
+        monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
+
+        result = api_server.load_target_sets()
+        assert result["hash160_loaded"] is True
+        assert result["hash160_count"] == 100
+        assert result["xonly_loaded"] is False
+
+    def test_success_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """两个目标集均成功加载 → 全部标记为已加载。"""
+        import api.server as api_server
+
+        ct_mock = mock.MagicMock()
+        ct_mock.Hash160Set.return_value.load.return_value = None
+        ct_mock.Hash160Set.return_value.__len__.return_value = 100
+        ct_mock.XOnlySet.return_value.load.return_value = None
+        ct_mock.XOnlySet.return_value.__len__.return_value = 50
+        monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
+
+        result = api_server.load_target_sets()
+        assert result["hash160_loaded"] is True
+        assert result["hash160_count"] == 100
+        assert result["xonly_loaded"] is True
+        assert result["xonly_count"] == 50
+
+
+# ═══════════════════════════════════════════════════════════════
+#  main() 入口测试
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestMainEntry:
+    """main() 启动 uvicorn。"""
+
+    def test_main_calls_uvicorn(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """main() 应调用 uvicorn.run 并传递正确参数。"""
+        import api.server as api_server
+
+        uvicorn_mock = mock.MagicMock()
+        monkeypatch.setitem(sys.modules, "uvicorn", uvicorn_mock)
+
+        # main() 引用模块级 app，需要预先设置
+        api_server.app = mock.MagicMock()
+        api_server.main()
+
+        uvicorn_mock.run.assert_called_once()
+        args, kwargs = uvicorn_mock.run.call_args
+        assert kwargs.get("host") == "127.0.0.1"
+        assert kwargs.get("port") == 8080
+        assert kwargs.get("log_level") == "info"
+
+    def test_main_sets_logging(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """main() 设置 logging.basicConfig。"""
+        import logging
+        import api.server as api_server
+
+        caplog.set_level(logging.INFO)
+        uvicorn_mock = mock.MagicMock()
+        monkeypatch.setitem(sys.modules, "uvicorn", uvicorn_mock)
+        api_server.app = mock.MagicMock()
+
+        # 测试 logging.basicConfig 被调用
+        basic_config_mock = mock.MagicMock()
+        monkeypatch.setattr(logging, "basicConfig", basic_config_mock)
+
+        api_server.main()
+
+        basic_config_mock.assert_called_once()
+        assert basic_config_mock.call_args[1]["level"] == logging.INFO
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Routes 异常路径测试（通过 monkeypatch routes 模块级引用）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestRoutesErrorPaths:
+    """api/routes.py 各端点异常/边界路径覆盖。"""
+
+    def test_build_stats_db_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_build_stats 中 db.count_results 抛出异常 → total_collisions=0。"""
+        import api.routes as routes
+
+        bad_db = mock.MagicMock()
+        bad_db.count_results.side_effect = Exception("db error")
+        monkeypatch.setattr(routes, "get_db", lambda: bad_db)
+
+        resp = client.get("/api/stats")
+        assert resp.status_code == 200
+        assert resp.json()["total_collisions"] == 0
+
+    def test_build_stats_hash160_len_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_build_stats 中 len(_hash160_set) 抛出异常 → hash160_loaded=False。"""
+        import api.routes as routes
+
+        bad_set = mock.MagicMock()
+        bad_set.__len__.side_effect = Exception("len error")
+        monkeypatch.setattr(routes, "_hash160_set", bad_set)
+
+        resp = client.get("/api/stats")
+        tc = resp.json()["target_count"]
+        assert tc["hash160_loaded"] is False
+
+    def test_build_stats_xonly_len_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_build_stats 中 len(_xonly_set) 抛出异常 → xonly_loaded=False。"""
+        import api.routes as routes
+
+        bad_set = mock.MagicMock()
+        bad_set.__len__.side_effect = Exception("len error")
+        monkeypatch.setattr(routes, "_xonly_set", bad_set)
+
+        resp = client.get("/api/stats")
+        tc = resp.json()["target_count"]
+        assert tc["xonly_loaded"] is False
+
+    def test_dashboard_render_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Dashboard 模板渲染失败 → 返回错误 HTML。"""
+        import api.routes as routes
+
+        bad_env = mock.MagicMock()
+        bad_env.get_template.side_effect = Exception("template not found")
+        monkeypatch.setattr(routes, "_jinja_env", bad_env)
+
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Dashboard 渲染错误" in resp.text
+
+    def test_health_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """健康检查 db 失败 → database=error。"""
+        import api.routes as routes
+
+        bad_db = mock.MagicMock()
+        bad_db.count_results.side_effect = Exception("db unavailable")
+        monkeypatch.setattr(routes, "get_db", lambda: bad_db)
+
+        resp = client.get("/api/health")
+        assert resp.json()["database"] == "error"
+
+    def test_get_results_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """查询碰撞结果时 db 失败 → 返回 error 字段。"""
+        import api.routes as routes
+
+        bad_db = mock.MagicMock()
+        bad_db.count_results.side_effect = Exception("query failed")
+        monkeypatch.setattr(routes, "get_db", lambda: bad_db)
+
+        resp = client.get("/api/results")
+        data = resp.json()
+        assert "error" in data
+        assert data["total"] == 0
+
+    def test_get_results_short_privkey(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """私钥长度 <= 16 时不做截断。"""
+        import api.routes as routes
+
+        mock_db = mock.MagicMock()
+        mock_db.count_results.return_value = 1
+        mock_db.list_results.return_value = [
+            {"privkey_hex": "abcd", "wif_compressed": "", "wif_uncompressed": ""}
+        ]
+        monkeypatch.setattr(routes, "get_db", lambda: mock_db)
+
+        resp = client.get("/api/results")
+        items = resp.json()["items"]
+        assert items[0]["privkey_hex_short"] == "abcd"
+
+    def test_get_results_short_wif(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """WIF 长度 <= 16 时不做截断。"""
+        import api.routes as routes
+
+        mock_db = mock.MagicMock()
+        mock_db.count_results.return_value = 1
+        mock_db.list_results.return_value = [
+            {"privkey_hex": "a" * 64, "wif_compressed": "short_wif_12", "wif_uncompressed": ""}
+        ]
+        monkeypatch.setattr(routes, "get_db", lambda: mock_db)
+
+        resp = client.get("/api/results")
+        items = resp.json()["items"]
+        assert items[0]["wif_short"] == "short_wif_12"
+
+    def test_get_status_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """引擎状态查询 db 失败 → collision_count=0。"""
+        import api.routes as routes
+
+        bad_db = mock.MagicMock()
+        bad_db.count_results.side_effect = Exception("db error")
+        monkeypatch.setattr(routes, "get_db", lambda: bad_db)
+
+        resp = client.get("/api/status")
+        assert resp.json()["collision_count"] == 0

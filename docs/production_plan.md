@@ -79,7 +79,7 @@ python collision_engine.py --gpu --gpu-mode sequential
 
 ## 后续规划
 
-- [ ] Prometheus + Grafana 仪表板部署指南
+- [x] Prometheus + Grafana 仪表板部署指南 → `docs/monitoring_guide.md`
 - [ ] 多引擎分布式扫描（分片 + 协调器）
 - [ ] 告警通知（碰撞命中时邮件/Webhook）
-- [ ] 性能基准自动回归测试
+- [x] 性能基准自动回归测试设计方案 → `docs/benchmark_regression.md`

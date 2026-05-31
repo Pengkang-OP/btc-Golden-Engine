@@ -55,14 +55,14 @@ def _build_stats() -> dict[str, Any]:
         try:
             target_info["hash160"] = len(_hash160_set)
             target_info["hash160_loaded"] = True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("获取 Hash160 目标集大小失败: %s", exc)
     if _xonly_set is not None:
         try:
             target_info["xonly"] = len(_xonly_set)
             target_info["xonly_loaded"] = True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("获取 XOnly 目标集大小失败: %s", exc)
 
     return {
         "keys_per_second": es.get("keys_per_second", 0.0),
@@ -134,7 +134,8 @@ async def get_results(
         total = db.count_results(address_type=address_type)
         items = db.list_results(limit=limit, offset=offset, address_type=address_type)
     except Exception as exc:
-        return {"error": str(exc), "total": 0, "items": []}
+        logger.error("查询碰撞结果失败: %s", exc)
+        return {"error": "内部查询错误", "total": 0, "items": []}
 
     # 截断私钥显示
     for item in items:
@@ -185,10 +186,17 @@ async def get_status() -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
+MAX_WS_CLIENTS = 50
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
-    """WebSocket 端点 — 实时推送统计信息。"""
+    """WebSocket 端点 — 实时推送统计信息（最多 50 个连接）。"""
     await websocket.accept()
+    if len(_websocket_clients) >= MAX_WS_CLIENTS:
+        await websocket.send_json({"error": "连接数已达上限"})
+        await websocket.close()
+        return
     _websocket_clients.add(websocket)
     logger.info("WebSocket 客户端已连接 (共 %d 个)", len(_websocket_clients))
 

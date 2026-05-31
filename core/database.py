@@ -38,7 +38,7 @@ class ResultDB:
 
     def __init__(self, db_path: str | Path = Path("collision_results.db")):
         self.db_path = Path(db_path)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._conn: sqlite3.Connection
         self._closed = False
         self._initialize()
@@ -145,13 +145,14 @@ class ResultDB:
             结果字典，或 None (不存在)。
         """
         try:
-            cursor = self._conn.execute(
-                "SELECT * FROM collisions WHERE id = ?", (result_id,)
-            )
-            row = cursor.fetchone()
-            if row is None:
-                return None
-            return self._row_to_dict(row, cursor)
+            with self._lock:
+                cursor = self._conn.execute(
+                    "SELECT * FROM collisions WHERE id = ?", (result_id,)
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                return self._row_to_dict(row, cursor)
         except sqlite3.Error as exc:
             raise DatabaseError(
                 f"查询碰撞结果失败 (id={result_id}): {exc}", original=exc
@@ -174,20 +175,21 @@ class ResultDB:
             结果字典列表。
         """
         try:
-            if address_type:
-                cursor = self._conn.execute(
-                    """SELECT * FROM collisions
-                       WHERE address_type = ?
-                       ORDER BY id DESC LIMIT ? OFFSET ?""",
-                    (address_type, limit, offset),
-                )
-            else:
-                cursor = self._conn.execute(
-                    """SELECT * FROM collisions
-                       ORDER BY id DESC LIMIT ? OFFSET ?""",
-                    (limit, offset),
-                )
-            return [self._row_to_dict(row, cursor) for row in cursor.fetchall()]
+            with self._lock:
+                if address_type:
+                    cursor = self._conn.execute(
+                        """SELECT * FROM collisions
+                           WHERE address_type = ?
+                           ORDER BY id DESC LIMIT ? OFFSET ?""",
+                        (address_type, limit, offset),
+                    )
+                else:
+                    cursor = self._conn.execute(
+                        """SELECT * FROM collisions
+                           ORDER BY id DESC LIMIT ? OFFSET ?""",
+                        (limit, offset),
+                    )
+                return [self._row_to_dict(row, cursor) for row in cursor.fetchall()]
         except sqlite3.Error as exc:
             raise DatabaseError(f"列出碰撞结果失败: {exc}", original=exc) from exc
 
@@ -201,34 +203,45 @@ class ResultDB:
             碰撞结果数量。
         """
         try:
-            if address_type:
-                cursor = self._conn.execute(
-                    "SELECT COUNT(*) FROM collisions WHERE address_type = ?",
-                    (address_type,),
-                )
-            else:
-                cursor = self._conn.execute("SELECT COUNT(*) FROM collisions")
-            row = cursor.fetchone()
-            return row[0] if row else 0
+            with self._lock:
+                if address_type:
+                    cursor = self._conn.execute(
+                        "SELECT COUNT(*) FROM collisions WHERE address_type = ?",
+                        (address_type,),
+                    )
+                else:
+                    cursor = self._conn.execute("SELECT COUNT(*) FROM collisions")
+                row = cursor.fetchone()
+                return row[0] if row else 0
         except sqlite3.Error as exc:
             raise DatabaseError(f"统计碰撞结果失败: {exc}", original=exc) from exc
 
-    def export_json(self, output_path: str | Path) -> int:
-        """导出全部碰撞结果为 JSON 文件 (向后兼容)。
+    def export_json(self, output_path: str | Path, chunk_size: int = 10_000) -> int:
+        """导出全部碰撞结果为 JSON 文件 (向后兼容)，流式写入避免 OOM。
 
         Args:
             output_path: 输出 JSON 文件路径。
+            chunk_size: 每批读取的行数 (默认 10_000)。
 
         Returns:
             导出的行数。
         """
         try:
-            results = self.list_results(limit=10_000_000)
-            Path(output_path).write_text(
-                json.dumps(results, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            return len(results)
+            total = self.count_results()
+            exported = 0
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write("[\n")
+                first_chunk = True
+                for offset in range(0, total, chunk_size):
+                    rows = self.list_results(limit=chunk_size, offset=offset)
+                    for row in rows:
+                        if not first_chunk:
+                            f.write(",\n")
+                        f.write(json.dumps(row, ensure_ascii=False, indent=2))
+                        first_chunk = False
+                        exported += 1
+                f.write("\n]")
+            return exported
         except (sqlite3.Error, OSError) as exc:
             raise DatabaseError(f"导出 JSON 失败: {exc}", original=exc) from exc
 
@@ -264,8 +277,10 @@ class ResultDB:
             return
         try:
             self._conn.close()
-        except sqlite3.Error:
-            pass
+        except sqlite3.Error as exc:
+            # 关闭失败不影响整体流程，但记录警告供排查
+            import logging
+            logging.getLogger("ResultDB").warning("数据库连接关闭异常: %s", exc)
         self._closed = True
 
     def __enter__(self) -> "ResultDB":

@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
+import pytest
+
 from gpu_engine.tdr_handler import (
     TDRConfig,
     KernelTimer,
     is_tdr_error,
+    warn_tdr_settings,
+    _TDR_DELAY_KEY,
+    _TDR_DEFAULT_TIMEOUT,
+    _TDR_DDI_DELAY_KEY,
+    _TDR_REG_KEY,
 )
 
 
@@ -143,3 +152,134 @@ class TestIsTDRError:
 
         assert is_tdr_error(CustomError("out_of_host_memory")) is True
         assert is_tdr_error(CustomError("unknown")) is False
+
+
+# ═══════════════════════════════════════════════════════════════
+#  warn_tdr_settings 注册表诊断路径
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestWarnTDRSettings:
+    """warn_tdr_settings 的注册表读取和日志输出。"""
+
+    @staticmethod
+    def _build_winreg_mock(
+        monkeypatch: pytest.MonkeyPatch,
+        tdr_delay_value: object = None,  # None means key doesn't exist
+        tdr_ddi_exists: bool = False,
+    ) -> mock.MagicMock:
+        """创建 winreg mock 并注册到 sys.modules。"""
+        import sys
+
+        winreg_mock = mock.MagicMock()
+        winreg_mock.HKEY_LOCAL_MACHINE = 0x80000002
+        winreg_mock.KEY_READ = 0x20019
+
+        key_handle = mock.sentinel.key_handle
+        winreg_mock.OpenKey.return_value = key_handle
+
+        def _query_value_ex(key: object, name: str) -> tuple:
+            if name == _TDR_DELAY_KEY and tdr_delay_value is not None:
+                return (tdr_delay_value, 4)
+            if name == _TDR_DDI_DELAY_KEY and not tdr_ddi_exists:
+                raise FileNotFoundError(f"No such value: {name}")
+            raise FileNotFoundError(f"No such value: {name}")
+
+        winreg_mock.QueryValueEx = mock.MagicMock(side_effect=_query_value_ex)
+
+        monkeypatch.setitem(sys.modules, "winreg", winreg_mock)
+        return winreg_mock
+
+    def test_default_timeout_not_quiet(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """TdrDelay=2 (默认), not quiet → 打印诊断建议。"""
+        import logging
+
+        caplog.set_level(logging.INFO)
+        self._build_winreg_mock(monkeypatch, tdr_delay_value=2)
+
+        result = warn_tdr_settings(quiet=False)
+
+        assert result == 2.0
+        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
+        assert any("引擎已启用自动 sub-batch 拆分" in rec.message for rec in caplog.records)
+
+    def test_optimized_timeout_not_quiet(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """TdrDelay=8 (已优化), not quiet → 打印优化状态。"""
+        import logging
+
+        caplog.set_level(logging.INFO)
+        self._build_winreg_mock(monkeypatch, tdr_delay_value=8)
+
+        result = warn_tdr_settings(quiet=False)
+
+        assert result == 8.0
+        assert any("TDR 超时 = 8.0s (已优化)" in rec.message for rec in caplog.records)
+
+    def test_tdr_delay_missing_uses_default(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """TdrDelay 注册表值不存在 → 使用默认值 2.0。"""
+        import logging
+
+        caplog.set_level(logging.INFO)
+        self._build_winreg_mock(monkeypatch, tdr_delay_value=None)
+
+        result = warn_tdr_settings(quiet=False)
+
+        assert result == _TDR_DEFAULT_TIMEOUT
+        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
+
+    def test_import_error_non_windows(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """ImportError (非 Windows) → 返回 None 并记录提示。"""
+        import sys
+        import logging
+
+        caplog.set_level(logging.INFO)
+        # 阻止 winreg 导入
+        monkeypatch.setitem(sys.modules, "winreg", None)
+
+        result = warn_tdr_settings(quiet=False)
+
+        assert result is None
+        assert any("非 Windows 平台" in rec.message for rec in caplog.records)
+
+    def test_os_error(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """OpenKey 抛出 OSError → 返回 None。"""
+        import sys
+        import logging
+
+        caplog.set_level(logging.INFO)
+        winreg_mock = mock.MagicMock()
+        winreg_mock.OpenKey.side_effect = OSError("access denied")
+        winreg_mock.HKEY_LOCAL_MACHINE = 0x80000002
+        winreg_mock.KEY_READ = 0x20019
+        monkeypatch.setitem(sys.modules, "winreg", winreg_mock)
+
+        result = warn_tdr_settings(quiet=False)
+
+        assert result is None
+        assert any("非 Windows 平台" in rec.message for rec in caplog.records)
+
+    def test_quiet_mode_suppresses_logging(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """quiet=True → 不输出诊断日志。"""
+        import logging
+
+        caplog.set_level(logging.INFO)
+        self._build_winreg_mock(monkeypatch, tdr_delay_value=2)
+
+        result = warn_tdr_settings(quiet=True)
+
+        assert result == 2.0
+        # quiet=True 时不应有任何日志输出
+        assert len(caplog.records) == 0
+
+    def test_quiet_import_error_no_log(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        """quiet=True + ImportError → 无日志, 返回 None。"""
+        import sys
+        import logging
+
+        caplog.set_level(logging.INFO)
+        monkeypatch.setitem(sys.modules, "winreg", None)
+
+        result = warn_tdr_settings(quiet=True)
+
+        assert result is None
+        assert len(caplog.records) == 0

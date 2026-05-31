@@ -143,7 +143,7 @@ _websocket_clients: set[WebSocket] = set()
 async def broadcast_stats(stats: dict[str, Any]) -> None:
     """广播统计信息到所有已连接的 WebSocket 客户端。"""
     dead: list[WebSocket] = []
-    for ws in _websocket_clients:
+    for ws in list(_websocket_clients):
         try:
             await ws.send_json(stats)
         except WebSocketDisconnect:
