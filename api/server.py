@@ -18,8 +18,9 @@ import json
 import logging
 import sys
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, AsyncGenerator, Optional
 
 import jinja2
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -180,16 +181,12 @@ def get_db() -> ResultDB:
 # ── 应用工厂 ────────────────────────────────────────────────
 def create_app() -> FastAPI:
     """创建并配置 FastAPI 应用实例。"""
-    app = FastAPI(
-        title="Bitcoin Collision Engine Dashboard",
-        version="1.0.0",
-        description="私钥碰撞检测系统实时监控仪表盘",
-    )
 
     # ── 生命周期事件 ──────────────────────────────────────────
-    @app.on_event("startup")
-    async def startup() -> None:
-        """应用启动时加载目标集。"""
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        """应用生命周期管理（替代已弃用的 on_event）。"""
+        # startup
         logger.info("API 服务启动中...")
         target_info = load_target_sets()
         logger.info(
@@ -200,9 +197,9 @@ def create_app() -> FastAPI:
             target_info["xonly_count"],
         )
 
-    @app.on_event("shutdown")
-    async def shutdown() -> None:
-        """应用关闭时释放资源。"""
+        yield
+
+        # shutdown
         global _db
         if _db is not None:
             _db.close()
@@ -211,6 +208,13 @@ def create_app() -> FastAPI:
         if _xonly_set is not None:
             _xonly_set.close()
         logger.info("API 服务关闭")
+
+    app = FastAPI(
+        title="Bitcoin Collision Engine Dashboard",
+        version="1.0.0",
+        description="私钥碰撞检测系统实时监控仪表盘",
+        lifespan=lifespan,
+    )
 
     # ── 挂载子路由 ────────────────────────────────────────────
     from .routes import router
