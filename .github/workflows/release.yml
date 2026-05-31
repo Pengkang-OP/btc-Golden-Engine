@@ -1,0 +1,60 @@
+# Bitcoin Collision Engine — Release 自动化
+# 当 push 符合 semver 的 tag (v*) 时自动发布 GitHub Release
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | sed -n '2p' || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log --oneline --no-decorate "$PREV_TAG..$TAG" 2>/dev/null || git log --oneline --no-decorate -20)
+          else
+            LOG=$(git log --oneline --no-decorate -30)
+          fi
+          echo "### Changes since previous release" > release_body.md
+          echo "" >> release_body.md
+          echo "$LOG" >> release_body.md
+          echo "" >> release_body.md
+          echo "---" >> release_body.md
+          echo "### Install" >> release_body.md
+          echo "" >> release_body.md
+          echo '```bash' >> release_body.md
+          echo "pip install coincurve bech32" >> release_body.md
+          echo "# GPU mode:" >> release_body.md
+          echo "pip install pyopencl" >> release_body.md
+          echo '```' >> release_body.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_body.md
+          generate_release_notes: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}

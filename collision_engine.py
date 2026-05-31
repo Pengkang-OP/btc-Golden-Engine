@@ -293,7 +293,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         logger.error("[UTXO][刷新] 提取 Hash160 失败: %s", exc, exc_info=True)
         return False
     finally:
-        _builtins.print = builtins_print  # type: ignore[union-attr]
+        _builtins.print = builtins_print
 
     # 5) 创建新的 Hash160Set 并加载
     logger.info("[UTXO][刷新] 加载新目标集 ...")
@@ -645,7 +645,7 @@ def save_result(result: CollisionResult):
 checkpoint_lock = threading.Lock()
 
 
-def load_checkpoint() -> dict:
+def load_checkpoint() -> dict[str, object]:
     """从磁盘加载 checkpoint"""
     if CHECKPOINT_FILE.exists():
         try:
@@ -655,7 +655,7 @@ def load_checkpoint() -> dict:
     return {}
 
 
-def save_checkpoint(state: dict):
+def save_checkpoint(state: dict[str, object]) -> None:
     """线程安全地保存 checkpoint"""
     with checkpoint_lock:
         state["_timestamp"] = time.time()
