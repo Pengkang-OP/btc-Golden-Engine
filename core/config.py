@@ -43,6 +43,7 @@ class EngineConfig:
     config_path: Optional[Path] = None  # 配置文件路径 (用于 hot reload 监测)
 
     # ── 扫描参数 ──
+    mode: str = "random"  # 扫描模式: "random" 或 "sequential"
     progress_interval: int = 5000  # 每 N 个 key 报告一次进度
     checkpoint_interval: int = 60_000  # 每 N 个 key 保存一次 checkpoint
 

@@ -1631,6 +1631,10 @@ def main() -> None:
         _config.utxo_refresh_interval = args.utxo_refresh_interval
         _logger.info("UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval)
 
+    # ── 存储扫描模式到配置 ──
+    if _config is not None:
+        _config.mode = args.mode
+
     # ── 初始化通知器 ──
     if _config is not None and _config.notify_on_hit:
         _notifier = Notifier(_config)
