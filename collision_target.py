@@ -276,7 +276,8 @@ class _BaseTargetSet:
         except OSError as e:
             logger.warning(
                 "%s Bloom Filter 缓存写入失败（不影响运行）: %s",
-                self.RECORD_NAME, e,
+                self.RECORD_NAME,
+                e,
             )
 
     # ── 碰撞查询 ──────────────────────────────────────────────

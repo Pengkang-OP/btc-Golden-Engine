@@ -176,7 +176,10 @@ class WorkerRegistry:
                     if cnt < MAX_CONSECUTIVE_TIMEOUT:
                         _logger.warning(
                             "[Master] Worker %s 心跳超时 %ds (第 %d/%d 次，暂不回收)",
-                            wid, elapsed, cnt, MAX_CONSECUTIVE_TIMEOUT,
+                            wid,
+                            elapsed,
+                            cnt,
+                            MAX_CONSECUTIVE_TIMEOUT,
                         )
                         continue
                     _logger.warning(
@@ -198,7 +201,9 @@ class WorkerRegistry:
                     if worker.status == "scanning" or worker.current_start > 0:
                         # 仅回收被收回的 range 到全局池
                         if w.current_start > 0:
-                            mid = w.current_start + (w.current_end - w.current_start) // 2
+                            mid = (
+                                w.current_start + (w.current_end - w.current_start) // 2
+                            )
                             if mid > self._global_cursor:
                                 self._global_cursor = mid
                         w.current_start = 0
@@ -244,7 +249,11 @@ class WorkerRegistry:
                     continue
                 _logger.warning(
                     "[Master] Worker %s 持续掉线 (%ds, 第%d次)，清理其 range [%d, %d)",
-                    wid, elapsed, cnt, w.current_start, w.current_end,
+                    wid,
+                    elapsed,
+                    cnt,
+                    w.current_start,
+                    w.current_end,
                 )
                 # 回收未完成的 range
                 if w.current_start > 0 and w.current_end > w.current_start:

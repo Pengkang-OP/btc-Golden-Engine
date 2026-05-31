@@ -151,7 +151,9 @@ class DistributedScanner:
                     )
                     self._send_heartbeat(status="idle")
                     time.sleep(self._retry_delay)
-                    self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
+                    self._retry_delay = min(
+                        self._retry_delay * 2, self._max_retry_delay
+                    )
                     continue
 
                 self._retry_delay = 1.0  # 成功获取作业，重置退避
@@ -176,7 +178,9 @@ class DistributedScanner:
                     )
                     self._send_heartbeat(status="error", error_message="目标集加载失败")
                     time.sleep(self._retry_delay)
-                    self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
+                    self._retry_delay = min(
+                        self._retry_delay * 2, self._max_retry_delay
+                    )
                     continue
 
                 # 3. 执行扫描
@@ -482,7 +486,8 @@ class DistributedScanner:
                 HitReport(
                     worker_id=self._worker_id,
                     privkey_hex=getattr(result, "privkey_hex", ""),
-                    key_value=int(result.privkey_hex, 16) & 0x7FFFFFFFFFFFFFFF,  # protobuf int64 有符号
+                    key_value=int(result.privkey_hex, 16)
+                    & 0x7FFFFFFFFFFFFFFF,  # protobuf int64 有符号
                 )
             )
             _logger.info(

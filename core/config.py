@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-
 @dataclass
 class EngineConfig:
     """碰撞引擎全局配置。
@@ -40,7 +39,7 @@ class EngineConfig:
     config_file: str = "collision_engine.conf"
     log_file: str = "logs/collision.log"
     log_dir: str = "logs"
-    config_path: Optional[Path] = None  # 配置文件路径 (用于 hot reload 监测)
+    config_path: Path | None = None  # 配置文件路径 (用于 hot reload 监测)
 
     # ── 扫描参数 ──
     mode: str = "random"  # 扫描模式: "random" 或 "sequential"
@@ -144,7 +143,7 @@ class EngineConfig:
                 return False
 
     @classmethod
-    def load(cls, path: Optional[os.PathLike[str]] = None) -> "EngineConfig":
+    def load(cls, path: os.PathLike[str] | None = None) -> "EngineConfig":
         """从 JSON 配置文件加载配置。
 
         Args:
@@ -175,7 +174,7 @@ class EngineConfig:
         config._mtime = path.stat().st_mtime
         return config
 
-    def save(self, path: Optional[os.PathLike[str]] = None) -> None:
+    def save(self, path: os.PathLike[str] | None = None) -> None:
         """将配置持久化到 JSON 文件。
 
         Args:
@@ -219,11 +218,11 @@ class EngineConfig:
 
 # ── 便捷函数 ──
 
-_default_config: Optional[EngineConfig] = None
+_default_config: EngineConfig | None = None
 _config_lock: threading.Lock = threading.Lock()
 
 
-def load_config(path: Optional[os.PathLike[str]] = None) -> EngineConfig:
+def load_config(path: os.PathLike[str] | None = None) -> EngineConfig:
     """加载配置，失败时回退到默认配置（线程安全）。"""
     global _default_config
     if path is not None:
@@ -256,7 +255,7 @@ def request_shutdown() -> None:
 def start_config_watcher(
     config: EngineConfig,
     interval: float = 5.0,
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger | None = None,
 ) -> threading.Thread:
     """启动后台线程监视配置文件变更。
 

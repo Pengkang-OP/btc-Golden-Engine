@@ -92,12 +92,8 @@ class TestBenchmarkRegression:
         monkeypatch.setattr(ct, "HASH_BIN", Path(mock_utxo["bin"]))
         monkeypatch.setattr(ct, "HASH_IDX", Path(mock_utxo["idx"]))
         monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock_utxo["bloom"]))
-        monkeypatch.setattr(
-            ce, "RESULTS_FILE", tmp_dir / "collision_results.json"
-        )
-        monkeypatch.setattr(
-            ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json"
-        )
+        monkeypatch.setattr(ce, "RESULTS_FILE", tmp_dir / "collision_results.json")
+        monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json")
 
         cfg = {
             "results_db": str(tmp_dir / "results.db"),
