@@ -1,3 +1,13 @@
+"""Query Bitcoin Core wallet for addresses with non-zero balances.
+
+Connects to a running bitcoind via bitcoin-cli, fetches wallet info,
+unspent outputs, and address labels, then prints a sorted balance table.
+Supports fallback to cached data when the daemon is offline.
+
+用法:
+    python get_balance_addresses.py
+"""
+
 import subprocess
 import json
 from pathlib import Path
@@ -84,6 +94,7 @@ def get_address_balance(address):
 
 
 def main():
+    """CLI 入口：连接钱包、获取地址余额并输出表格。"""
     print("=" * 100)
     print("Bitcoin Core - 获取有余额的地址")
     print("=" * 100)

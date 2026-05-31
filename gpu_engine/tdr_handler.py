@@ -44,6 +44,7 @@ class KernelTimer:
     """
 
     def __init__(self) -> None:
+        """初始化计时器，未校准状态。"""
         self._calibrated = False
         self._ns_per_key: float = 0.0
         self._calib_count = 0
@@ -68,20 +69,24 @@ class KernelTimer:
 
     @property
     def is_calibrated(self) -> bool:
+        """是否已完成至少一次校准测量。"""
         return self._calibrated
 
     @property
     def ns_per_key(self) -> float:
+        """当前每 key 纳秒估算值（指数移动平均）。"""
         return self._ns_per_key
 
     @property
     def keys_per_sec(self) -> float:
+        """基于校准数据的每秒 key 数估算。"""
         if self._ns_per_key <= 0:
             return 0.0
         return 1e9 / self._ns_per_key
 
     @property
     def calib_count(self) -> int:
+        """已执行的校准测量次数。"""
         return self._calib_count
 
     def safe_sub_batch_size(self, max_time_ms: float, min_size: int = 64) -> int:

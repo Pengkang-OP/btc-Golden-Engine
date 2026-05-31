@@ -72,6 +72,7 @@ class Hash160Set:
     )
 
     def __init__(self) -> None:
+        """初始化 Hash160 查询集合（未加载）。调用 load() 加载数据。"""
         self._bloom: bytes | None = None
         self._bloom_m = 0
         self._count: int = 0
@@ -304,6 +305,7 @@ class Hash160Set:
         return False
 
     def __len__(self) -> int:
+        """返回已加载的 Hash160 条目总数。"""
         return self._count
 
     def close(self) -> None:
@@ -326,9 +328,11 @@ class Hash160Set:
         )
 
     def __enter__(self) -> "Hash160Set":
+        """上下文管理器入口，返回自身。"""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """上下文管理器出口，关闭 mmap 和文件句柄。"""
         self.close()
 
 
@@ -371,6 +375,7 @@ class XOnlySet:
     )
 
     def __init__(self) -> None:
+        """初始化 x-only pubkey 查询集合（未加载）。调用 load() 加载数据。"""
         self._bloom: bytes | None = None
         self._bloom_m = 0
         self._count: int = 0
@@ -430,12 +435,14 @@ class XOnlySet:
     # ── Bloom Filter 加载/构建 ──────────────────────────────────
 
     def _bloom_hash_positions(self, h: bytes) -> list[int]:
+        """计算 7 个 Bloom Filter 位位置（Kirsch-Mitzenmacher 优化）。"""
         h1 = struct.unpack_from("<I", hashlib.sha256(b"\x01" + h).digest())[0]
         h2 = struct.unpack_from("<I", hashlib.sha256(b"\x02" + h).digest())[0]
         m = self._bloom_m
         return [(h1 + i * h2) % m for i in range(_BLOOM_NUM_HASHES)]
 
     def _try_load_bloom(self, bin_path: str) -> bool:
+        """尝试从磁盘加载缓存的 Bloom Filter。"""
         if not XONLY_BLOOM.exists():
             return False
         try:
@@ -466,6 +473,7 @@ class XOnlySet:
             return False
 
     def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
+        """从 mmap 数据构建 Bloom Filter 并保存到磁盘缓存。"""
         t0 = time.perf_counter()
         rs = self.RECORD_SIZE
         m = self._total * _BLOOM_BITS_PER_ENTRY
@@ -509,6 +517,7 @@ class XOnlySet:
             )
 
     def _save_bloom(self, bin_path: str, bloom: bytearray) -> None:
+        """保存 Bloom Filter 到磁盘缓存文件。"""
         bin_digest = _file_sha256(bin_path)
         byte_size = len(bloom)
         header = bytearray()
@@ -575,6 +584,7 @@ class XOnlySet:
         return False
 
     def __len__(self) -> int:
+        """返回已加载的 x-only pubkey 条目总数。"""
         return self._count
 
     def close(self) -> None:
@@ -594,9 +604,11 @@ class XOnlySet:
         )
 
     def __enter__(self) -> "XOnlySet":
+        """上下文管理器入口，返回自身。"""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """上下文管理器出口，关闭 mmap 和文件句柄。"""
         self.close()
 
 
@@ -635,14 +647,17 @@ class SwappableTarget:
     """
 
     def __init__(self, initial_set: object | None = None):
+        """初始化可交换目标集容器，可选设置初始集合。"""
         self._lock = threading.Lock()
         self._set: object | None = initial_set
 
     def __contains__(self, item: object) -> bool:
+        """代理到当前活跃集合的 __contains__ 查询。"""
         s = self._set
         return item in s if s is not None else False  # type: ignore[operator]
 
     def __len__(self) -> int:
+        """返回当前活跃集合的条目数。"""
         s = self._set
         return len(s) if s is not None else 0  # type: ignore[arg-type]
 
@@ -665,6 +680,7 @@ class SwappableTarget:
                 pass
 
     def close(self) -> None:
+        """关闭当前活跃的底层集合并置空。"""
         self.swap(new_set=None)
 
 

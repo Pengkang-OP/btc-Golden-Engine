@@ -31,6 +31,7 @@ class DeviceInfo:
     _raw_device: Any = None  # pyopencl.Device (if available)
 
     def __repr__(self) -> str:
+        """返回设备的单行摘要字符串。"""
         return (
             f"{self.device_name} | {self.platform_name} | "
             f"{self.compute_units} CU @ {self.max_clock_frequency} MHz | "

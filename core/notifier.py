@@ -40,6 +40,7 @@ class Notifier:
     """
 
     def __init__(self, config: EngineConfig):
+        """初始化通知器，配置 SMTP/Webhook 参数并创建线程池。"""
         self.config = config
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(

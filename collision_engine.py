@@ -107,7 +107,7 @@ _refresh_last_result: str = "N/A"  # 上次刷新结果描述
 
 
 def _handle_signal(signum: int, frame: object | None = None) -> None:
-    """信号处理器：为 SIGTERM 设置关闭标志，为 SIGINT 同时抛出 KeyboardInterrupt。"""
+    """信号处理器：SIGTERM 设关闭标志，SIGINT 抛 KeyboardInterrupt 以触发清理。"""
     global _shutdown_requested
     _shutdown_requested = True
     if _logger:
@@ -668,12 +668,14 @@ class SequentialCounter:
     """线程安全的顺序计数器"""
 
     def __init__(self, start: int = 1, limit: int = 0):
+        """初始化顺序计数器，设置起始值和上限。"""
         self._lock = threading.Lock()
         self._val = start
         self._limit = limit
         self._count = 0
 
     def next(self) -> Optional[int]:
+        """返回下一个私钥值（线程安全），超出上限返回 None。"""
         with self._lock:
             if self._limit > 0 and self._count >= self._limit:
                 return None
@@ -684,10 +686,12 @@ class SequentialCounter:
 
     @property
     def checked(self) -> int:
+        """已分配且被检查的私钥总数。"""
         return self._count
 
     @property
     def current(self) -> int:
+        """下一个将被分配的私钥值（用于 checkpoint）。"""
         return self._val
 
 

@@ -52,6 +52,7 @@ class GPUBatchScheduler:
     """多 GPU batch 调度器。"""
 
     def __init__(self, config: DispatcherConfig):
+        """初始化调度器，设置配置和内部状态。"""
         self.config = config
         self._pipelines: list[GPUPipeline] = []
         self._workers: list[WorkerResult] = []
@@ -286,7 +287,9 @@ class GPUBatchScheduler:
         self._pipelines.clear()
 
     def __enter__(self) -> GPUBatchScheduler:
+        """上下文管理器入口，返回自身。"""
         return self
 
     def __exit__(self, *args: Any) -> None:
+        """上下文管理器出口，释放所有 GPU 管道。"""
         self.close()

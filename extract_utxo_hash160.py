@@ -26,6 +26,7 @@ NETWORK_MAGIC = bytes.fromhex("f9beb4d9")
 
 
 def read_compact_size(data, off):
+    """Read Bitcoin variable-length integer (compact size)."""
     b = data[off]
     off += 1
     if b < 253:
@@ -50,6 +51,7 @@ def read_varint(data, off):
 
 
 def decompress_amount(x):
+    """Decompress Bitcoin Core compact amount representation."""
     if x == 0:
         return 0
     x -= 1
@@ -82,6 +84,7 @@ def _skip_script(data, off, sc):
 
 
 def check_snapshot():
+    """Verify snapshot file exists and print file size."""
     if not SNAPSHOT.exists():
         print(f"[ERROR] Snapshot not found: {SNAPSHOT}")
         return False
@@ -90,6 +93,7 @@ def check_snapshot():
 
 
 def parse():
+    """Parse UTXO snapshot and extract Hash160 values into 256 first-byte buckets."""
     print(f"  Reading {SNAPSHOT} ...")
     with open(SNAPSHOT, "rb") as f:
         data = f.read()
@@ -272,6 +276,7 @@ def parse():
 
 
 def sort_and_save(buckets, stats):
+    """Sort each bucket and write sorted Hash160 array + prefix index."""
     n = sum(len(b) // 20 for b in buckets)
     print(f"  Sorting {n:,} Hash160 (256 buckets)...")
     t0 = time.time()

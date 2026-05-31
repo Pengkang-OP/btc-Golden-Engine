@@ -12,6 +12,7 @@ STATS = BASE / "utxo_hash160_stats.json"
 
 
 def check_size():
+    """验证数据文件大小是否为 20 字节对齐并返回条目数。"""
     size = BIN.stat().st_size
     n = size // 20
     if size % 20 != 0:
@@ -22,6 +23,7 @@ def check_size():
 
 
 def check_sorted(n):
+    """通过等间隔采样检查数据是否全局排序。"""
     print("[...]  Checking sort order (sampling every 1000)...")
     t0 = time.time()
     step = 1000
@@ -39,6 +41,7 @@ def check_sorted(n):
 
 
 def check_bounds(n):
+    """读取第一个和最后一个 Hash160 值作为基准。"""
     with open(BIN, "rb") as f:
         first = f.read(20)
         f.seek((n - 1) * 20)
@@ -49,6 +52,7 @@ def check_bounds(n):
 
 
 def check_first_byte_distribution(n):
+    """统计首字节分布，用于快速检查数据平衡性。"""
     print("[...]  Counting first-byte distribution...")
     t0 = time.time()
     dist = [0] * 256
@@ -68,6 +72,7 @@ def check_first_byte_distribution(n):
 
 
 def check_stats_match(n):
+    """验证条目数与 stats.json 中的记录一致。"""
     if not STATS.exists():
         print(f"[WARN] {STATS} not found, skipping")
         return
@@ -82,6 +87,7 @@ def check_stats_match(n):
 
 
 def check_index_match(n):
+    """验证前缀索引与数据文件内容一致（首字节、边界）。"""
     if not IDX.exists():
         print(f"[WARN] {IDX} not found, skipping")
         return
@@ -144,6 +150,7 @@ def check_index_match(n):
 
 
 def check_known_targets(n):
+    """测试几个已知地址（创世地址、假地址）的命中/未命中。"""
     from collision_target import Hash160Set
 
     s = Hash160Set()
@@ -175,6 +182,7 @@ def check_known_targets(n):
 
 
 def check_no_duplicates_sampling(n):
+    """通过等间隔采样检查是否存在相邻重复条目。"""
     print("[...]  Checking duplicates (sampling every 10000)...")
     t0 = time.time()
     with open(BIN, "rb") as f:
@@ -192,6 +200,7 @@ def check_no_duplicates_sampling(n):
 
 
 def check_checksum():
+    """计算完整数据文件的 SHA256 校验和。"""
     print("[...]  Computing SHA256 checksum...")
     t0 = time.time()
     sha = hashlib.sha256()
@@ -204,6 +213,7 @@ def check_checksum():
 
 
 def main():
+    """入口：逐项执行数据完整性检查并输出汇总结果。"""
     print("=" * 60)
     print("utxo_hash160.bin Data Integrity Verification")
     print("=" * 60)

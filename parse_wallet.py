@@ -1,3 +1,13 @@
+"""Parse Bitcoin Core wallet.dat file and extract address information.
+
+Scans wallet.dat for known address format markers (P2PKH, P2SH, P2WPKH)
+and converts raw hashes to Base58Check and Bech32 addresses using built-in
+encoders. Outputs address list sorted by type.
+
+用法:
+    python parse_wallet.py
+"""
+
 import json
 from pathlib import Path
 
@@ -161,6 +171,7 @@ def bech32_polymod(values):
 
 
 def main():
+    """CLI 入口：扫描 wallet.dat 并输出解析结果。"""
     print("=" * 80)
     print("Bitcoin 钱包数据库分析工具")
     print("=" * 80)

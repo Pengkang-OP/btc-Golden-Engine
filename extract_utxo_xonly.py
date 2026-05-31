@@ -29,6 +29,7 @@ NETWORK_MAGIC = bytes.fromhex("f9beb4d9")
 
 
 def read_compact_size(data, off):
+    """Read Bitcoin variable-length integer (compact size)."""
     b = data[off]
     off += 1
     if b < 253:
@@ -53,6 +54,7 @@ def read_varint(data, off):
 
 
 def decompress_amount(x):
+    """Decompress Bitcoin Core compact amount representation."""
     if x == 0:
         return 0
     x -= 1
@@ -71,6 +73,7 @@ def decompress_amount(x):
 
 
 def parse():
+    """Parse UTXO snapshot and extract P2TR x-only pubkeys into 256 first-byte buckets."""
     print(f"[...] 读取快照 {SNAPSHOT} ...")
     with open(SNAPSHOT, "rb") as f:
         data = f.read()
@@ -201,6 +204,7 @@ def parse():
 
 
 def sort_and_save(buckets, stats):
+    """Sort each bucket by x-only pubkey and write sorted array + prefix index."""
     n = sum(len(b) // 32 for b in buckets)
     if n == 0:
         print("  没有 P2TR 数据可保存。")
@@ -258,6 +262,7 @@ def sort_and_save(buckets, stats):
 
 
 def main():
+    """CLI 入口：解析并提取 P2TR x-only pubkey 数据。"""
     print("=" * 60)
     print("  Bitcoin UTXO -> P2TR x-only pubkey 提取器")
     print("=" * 60)

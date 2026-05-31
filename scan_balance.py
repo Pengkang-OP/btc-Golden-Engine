@@ -1,3 +1,12 @@
+"""Scan UTXO set for specific Bitcoin addresses and report balances.
+
+Uses bitcoin-cli scantxoutset RPC to check a predefined list of addresses
+against the current UTXO set, displaying total balance for each.
+
+用法:
+    python scan_balance.py
+"""
+
 import subprocess
 import json
 
@@ -15,6 +24,7 @@ DATADIR = r"G:\Bitcoin"
 
 
 def run_cli(args):
+    """Run bitcoin-cli with given args and parse JSON output."""
     cmd = [BITCOIN_CLI, f"-datadir={DATADIR}"] + args
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     if result.returncode == 0:

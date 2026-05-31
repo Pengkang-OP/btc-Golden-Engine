@@ -24,6 +24,7 @@ class MetricsRegistry:
     """
 
     def __init__(self) -> None:
+        """初始化注册表，清空 gauge 和 counter 存储。"""
         self._gauges: dict[str, float] = {}
         self._counters: dict[str, int] = {}
 

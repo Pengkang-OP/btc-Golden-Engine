@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""Generate rpcauth credentials for Bitcoin Core JSON-RPC access.
+
+Creates a salted HMAC-SHA256 password hash for bitcoin.conf
+rpcauth directive. Supports random password generation,
+interactive password entry, and JSON output.
+
+用法:
+    python share/rpcauth/rpcauth.py <username>
+    python share/rpcauth/rpcauth.py <username> <password> --json
+"""
+
 # Copyright (c) 2015-2021 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.

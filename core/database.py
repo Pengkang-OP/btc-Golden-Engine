@@ -269,9 +269,11 @@ class ResultDB:
         self._closed = True
 
     def __enter__(self) -> "ResultDB":
+        """上下文管理器入口，返回自身。"""
         return self
 
     def __exit__(self, *args: Any) -> None:
+        """上下文管理器出口，关闭数据库连接。"""
         self.close()
 
     @staticmethod

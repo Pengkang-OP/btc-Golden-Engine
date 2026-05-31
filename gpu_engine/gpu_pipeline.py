@@ -55,6 +55,7 @@ class GPUPipeline:
         tdr_safe: bool = True,
         max_kernel_time: float = 1.5,
     ):
+        """初始化 GPU 管道：配置参数、创建 OpenCL 上下文、编译内核。"""
         self.batch_size = batch_size
         self.quiet = quiet
         self.profile = profile
@@ -257,6 +258,7 @@ class GPUPipeline:
 
     @sequential_start.setter
     def sequential_start(self, val: int):
+        """设置顺序扫描起始值（用于 checkpoint 恢复）。"""
         self._seq_start = val
 
     def submit_batch(
@@ -432,7 +434,7 @@ class GPUPipeline:
         batch_result: BatchResult,
         index: int,
     ) -> bytes:
-        """从 batch 结果中提取指定索引的私钥字节。"""
+        """从 batch 结果中提取指定索引的 32 字节私钥。"""
         return bytes(batch_result.privkey_bytes[index * 32 : (index + 1) * 32])
 
     def close(self) -> None:
@@ -446,9 +448,11 @@ class GPUPipeline:
             self._ctx = None
 
     def __enter__(self) -> GPUPipeline:
+        """上下文管理器入口，返回自身。"""
         return self
 
     def __exit__(self, *args: Any) -> None:
+        """上下文管理器出口，释放 GPU 资源。"""
         self.close()
 
 

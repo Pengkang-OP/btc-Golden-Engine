@@ -1,3 +1,12 @@
+"""View Bitcoin Core wallet transactions with summary statistics.
+
+Connects to bitcoind via bitcoin-cli, fetches all transaction history,
+displays a formatted table sorted by time, and saves JSON + Markdown reports.
+
+用法:
+    python view_transactions.py
+"""
+
 import subprocess
 import json
 import datetime
@@ -9,6 +18,7 @@ WALLET = "plz"
 
 
 def run_cli(args):
+    """Run bitcoin-cli command and return (result, error)."""
     cmd = [BITCOIN_CLI, f"-datadir={DATADIR}"]
     if WALLET:
         cmd.append(f"-rpcwallet={WALLET}")
@@ -27,6 +37,7 @@ def run_cli(args):
 
 
 def format_timestamp(ts):
+    """Convert Unix timestamp to human-readable datetime string."""
     try:
         return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
@@ -34,6 +45,7 @@ def format_timestamp(ts):
 
 
 def main():
+    """CLI 入口：获取并显示钱包交易列表与统计摘要。"""
     print("=" * 100)
     print("Bitcoin 交易数据查看工具")
     print("=" * 100)

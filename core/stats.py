@@ -42,6 +42,7 @@ class StatsTracker:
     )
 
     def __init__(self, window_seconds: int = 3600):
+        """初始化统计追踪器，设置滑动窗口大小和计数器。"""
         self.window_seconds = max(window_seconds, 1)
         self.total: int = 0
         self._start_time: float = time.monotonic()
@@ -106,21 +107,21 @@ class StatsTracker:
         return time.monotonic() - self._start_time
 
     def window_count(self) -> int:
-        """返回当前窗口内的数据点数量。"""
+        """返回当前滑动窗口内的数据点数量。"""
         now = time.monotonic()
         with self._lock:
             self._trim(now)
             return len(self._window)
 
     def window_total(self) -> int:
-        """返回当前窗口内的累计 key 数。"""
+        """返回当前滑动窗口内的累计 key 数。"""
         now = time.monotonic()
         with self._lock:
             self._trim(now)
             return sum(c for _, c in self._window)
 
     def get_snapshot(self) -> dict[str, object]:
-        """返回当前状态的快照字典。"""
+        """返回当前所有统计指标的快照字典（用于 UI/API）。"""
         kps = self.keys_per_second()
         return {
             "total_keys": self.total,

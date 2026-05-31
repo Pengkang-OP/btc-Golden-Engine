@@ -46,6 +46,7 @@ class EngineStatus:
     STATUS_FILE = PROJECT_ROOT / "collision_engine_status.json"
 
     def __init__(self) -> None:
+        """初始化引擎状态缓存，设置缓存超时时间。"""
         self._last_read: float = 0.0
         self._cache_timeout: float = 1.0  # 缓存 1 秒
         self._cached: dict[str, Any] = {}
@@ -90,6 +91,7 @@ _engine_status = EngineStatus()
 
 
 def get_engine_status() -> dict[str, Any]:
+    """返回引擎当前运行状态（含缓存）。"""
     return _engine_status.read()
 
 
@@ -172,6 +174,7 @@ _db: Optional[ResultDB] = None
 
 
 def get_db() -> ResultDB:
+    """返回全局 ResultDB 单例（惰性初始化）。"""
     global _db
     if _db is None:
         _db = ResultDB(str(PROJECT_ROOT / "collision_results.db"))
