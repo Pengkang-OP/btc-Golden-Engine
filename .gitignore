@@ -60,3 +60,6 @@ pytest_full*.txt
 
 # Lock file (used by extract scripts)
 .lock
+
+# Temporary mypy diagnostics
+_mypy_*.txt

@@ -56,10 +56,53 @@ collision-engine = "collision_engine:main"
 include = ["core*", "gpu_engine*"]
 
 [tool.mypy]
+strict = true
 ignore_missing_imports = true
 platform = "linux"
 warn_unused_ignores = true
 warn_return_any = true
+
+# ── 模块级豁免 ────────────────────────────────────────────────
+# 提取脚本：独立运行，非项目核心导入模块
+[[tool.mypy.overrides]]
+module = [
+    "extract_utxo_hash160",
+    "extract_utxo_xonly",
+]
+disable_error_code = [
+    "no-untyped-def",
+    "no-untyped-call",
+    "str-bytes-safe",
+    "assignment",
+    "type-arg",
+    "no-any-return",
+]
+
+# 测试文件：类型注解完整度低于生产代码
+[[tool.mypy.overrides]]
+module = [
+    "gpu_engine.test_kernel_compile",
+    "gpu_engine.test_vectors",
+]
+disable_error_code = [
+    "no-untyped-def",
+    "no-untyped-call",
+    "type-arg",
+    "assignment",
+    "str-bytes-safe",
+]
+
+# GPU 下调模块：部分内部辅助函数无需 strict 注解
+[[tool.mypy.overrides]]
+module = [
+    "gpu_engine.gpu_pipeline",
+    "gpu_engine.gpu_dispatcher",
+    "api.server",
+]
+disable_error_code = [
+    "no-untyped-call",
+    "no-untyped-def",
+]
 
 [tool.pytest.ini_options]
 markers = [

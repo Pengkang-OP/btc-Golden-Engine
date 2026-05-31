@@ -48,7 +48,7 @@ class KernelTimer:
         self._ns_per_key: float = 0.0
         self._calib_count = 0
 
-    def update(self, elapsed: float, keys: int):
+    def update(self, elapsed: float, keys: int) -> None:
         """根据一次运行更新每 key 时间估算。
 
         Args:

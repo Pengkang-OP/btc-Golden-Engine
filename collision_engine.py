@@ -265,7 +265,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
     # 4) 提取 Hash160
     logger.info("[UTXO][刷新] 从快照提取 Hash160 ...")
 
-    def _quiet_print(*args, **kwargs):  # noqa: ANN401
+    def _quiet_print(*args: object, **kwargs: object) -> None:  # noqa: ANN401
         pass
 
     try:
@@ -578,12 +578,12 @@ class CollisionResult:
     xonly_hex: str = ""  # P2TR x-only pubkey（仅 P2TR 命中时）
     p2sh_address: str = ""  # P2SH-P2WPKH 嵌套 SegWit 地址（仅压缩公钥路径命中时）
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def save_result(result: CollisionResult):
+def save_result(result: CollisionResult) -> None:
     """线程安全地保存碰撞结果到 JSON 文件（及 SQLite 数据库，如已初始化）。"""
     # SQLite 写入（O(1)，优先于 JSON）
     if _db is not None:
@@ -649,7 +649,8 @@ def load_checkpoint() -> dict[str, object]:
     """从磁盘加载 checkpoint"""
     if CHECKPOINT_FILE.exists():
         try:
-            return json.loads(CHECKPOINT_FILE.read_text())
+            data: dict[str, object] = json.loads(CHECKPOINT_FILE.read_text())
+            return data
         except (json.JSONDecodeError, OSError):
             pass
     return {}
@@ -1015,9 +1016,11 @@ def _run_gpu_mode(
             else int(args.gpu_start, 16)
         )
         cp = load_checkpoint()
-        if cp.get("mode") == "gpu_sequential" and cp.get("next_key", 0) > seq_start:
-            seq_start = cp["next_key"]
-            total_checked_pre = cp.get("checked", 0)
+        next_key_val: object = cp.get("next_key", 0)
+        if cp.get("mode") == "gpu_sequential" and isinstance(next_key_val, int) and next_key_val > seq_start:
+            seq_start = next_key_val
+            checked_val: object = cp.get("checked", 0)
+            total_checked_pre = checked_val if isinstance(checked_val, int) else 0
             _logger.info(
                 "[GPU][恢复] 从 checkpoint 恢复: next_key=0x%064x (已检查 %s)",
                 seq_start,
@@ -1392,10 +1395,12 @@ def _run_cpu_mode(
             )
 
             cp = load_checkpoint()
-            if cp.get("mode") == "sequential" and cp.get("next_key", 0) > start_val:
-                start_val = cp["next_key"]
+            next_key_val2: object = cp.get("next_key", 0)
+            if cp.get("mode") == "sequential" and isinstance(next_key_val2, int) and next_key_val2 > start_val:
+                start_val = next_key_val2
                 _logger.info("[恢复] 从 checkpoint 恢复: next_key=0x%064x", start_val)
-                _global_checked = cp.get("checked", 0)
+                chk_val: object = cp.get("checked", 0)
+                _global_checked = chk_val if isinstance(chk_val, int) else 0
 
             _logger.info("[开始] 顺序扫描 起始: 0x%064x", start_val)
             _logger.info("        按 Ctrl+C 停止\n")

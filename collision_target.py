@@ -74,6 +74,8 @@ class Hash160Set:
     def __init__(self) -> None:
         self._bloom: bytes | None = None
         self._bloom_m = 0
+        self._count: int = 0
+        self._total: int = 0
         self._bin_path = ""
         self._idx_path = ""
 
@@ -179,7 +181,7 @@ class Hash160Set:
         except (OSError, struct.error, ValueError):
             return False
 
-    def _build_bloom(self, bin_path: str, quiet: bool = False):
+    def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
         """从 mmap 数据构建 Bloom Filter 并保存到磁盘缓存。"""
         t0 = time.perf_counter()
 
@@ -230,7 +232,7 @@ class Hash160Set:
                 "  [100%%] %s/%s (%.1fs) ✓", f"{total:,}", f"{total:,}", elapsed
             )
 
-    def _save_bloom(self, bin_path: str, bloom: bytearray):
+    def _save_bloom(self, bin_path: str, bloom: bytearray) -> None:
         """保存 Bloom Filter 到磁盘缓存。"""
         bin_digest = _file_sha256(bin_path)
         byte_size = len(bloom)
@@ -304,14 +306,14 @@ class Hash160Set:
     def __len__(self) -> int:
         return self._count
 
-    def close(self):
+    def close(self) -> None:
         if hasattr(self, "_mmap") and self._mmap:
             self._mmap.close()
         if hasattr(self, "_fd") and self._fd:
             self._fd.close()
         self._bloom = None
 
-    def reload(self, quiet: bool = False):
+    def reload(self, quiet: bool = False) -> None:
         """关闭当前 mmap 并从相同路径重新加载数据。
 
         用于 UTXO 自动刷新：保持实例 ID 不变，但指向新数据。
@@ -368,13 +370,15 @@ class XOnlySet:
         "_idx_path",
     )
 
-    def __init__(self):
-        self._bloom = None
+    def __init__(self) -> None:
+        self._bloom: bytes | None = None
         self._bloom_m = 0
+        self._count: int = 0
+        self._total: int = 0
         self._bin_path = ""
         self._idx_path = ""
 
-    def load(self, bin_path=None, idx_path=None, quiet=False):
+    def load(self, bin_path: str | None = None, idx_path: str | None = None, quiet: bool = False) -> None:
         self._bin_path = bin_path or str(XONLY_BIN)
         self._idx_path = idx_path or str(XONLY_IDX)
         bin_path = self._bin_path
@@ -461,7 +465,7 @@ class XOnlySet:
         except (OSError, struct.error, ValueError):
             return False
 
-    def _build_bloom(self, bin_path: str, quiet: bool = False):
+    def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
         t0 = time.perf_counter()
         rs = self.RECORD_SIZE
         m = self._total * _BLOOM_BITS_PER_ENTRY
@@ -504,7 +508,7 @@ class XOnlySet:
                 "  [100%%] %s/%s (%.1fs) ✓", f"{total:,}", f"{total:,}", elapsed
             )
 
-    def _save_bloom(self, bin_path: str, bloom: bytearray):
+    def _save_bloom(self, bin_path: str, bloom: bytearray) -> None:
         bin_digest = _file_sha256(bin_path)
         byte_size = len(bloom)
         header = bytearray()

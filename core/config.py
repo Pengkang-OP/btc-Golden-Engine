@@ -140,7 +140,7 @@ class EngineConfig:
                 return False
 
     @classmethod
-    def load(cls, path: Optional[os.PathLike] = None) -> "EngineConfig":
+    def load(cls, path: Optional[os.PathLike[str]] = None) -> "EngineConfig":
         """从 JSON 配置文件加载配置。
 
         Args:
@@ -171,7 +171,7 @@ class EngineConfig:
         config._mtime = path.stat().st_mtime
         return config
 
-    def save(self, path: Optional[os.PathLike] = None) -> None:
+    def save(self, path: Optional[os.PathLike[str]] = None) -> None:
         """将配置持久化到 JSON 文件。
 
         Args:
@@ -218,7 +218,7 @@ class EngineConfig:
 _default_config: Optional[EngineConfig] = None
 
 
-def load_config(path: Optional[os.PathLike] = None) -> EngineConfig:
+def load_config(path: Optional[os.PathLike[str]] = None) -> EngineConfig:
     """加载配置，失败时回退到默认配置。"""
     global _default_config
     if path is not None:
@@ -231,7 +231,7 @@ def load_config(path: Optional[os.PathLike] = None) -> EngineConfig:
     return _default_config
 
 
-def save_config(config: EngineConfig, path: Optional[os.PathLike] = None) -> None:
+def save_config(config: EngineConfig, path: Optional[os.PathLike[str]] = None) -> None:
     """保存配置到 JSON 文件。"""
     config.save(path)
 
