@@ -74,6 +74,8 @@ _test_out.txt
 # CI diagnostic scripts and logs (PAT tokens, CI logs)
 _download_logs.py
 _check_ci*.py
+_ci*.py
+_coverage_tdr.py
 ci_log_*.txt
 
 # Trunk (platform-specific tooling cache)
