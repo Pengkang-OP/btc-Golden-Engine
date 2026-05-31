@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bitcoin-collision-finder:latest
+    stdin_open: true
+    tty: true
+    network_mode: host
+    volumes:
+      - ./utxo_hash160.bin:/data/utxo_hash160.bin:ro
+      - ./utxo_hash160.idx:/data/utxo_hash160.idx:ro
+      - ./utxo_xonly.bin:/data/utxo_xonly.bin:ro
+      - ./results:/data/results
+      - ./checkpoints:/data/checkpoints
+      - ./logs:/data/logs
+    environment:
+      - LOG_LEVEL=INFO
+      - RESULTS_DIR=/data/results
+    command: ["--help"]
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bitcoin-collision-finder:latest
+    depends_on:
+      - engine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./results:/data/results
+      - ./checkpoints:/data/checkpoints
+      - ./logs:/data/logs
+    environment:
+      - LOG_LEVEL=INFO
+      - RESULTS_DIR=/data/results
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "api.server"]
+    command: []

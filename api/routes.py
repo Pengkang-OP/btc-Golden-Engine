@@ -1,0 +1,212 @@
+"""API 路由 — REST 端点 + WebSocket 实时推送。
+
+端点列表:
+    GET  /               — Dashboard 页面
+    GET  /api/health     — 健康检查
+    GET  /api/stats      — 引擎统计数据
+    GET  /api/results    — 碰撞结果分页查询
+    GET  /api/status     — 引擎运行状态
+    WS   /ws             — 实时 WebSocket 推送
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from typing import Any, Optional
+
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from starlette.responses import HTMLResponse
+
+from .server import (
+    _hash160_set,
+    _xonly_set,
+    _jinja_env,
+    _websocket_clients,
+    get_db,
+    get_engine_status,
+    logger,
+)
+
+router = APIRouter()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  内部辅助
+# ═══════════════════════════════════════════════════════════════
+
+
+def _build_stats() -> dict[str, Any]:
+    """构建完整的统计信息字典。"""
+    es = get_engine_status()
+    db = get_db()
+    try:
+        total_collisions = db.count_results()
+    except Exception:
+        total_collisions = 0
+
+    target_info = {
+        "hash160": 0,
+        "xonly": 0,
+        "hash160_loaded": False,
+        "xonly_loaded": False,
+    }
+    if _hash160_set is not None:
+        try:
+            target_info["hash160"] = len(_hash160_set)
+            target_info["hash160_loaded"] = True
+        except Exception:
+            pass
+    if _xonly_set is not None:
+        try:
+            target_info["xonly"] = len(_xonly_set)
+            target_info["xonly_loaded"] = True
+        except Exception:
+            pass
+
+    return {
+        "keys_per_second": es.get("keys_per_second", 0.0),
+        "total_keys": es.get("total_keys", 0),
+        "elapsed_seconds": es.get("elapsed_seconds", 0.0),
+        "total_collisions": total_collisions,
+        "engine_running": es.get("running", False),
+        "engine_mode": es.get("mode", "unknown"),
+        "target_count": target_info,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  页面路由
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.get("/", response_class=HTMLResponse)
+async def dashboard() -> str:
+    """渲染 Dashboard 页面。"""
+    try:
+        template = _jinja_env.get_template("dashboard.html")
+        stats = _build_stats()
+        return template.render(stats=stats)
+    except Exception as exc:
+        logger.error("渲染 Dashboard 失败: %s", exc)
+        return f"<h1>Dashboard 渲染错误</h1><pre>{exc}</pre>"
+
+
+# ═══════════════════════════════════════════════════════════════
+#  REST API 端点
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.get("/api/health")
+async def health_check() -> dict[str, Any]:
+    """健康检查端点。"""
+    db = get_db()
+    db_ok = True
+    try:
+        db.count_results()
+    except Exception:
+        db_ok = False
+
+    return {
+        "status": "ok",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "database": "connected" if db_ok else "error",
+        "version": "1.0.0",
+    }
+
+
+@router.get("/api/stats")
+async def get_stats() -> dict[str, Any]:
+    """获取实时统计信息。"""
+    return _build_stats()
+
+
+@router.get("/api/results")
+async def get_results(
+    limit: int = Query(50, ge=1, le=500, description="每页条数"),
+    offset: int = Query(0, ge=0, description="偏移量"),
+    address_type: Optional[str] = Query(None, description="地址类型过滤"),
+) -> dict[str, Any]:
+    """分页查询碰撞结果。"""
+    db = get_db()
+    try:
+        total = db.count_results(address_type=address_type)
+        items = db.list_results(
+            limit=limit, offset=offset, address_type=address_type
+        )
+    except Exception as exc:
+        return {"error": str(exc), "total": 0, "items": []}
+
+    # 截断私钥显示
+    for item in items:
+        pk = item.get("privkey_hex", "")
+        if len(pk) > 16:
+            item["privkey_hex_short"] = pk[:8] + "..." + pk[-8:]
+        else:
+            item["privkey_hex_short"] = pk
+        # 截断 WIF
+        wif = (
+            item.get("wif_compressed", "")
+            or item.get("wif_uncompressed", "")
+        )
+        if len(wif) > 16:
+            item["wif_short"] = wif[:8] + "..." + wif[-8:]
+        else:
+            item["wif_short"] = wif
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": items,
+    }
+
+
+@router.get("/api/status")
+async def get_status() -> dict[str, Any]:
+    """获取引擎运行状态。"""
+    es = get_engine_status()
+    db = get_db()
+    try:
+        collision_count = db.count_results()
+    except Exception:
+        collision_count = 0
+
+    return {
+        "running": es.get("running", False),
+        "mode": es.get("mode", "unknown"),
+        "keys_per_second": es.get("keys_per_second", 0.0),
+        "total_keys": es.get("total_keys", 0),
+        "elapsed_seconds": es.get("elapsed_seconds", 0.0),
+        "collision_count": collision_count,
+        "gpu_info": es.get("gpu_info", {}),
+        "error": es.get("error", None),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  WebSocket 端点
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket) -> None:
+    """WebSocket 端点 — 实时推送统计信息。"""
+    await websocket.accept()
+    _websocket_clients.add(websocket)
+    logger.info("WebSocket 客户端已连接 (共 %d 个)", len(_websocket_clients))
+
+    try:
+        # 每 2 秒推送一次最新统计
+        while True:
+            stats = _build_stats()
+            await websocket.send_json(stats)
+            await asyncio.sleep(2)
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        logger.debug("WebSocket 连接异常: %s", exc)
+    finally:
+        _websocket_clients.discard(websocket)
+        logger.info("WebSocket 客户端断开 (剩余 %d 个)", len(_websocket_clients))

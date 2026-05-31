@@ -1,0 +1,32 @@
+[
+  {
+    "name": "privkey=1",
+    "pubkey": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "sha256": "0f715baf5d4c2ed329785cef29e562f73488c8a2bb9dbc5700b361d54b9b0554",
+    "hash160": "751e76e8199196d454941c45d1b3a323f1433bd6"
+  },
+  {
+    "name": "privkey=2",
+    "pubkey": "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+    "sha256": "b1c9938f01121e159887ac2c8d393a22e4476ff8212de13fe1939de2a236f0a7",
+    "hash160": "06afd46bcdfd22ef94ac122aa11f241244a37ecc"
+  },
+  {
+    "name": "privkey=42",
+    "pubkey": "02fe8d1eb1bcb3432b1db5833ff5f2226d9cb5e65cee430558c18ed3a3c86ce1af",
+    "sha256": "0b6a8d6c3fdd5282a079b36ac80b708c0e6c8b704d252386228073cd156c7d3c",
+    "hash160": "9290649ba520a35912dab1733b6f098587e432ef"
+  },
+  {
+    "name": "privkey=SECP256K1_ORDER-1",
+    "pubkey": "0379be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "sha256": "fbd27dbb9e7f471bf3de3704a35e884e37d35c676dc2cc8c3cc574c3962376d2",
+    "hash160": "adde4c73c7b9cee17da6c7b3e2b2eea1a0dcbe67"
+  },
+  {
+    "name": "privkey=EFF",
+    "pubkey": "03d0b972eb7e4cbfadbaf224dccb2d873b2831687788b5f2f2ccc62bf5e978f92b",
+    "sha256": "6c01e6c5cf4f34abf22187b5d61fb7b194bd5f32215b19ff0fc93718ffe21c57",
+    "hash160": "234b8c116811fa822989be4ef14f5775600ad338"
+  }
+]

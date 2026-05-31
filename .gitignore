@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# IDE
+.arts/
+.codeartsdoer/
+.codebuddy/
+
+# Bitcoin Core data
+blocks/
+chainstate/
+bitcoin.conf
+bitcoind.pid
+bitcoin-qt.exe
+banlist.json
+blk_files_report.json
+debug.log
+fee_estimates.dat
+mempool.dat
+peers.dat
+uninstall.exe
+settings.json
+scan_addresses.json
+
+# UTXO extracted data (large binary files)
+utxo_hash160.bin
+utxo_hash160.idx
+utxo_hash160.bloom
+utxo_hash160_stats.json
+utxo_snapshot.dat
+utxo_xonly.bin
+utxo_xonly.idx
+utxo_xonly.bloom
+
+# Database
+collision_results.db
+collision_results.db-shm
+collision_results.db-wal
+
+# Logs
+logs/
+*.log
+
+# Benchmarks
+.benchmarks/
+
+# Local packages
+.local-packages/
+
+# Temporary test output files
+pytest_out*.txt
+pytest_gpu_*.txt
+pytest_full*.txt
+
+# Lock file (used by extract scripts)
+.lock

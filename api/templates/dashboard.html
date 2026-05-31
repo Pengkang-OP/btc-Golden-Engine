@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Collision Engine Dashboard</title>
+    <style>
+        /* ── Reset & Base ────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0e17;
+            color: #e0e6ed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Layout ──────────────────────────────────────── */
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* ── Header ──────────────────────────────────────── */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 24px; margin-bottom: 24px;
+            background: linear-gradient(135deg, #161b2e 0%, #1a2040 100%);
+            border-radius: 12px; border: 1px solid #2a3050;
+        }
+        .header h1 {
+            font-size: 22px; font-weight: 700;
+            background: linear-gradient(90deg, #f7931a, #ffb347);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header .status-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 16px; border-radius: 20px;
+            font-size: 13px; font-weight: 600;
+        }
+        .status-badge.running {
+            background: rgba(46, 213, 115, 0.15); color: #2ed573;
+            border: 1px solid rgba(46, 213, 115, 0.3);
+        }
+        .status-badge.stopped {
+            background: rgba(255, 71, 87, 0.15); color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .status-dot.running { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
+        .status-dot.stopped { background: #ff4757; }
+        .header .links { display: flex; gap: 16px; font-size: 13px; }
+
+        /* ── Stats Grid ──────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #161b2e, #1a2040);
+            border: 1px solid #2a3050;
+            border-radius: 12px; padding: 20px; text-align: center;
+            position: relative; overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .stat-card .label {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+            color: #8b93b0; margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums;
+            color: #e0e6ed;
+        }
+        .stat-card .value.gold { color: #f7931a; }
+        .stat-card .value.green { color: #2ed573; }
+        .stat-card .value.blue { color: #58a6ff; }
+        .stat-card .value.purple { color: #a855f7; }
+        .stat-card .sub {
+            font-size: 11px; color: #5a6280; margin-top: 4px;
+        }
+        .stat-card::after {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+        .stat-card.card-keys::after { background: linear-gradient(90deg, #f7931a, #ffb347); }
+        .stat-card.card-total::after { background: linear-gradient(90deg, #58a6ff, #7c5cbf); }
+        .stat-card.card-time::after { background: linear-gradient(90deg, #2ed573, #26c6da); }
+        .stat-card.card-collisions::after { background: linear-gradient(90deg, #a855f7, #d946ef); }
+        .stat-card.card-target::after { background: linear-gradient(90deg, #f97316, #ef4444); }
+
+        /* ── Results Table ────────────────────────────────── */
+        .section { margin-bottom: 24px; }
+        .section-title {
+            font-size: 16px; font-weight: 600; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 1px solid #2a3050;
+            color: #c0c8e0;
+        }
+        .table-wrapper {
+            background: #161b2e; border: 1px solid #2a3050;
+            border-radius: 12px; overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            background: #1a2040; padding: 12px 16px; text-align: left;
+            font-weight: 600; color: #8b93b0; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        td { padding: 10px 16px; border-top: 1px solid #1e2440; color: #c0c8e0; }
+        tr:hover td { background: rgba(88, 166, 255, 0.04); }
+        .empty-row td {
+            text-align: center; padding: 40px 16px; color: #5a6280; font-size: 14px;
+        }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge.p2pkh { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+        .badge.p2wpkh { background: rgba(46, 213, 115, 0.15); color: #2ed573; }
+        .badge.p2tr { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+        .badge.p2pkh-uncomp { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+
+        /* ── Pagination ───────────────────────────────────── */
+        .pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; padding: 16px; border-top: 1px solid #1e2440;
+        }
+        .pagination button {
+            background: #1a2040; border: 1px solid #2a3050;
+            color: #c0c8e0; padding: 6px 14px; border-radius: 6px;
+            cursor: pointer; font-size: 13px; transition: all 0.2s;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #2a3050; border-color: #58a6ff;
+        }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination .info { color: #5a6280; font-size: 13px; }
+
+        /* ── Target Info ──────────────────────────────────── */
+        .target-info {
+            background: #161b2e; border: 1px solid #2a3050;
+            border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
+            display: flex; gap: 32px; flex-wrap: wrap;
+        }
+        .target-info .item { display: flex; align-items: center; gap: 8px; }
+        .target-info .item .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .target-info .item .dot.loaded { background: #2ed573; }
+        .target-info .item .dot.unloaded { background: #ff4757; }
+        .target-info .item .num { color: #e0e6ed; font-weight: 600; }
+        .target-info .item .desc { color: #5a6280; font-size: 13px; }
+
+        /* ── Auto-refresh indicator ────────────────────────── */
+        .refresh-indicator {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: #5a6280;
+        }
+        .refresh-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #2ed573; animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 12px; text-align: center; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .stat-card .value { font-size: 22px; }
+            th, td { padding: 8px 10px; font-size: 12px; }
+            .target-info { gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <h1>⚡ Collision Engine</h1>
+            <span id="statusBadge" class="status-badge {{ 'running' if stats.get('engine_running') else 'stopped' }}">
+                <span id="statusDot" class="status-dot {{ 'running' if stats.get('engine_running') else 'stopped' }}"></span>
+                <span id="statusText">{{ 'Running' if stats.get('engine_running') else 'Stopped' }}</span>
+            </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div class="refresh-indicator">
+                <span class="refresh-dot"></span>
+                <span>实时更新</span>
+            </div>
+            <div class="links">
+                <a href="/api/stats">/api/stats</a>
+                <a href="/api/health">/api/health</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card card-keys">
+            <div class="label">扫描速率</div>
+            <div class="value gold" id="keysPerSecond">{{ "%.1f"|format(stats.get('keys_per_second', 0)) }}</div>
+            <div class="sub">keys/s</div>
+        </div>
+        <div class="stat-card card-total">
+            <div class="label">已扫描密钥</div>
+            <div class="value blue" id="totalKeys">{{ "{:,}".format(stats.get('total_keys', 0)) }}</div>
+            <div class="sub">total keys</div>
+        </div>
+        <div class="stat-card card-time">
+            <div class="label">运行时间</div>
+            <div class="value green" id="elapsedTime">{{ "{:.1f}".format(stats.get('elapsed_seconds', 0)) }}</div>
+            <div class="sub">秒</div>
+        </div>
+        <div class="stat-card card-collisions">
+            <div class="label">碰撞命中</div>
+            <div class="value purple" id="totalCollisions">{{ "{:,}".format(stats.get('total_collisions', 0)) }}</div>
+            <div class="sub">collisions</div>
+        </div>
+        <div class="stat-card card-target">
+            <div class="label">目标地址</div>
+            <div class="value gold" id="targetCount">
+                {{ "{:,}".format(stats.get('target_count', {}).get('hash160', 0)) }}
+            </div>
+            <div class="sub">Hash160 in UTXO set</div>
+        </div>
+    </div>
+
+    <!-- Target Info -->
+    <div class="target-info" id="targetInfo">
+        <div class="item">
+            <span class="dot {{ 'loaded' if stats.get('target_count', {}).get('hash160_loaded') else 'unloaded' }}"></span>
+            <span class="desc">P2PKH / P2WPKH:</span>
+            <span class="num" id="hash160Count">{{ "{:,}".format(stats.get('target_count', {}).get('hash160', 0)) }}</span>
+        </div>
+        <div class="item">
+            <span class="dot {{ 'loaded' if stats.get('target_count', {}).get('xonly_loaded') else 'unloaded' }}"></span>
+            <span class="desc">P2TR (Taproot):</span>
+            <span class="num" id="xonlyCount">{{ "{:,}".format(stats.get('target_count', {}).get('xonly', 0)) }}</span>
+        </div>
+        <div class="item">
+            <span class="desc">引擎模式:</span>
+            <span class="num" id="engineMode">{{ stats.get('engine_mode', 'unknown') }}</span>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="section">
+        <div class="section-title">碰撞结果</div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>时间</th>
+                        <th>地址类型</th>
+                        <th>私钥 (Hex)</th>
+                        <th>WIF</th>
+                        <th>地址</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <tr class="empty-row">
+                        <td colspan="6">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="pagination">
+                <button id="prevPage" onclick="changePage(-1)" disabled>← 上一页</button>
+                <span class="info" id="pageInfo">第 1 页</span>
+                <button id="nextPage" onclick="changePage(1)">下一页 →</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ── State ──────────────────────────────────────────────────
+    let currentPage = 0;
+    const PAGE_SIZE = 50;
+
+    // ── Stats Update ──────────────────────────────────────────
+    function fmtNum(n) {
+        return Number(n).toLocaleString();
+    }
+
+    function fmtFloat(n, d) {
+        return Number(n).toFixed(d || 1);
+    }
+
+    function updateStats(data) {
+        document.getElementById('keysPerSecond').textContent = fmtFloat(data.keys_per_second, 1);
+        document.getElementById('totalKeys').textContent = fmtNum(data.total_keys);
+        document.getElementById('elapsedTime').textContent = fmtFloat(data.elapsed_seconds, 1);
+        document.getElementById('totalCollisions').textContent = fmtNum(data.total_collisions);
+
+        // 状态
+        const running = data.engine_running;
+        const badge = document.getElementById('statusBadge');
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        badge.className = 'status-badge ' + (running ? 'running' : 'stopped');
+        dot.className = 'status-dot ' + (running ? 'running' : 'stopped');
+        text.textContent = running ? 'Running' : 'Stopped';
+
+        // 目标信息
+        if (data.target_count) {
+            document.getElementById('hash160Count').textContent = fmtNum(data.target_count.hash160);
+            document.getElementById('xonlyCount').textContent = fmtNum(data.target_count.xonly || 0);
+        }
+        if (data.engine_mode) {
+            document.getElementById('engineMode').textContent = data.engine_mode;
+        }
+    }
+
+    // ── Results Fetch ─────────────────────────────────────────
+    async function fetchResults(page) {
+        const offset = page * PAGE_SIZE;
+        try {
+            const resp = await fetch(`/api/results?limit=${PAGE_SIZE}&offset=${offset}`);
+            const data = await resp.json();
+            renderResults(data);
+        } catch (e) {
+            document.getElementById('resultsBody').innerHTML =
+                '<tr class="empty-row"><td colspan="6">获取结果失败: ' + e.message + '</td></tr>';
+        }
+    }
+
+    function renderResultType(type) {
+        const t = (type || '').toLowerCase();
+        if (t.includes('p2pkh') && t.includes('uncomp')) return '<span class="badge p2pkh-uncomp">P2PKH-U</span>';
+        if (t.includes('p2pkh')) return '<span class="badge p2pkh">P2PKH</span>';
+        if (t.includes('p2wpkh')) return '<span class="badge p2wpkh">P2WPKH</span>';
+        if (t.includes('p2tr')) return '<span class="badge p2tr">P2TR</span>';
+        return '<span class="badge">' + (type || '') + '</span>';
+    }
+
+    function renderResults(data) {
+        const tbody = document.getElementById('resultsBody');
+        if (!data.items || data.items.length === 0) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无碰撞结果</td></tr>';
+            updatePagination(data.total || 0);
+            return;
+        }
+
+        let html = '';
+        for (const item of data.items) {
+            const ts = (item.timestamp || '').substring(0, 19).replace('T', ' ');
+            const addr = item.p2pkh_address_comp || item.p2wpkh_address || item.p2tr_address || '-';
+            html += '<tr>' +
+                '<td>' + item.id + '</td>' +
+                '<td style="white-space:nowrap;">' + ts + '</td>' +
+                '<td>' + renderResultType(item.address_type) + '</td>' +
+                '<td style="font-family:monospace;font-size:12px;">' + (item.privkey_hex_short || '-') + '</td>' +
+                '<td style="font-family:monospace;font-size:12px;">' + (item.wif_short || '-') + '</td>' +
+                '<td style="font-family:monospace;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="' + addr + '">' + addr + '</td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+        updatePagination(data.total || 0);
+    }
+
+    function updatePagination(total) {
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        document.getElementById('pageInfo').textContent =
+            '第 ' + (currentPage + 1) + ' / ' + totalPages + ' 页（共 ' + fmtNum(total) + ' 条）';
+        document.getElementById('prevPage').disabled = currentPage <= 0;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages - 1;
+    }
+
+    function changePage(delta) {
+        currentPage = Math.max(0, currentPage + delta);
+        fetchResults(currentPage);
+    }
+
+    // ── Stats Polling (every 2s) ──────────────────────────────
+    async function pollStats() {
+        try {
+            const resp = await fetch('/api/stats');
+            const data = await resp.json();
+            updateStats(data);
+        } catch (e) {
+            // 静默失败
+        }
+    }
+
+    // ── WebSocket (fallback for future use) ───────────────────
+    // Optional: can be enabled when server supports WS
+    // const ws = new WebSocket('ws://' + location.host + '/ws');
+
+    // ── Init ──────────────────────────────────────────────────
+    fetchResults(0);
+    setInterval(pollStats, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitcoin-collision-finder"
+version = "2.0.0"
+description = "Bitcoin 私钥碰撞检测系统"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+keywords = ["bitcoin", "collision", "private-key", "gpu"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security :: Cryptography",
+]
+
+dependencies = [
+    "coincurve>=3.0.0",
+    "bech32>=1.2.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+gpu = ["pyopencl>=2024.1"]
+web = ["fastapi>=0.110.0", "uvicorn>=0.29.0", "jinja2>=3.1.0", "websockets>=12.0"]
+dev = [
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pyopencl>=2024.1",
+]
+all = [
+    "pyopencl>=2024.1",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "jinja2>=3.1.0",
+    "websockets>=12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/bitcoin-collision-finder"
+Repository = "https://github.com/your-org/bitcoin-collision-finder"
+Documentation = "https://github.com/your-org/bitcoin-collision-finder#readme"
+"Bug Tracker" = "https://github.com/your-org/bitcoin-collision-finder/issues"
+
+[project.scripts]
+collision-engine = "collision_engine:main"
+
+[tool.setuptools.packages.find]
+include = ["core*", "gpu_engine*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: 需要真实 GPU 硬件的测试（无 GPU 时自动跳过）",
+]
