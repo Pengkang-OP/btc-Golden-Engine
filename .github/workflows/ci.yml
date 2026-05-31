@@ -9,36 +9,27 @@ on:
   pull_request:
     branches: [main]
 
-# ── 全局缓存 key ──────────────────────────────────────────────
 env:
   PYTHON_VERSION: "3.12"
 
-# ── 公共步骤 anchor ───────────────────────────────────────────
-.defaults: &defaults
-  runs-on: ubuntu-latest
-
-.pip-cache: &pip-cache
-  uses: actions/cache@v4
-  with:
-    path: ~/.cache/pip
-    key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('pyproject.toml') }}
-    restore-keys: |
-      ${{ runner.os }}-pip-
-
-.setup-python: &setup-python
-  name: Set up Python ${{ env.PYTHON_VERSION }}
-  uses: actions/setup-python@v5
-  with:
-    python-version: ${{ env.PYTHON_VERSION }}
-
 jobs:
   lint:
-    <<: *defaults
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - *setup-python
-      - *pip-cache
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
@@ -59,12 +50,22 @@ jobs:
             --ignore-missing-imports --platform linux
 
   python-test:
-    <<: *defaults
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - *setup-python
-      - *pip-cache
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
@@ -131,8 +132,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - *setup-python
-      - *pip-cache
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install OpenCL runtime
         run: |
