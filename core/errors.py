@@ -19,6 +19,12 @@ class CollisionEngineError(Exception):
     """碰撞引擎所有异常的基类。"""
 
     def __init__(self, message: str, *, original: Exception | None = None):
+        """初始化碰撞引擎异常。
+
+        Args:
+            message: 错误描述信息。
+            original: 触发此异常的原始异常对象（可选）。
+        """
         super().__init__(message)
         self.original = original
 

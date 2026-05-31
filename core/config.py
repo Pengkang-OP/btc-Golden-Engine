@@ -270,6 +270,7 @@ def start_config_watcher(
         logger = logging.getLogger("config.watcher")
 
     def _watcher_loop() -> None:
+        """轮询检查配置文件变更的后台循环。"""
         while not _shutdown_requested:
             try:
                 if config.check_reload():

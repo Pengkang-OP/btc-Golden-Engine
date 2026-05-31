@@ -37,6 +37,11 @@ class ResultDB:
     """
 
     def __init__(self, db_path: str | Path = Path("collision_results.db")):
+        """初始化 ResultDB，自动创建数据库目录和表结构。
+
+        Args:
+            db_path: SQLite 数据库文件路径。
+        """
         self.db_path = Path(db_path)
         self._lock = threading.RLock()
         self._conn: sqlite3.Connection

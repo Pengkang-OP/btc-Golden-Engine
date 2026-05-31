@@ -125,6 +125,7 @@ def _start_config_watcher(
     log = logger or logging.getLogger(__name__)
 
     def _watch() -> None:
+        """轮询配置文件的 mtime 变更，检测到变化则自动重载。"""
         global _shutdown_requested
         while not _shutdown_requested:
             try:
@@ -266,6 +267,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
     logger.info("[UTXO][刷新] 从快照提取 Hash160 ...")
 
     def _quiet_print(*args: object, **kwargs: object) -> None:  # noqa: ANN401
+        """静默函数，临时替换 builtins.print 以抑制子流程的 stdout 输出。"""
         pass
 
     try:
@@ -369,6 +371,7 @@ def _start_utxo_refresher(
     )
 
     def _refresher_loop() -> None:
+        """后台循环，周期性调用 _do_utxo_refresh 执行 UTXO 刷新。"""
         global _shutdown_requested
         while not _shutdown_requested:
             try:
@@ -579,6 +582,7 @@ class CollisionResult:
     p2sh_address: str = ""  # P2SH-P2WPKH 嵌套 SegWit 地址（仅压缩公钥路径命中时）
 
     def __post_init__(self) -> None:
+        """dataclass 初始化后处理：空 timestamp 自动填充当前 UTC 时间。"""
         if not self.timestamp:
             self.timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -1048,10 +1052,12 @@ def _run_gpu_mode(
 
     # 碰撞检查回调
     def check_hit(h160: bytes) -> bool:
+        """碰撞检测回调：检查 HASH160 是否在目标集中。"""
         return h160 in target
 
     # 命中保存回调: privkey_bytes(32B 小端, GPU kernel 编码) → 推导 HASH160 → 保存结果
     def on_hit(privkey_bytes: bytes) -> None:
+        """碰撞命中回调：从 GPU 返回的 32 字节私钥推导地址并保存结果。"""
         privkey_int = int.from_bytes(privkey_bytes, "little")
         result = check_single_key(privkey_int, target, xonly_target)
         if result is not None:

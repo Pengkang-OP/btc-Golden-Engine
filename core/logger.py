@@ -48,6 +48,17 @@ class JsonFormatter(logging.Formatter):
         return ct.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]  # 默认格式: 毫秒精度
 
     def format(self, record: logging.LogRecord) -> str:
+        """将日志记录格式化为 JSON 字符串。
+
+        包含时间戳、日志级别、记录器名称、消息，
+        以及异常信息和 extra_fields（如存在）。
+
+        Args:
+            record: 日志记录对象。
+
+        Returns:
+            JSON 格式的日志字符串。
+        """
         log_entry: dict[str, object] = {
             "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ"),
             "level": record.levelname,

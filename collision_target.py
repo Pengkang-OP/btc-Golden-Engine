@@ -86,6 +86,13 @@ class Hash160Set:
         idx_path: str | None = None,
         quiet: bool = False,
     ) -> None:
+        """加载 HASH160 二进制文件和前缀索引到 mmap。
+
+        Args:
+            bin_path: .bin 文件路径。None 则使用默认 HASH_BIN。
+            idx_path: .idx 索引文件路径。None 则使用默认 HASH_IDX。
+            quiet: True 时抑制信息输出。
+        """
         self._bin_path = bin_path or str(HASH_BIN)
         self._idx_path = idx_path or str(HASH_IDX)
         bin_path = self._bin_path
@@ -314,6 +321,7 @@ class Hash160Set:
         return self._count
 
     def close(self) -> None:
+        """关闭 mmap、文件描述符并释放 Bloom Filter 资源。"""
         if hasattr(self, "_mmap") and self._mmap:
             try:
                 self._mmap.close()
@@ -402,6 +410,13 @@ class XOnlySet:
         idx_path: str | None = None,
         quiet: bool = False,
     ) -> None:
+        """加载 x-only pubkey 二进制文件和前缀索引到 mmap。
+
+        Args:
+            bin_path: .bin 文件路径。None 则使用默认 XONLY_BIN。
+            idx_path: .idx 索引文件路径。None 则使用默认 XONLY_IDX。
+            quiet: True 时抑制信息输出。
+        """
         self._bin_path = bin_path or str(XONLY_BIN)
         self._idx_path = idx_path or str(XONLY_IDX)
         bin_path = self._bin_path
@@ -608,6 +623,7 @@ class XOnlySet:
         return self._count
 
     def close(self) -> None:
+        """关闭 mmap、文件描述符并释放 Bloom Filter 资源。"""
         if hasattr(self, "_mmap") and self._mmap:
             try:
                 self._mmap.close()
@@ -650,9 +666,17 @@ class TargetProtocol(Protocol):
     使 collision_engine.py 中可使用静态类型而非 ``object``。
     """
 
-    def __contains__(self, item: object) -> bool: ...
-    def __len__(self) -> int: ...
-    def close(self) -> None: ...
+    def __contains__(self, item: object) -> bool:
+        """检查目标是否包含指定项（Protocol stub）。"""
+        ...
+
+    def __len__(self) -> int:
+        """返回目标集的条目数（Protocol stub）。"""
+        ...
+
+    def close(self) -> None:
+        """关闭并释放资源（Protocol stub）。"""
+        ...
 
 
 # ── SwappableTarget ─────────────────────────────────────────────
