@@ -189,7 +189,9 @@ class TestWarnTDRSettings:
         monkeypatch.setitem(sys.modules, "winreg", winreg_mock)
         return winreg_mock
 
-    def test_default_timeout_not_quiet(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_default_timeout_not_quiet(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """TdrDelay=2 (默认), not quiet → 打印诊断建议。"""
         import logging
 
@@ -199,10 +201,16 @@ class TestWarnTDRSettings:
         result = warn_tdr_settings(quiet=False)
 
         assert result == 2.0
-        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
-        assert any("引擎已启用自动 sub-batch 拆分" in rec.message for rec in caplog.records)
+        assert any(
+            "Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records
+        )
+        assert any(
+            "引擎已启用自动 sub-batch 拆分" in rec.message for rec in caplog.records
+        )
 
-    def test_optimized_timeout_not_quiet(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_optimized_timeout_not_quiet(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """TdrDelay=8 (已优化), not quiet → 打印优化状态。"""
         import logging
 
@@ -214,7 +222,9 @@ class TestWarnTDRSettings:
         assert result == 8.0
         assert any("TDR 超时 = 8.0s (已优化)" in rec.message for rec in caplog.records)
 
-    def test_tdr_delay_missing_uses_default(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_tdr_delay_missing_uses_default(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """TdrDelay 注册表值不存在 → 使用默认值 2.0。"""
         import logging
 
@@ -224,9 +234,13 @@ class TestWarnTDRSettings:
         result = warn_tdr_settings(quiet=False)
 
         assert result == _TDR_DEFAULT_TIMEOUT
-        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
+        assert any(
+            "Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records
+        )
 
-    def test_import_error_non_windows(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_import_error_non_windows(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """ImportError (非 Windows) → 返回 None 并记录提示。"""
         import sys
         import logging
@@ -240,7 +254,9 @@ class TestWarnTDRSettings:
         assert result is None
         assert any("非 Windows 平台" in rec.message for rec in caplog.records)
 
-    def test_os_error(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_os_error(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """OpenKey 抛出 OSError → 返回 None。"""
         import sys
         import logging
@@ -257,7 +273,9 @@ class TestWarnTDRSettings:
         assert result is None
         assert any("非 Windows 平台" in rec.message for rec in caplog.records)
 
-    def test_quiet_mode_suppresses_logging(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_quiet_mode_suppresses_logging(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """quiet=True → 不输出诊断日志。"""
         import logging
 
@@ -270,7 +288,9 @@ class TestWarnTDRSettings:
         # quiet=True 时不应有任何日志输出
         assert len(caplog.records) == 0
 
-    def test_quiet_import_error_no_log(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_quiet_import_error_no_log(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """quiet=True + ImportError → 无日志, 返回 None。"""
         import sys
         import logging

@@ -93,9 +93,7 @@ class TestAddressEncoding:
     def test_p2wpkh_starts_with_bc1q(self) -> None:
         assert ce.p2wpkh_address(bytes(20)).startswith("bc1q")
 
-    def test_p2wpkh_convertbits_none(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_p2wpkh_convertbits_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """convertbits 返回 None 时 p2wpkh_address 返回空字符串。"""
         monkeypatch.setattr(ce, "convertbits", lambda *a, **kw: None)
         assert ce.p2wpkh_address(bytes(20)) == ""
@@ -125,9 +123,7 @@ class TestAddressEncoding:
         monkeypatch.setattr(ce, "convertbits", lambda *a, **kw: None)
         assert ce.p2tr_address(bytes(32)) == ""
 
-    def test_tweak_taproot_returns_none(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tweak_taproot_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """tweak >= n 时 tweak_taproot 返回 None。"""
         monkeypatch.setattr(ce, "tagged_hash", lambda tag, data: b"\xff" * 32)
         mock_pub = mock.MagicMock()
@@ -532,9 +528,7 @@ class TestCheckSingleKey:
         xonly_target.__contains__.return_value = True
         target = mock.MagicMock()
         target.__contains__.return_value = False
-        monkeypatch.setattr(
-            ce, "p2tr_address", lambda xonly: "bc1p" + xonly.hex()[:10]
-        )
+        monkeypatch.setattr(ce, "p2tr_address", lambda xonly: "bc1p" + xonly.hex()[:10])
         result = ce.check_single_key(1, target, xonly_target)
         assert result is not None
         assert result.address_type == "P2TR (Taproot)"
@@ -709,16 +703,16 @@ class TestStartConfigWatcher:
         monkeypatch.setattr(
             threading,
             "Thread",
-            lambda target=None, **kw: (
-                target_func.append(target) or mock.MagicMock()
-            ),
+            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),
         )
         ce._start_config_watcher(config, interval=0.01, logger=mock_logger)
         fn = target_func[0]
 
         # 执行一次循环后退出
         ce._shutdown_requested = False
-        monkeypatch.setattr(time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True))
+        monkeypatch.setattr(
+            time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True)
+        )
         fn()
         mock_logger.info.assert_called_with("配置文件已变更并自动重载")
 
@@ -733,15 +727,15 @@ class TestStartConfigWatcher:
         monkeypatch.setattr(
             threading,
             "Thread",
-            lambda target=None, **kw: (
-                target_func.append(target) or mock.MagicMock()
-            ),
+            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),
         )
         ce._start_config_watcher(config, interval=0.01, logger=mock_logger)
         fn = target_func[0]
 
         ce._shutdown_requested = False
-        monkeypatch.setattr(time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True))
+        monkeypatch.setattr(
+            time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True)
+        )
         fn()  # 不应抛出异常
 
 
@@ -824,9 +818,7 @@ class TestFindBitcoinDatadir:
         result = ce._find_bitcoin_datadir(config)
         assert result == str(tmp_path.resolve())
 
-    def test_configured_path_not_found_falls_back_to_cwd(
-        self, tmp_path: Path
-    ) -> None:
+    def test_configured_path_not_found_falls_back_to_cwd(self, tmp_path: Path) -> None:
         """配置路径不存在时回退到 CWD。"""
         config = mock.MagicMock()
         config.bitcoin_datadir = str(tmp_path / "nonexistent")
@@ -841,9 +833,7 @@ class TestFindBitcoinDatadir:
         assert result is not None
         assert isinstance(result, str)
 
-    def test_cwd_not_dir_returns_none(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cwd_not_dir_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """CWD 不是目录时返回 None。"""
         monkeypatch.setattr(Path, "cwd", lambda: Path("/nonexistent/file.txt"))
         monkeypatch.setattr(Path, "is_dir", lambda _: False)
@@ -869,9 +859,12 @@ class TestRunBitcoinCliDumptxoutset:
             "run",
             lambda *a, **kw: mock.MagicMock(returncode=0),
         )
-        assert ce._run_bitcoin_cli_dumptxoutset(
-            "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
-        ) is True
+        assert (
+            ce._run_bitcoin_cli_dumptxoutset(
+                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+            )
+            is True
+        )
 
     def test_failure_returns_false(
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -881,9 +874,12 @@ class TestRunBitcoinCliDumptxoutset:
             "run",
             lambda *a, **kw: mock.MagicMock(returncode=1, stderr="error"),
         )
-        assert ce._run_bitcoin_cli_dumptxoutset(
-            "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
-        ) is False
+        assert (
+            ce._run_bitcoin_cli_dumptxoutset(
+                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+            )
+            is False
+        )
 
     def test_file_not_found_returns_false(
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -893,9 +889,12 @@ class TestRunBitcoinCliDumptxoutset:
             "run",
             mock.MagicMock(side_effect=FileNotFoundError("not found")),
         )
-        assert ce._run_bitcoin_cli_dumptxoutset(
-            "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
-        ) is False
+        assert (
+            ce._run_bitcoin_cli_dumptxoutset(
+                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+            )
+            is False
+        )
 
     def test_timeout_returns_false(
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -905,9 +904,12 @@ class TestRunBitcoinCliDumptxoutset:
             "run",
             mock.MagicMock(side_effect=subprocess.TimeoutExpired("cmd", 7200)),
         )
-        assert ce._run_bitcoin_cli_dumptxoutset(
-            "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
-        ) is False
+        assert (
+            ce._run_bitcoin_cli_dumptxoutset(
+                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+            )
+            is False
+        )
 
     def test_generic_exception_returns_false(
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -917,9 +919,12 @@ class TestRunBitcoinCliDumptxoutset:
             "run",
             mock.MagicMock(side_effect=PermissionError("denied")),
         )
-        assert ce._run_bitcoin_cli_dumptxoutset(
-            "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
-        ) is False
+        assert (
+            ce._run_bitcoin_cli_dumptxoutset(
+                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+            )
+            is False
+        )
 
 
 # ═══════════════════════════════════════════════════════════
@@ -934,9 +939,7 @@ class TestStartUtxoRefresher:
         """自动刷新未启用时返回 None。"""
         config = mock.MagicMock()
         config.enable_utxo_auto_refresh = False
-        result = ce._start_utxo_refresher(
-            config, mock.MagicMock(), mock.MagicMock()
-        )
+        result = ce._start_utxo_refresher(config, mock.MagicMock(), mock.MagicMock())
         assert result is None
 
     def test_enabled_starts_daemon_thread(
@@ -955,25 +958,19 @@ class TestStartUtxoRefresher:
             return thread_mock
 
         monkeypatch.setattr(threading, "Thread", _thread_factory)
-        result = ce._start_utxo_refresher(
-            config, mock.MagicMock(), mock.MagicMock()
-        )
+        result = ce._start_utxo_refresher(config, mock.MagicMock(), mock.MagicMock())
         assert result is thread_mock
         thread_mock.start.assert_called_once()
         assert thread_mock.daemon is True
 
-    def test_enabled_stores_thread_ref(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_enabled_stores_thread_ref(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """启动后设置 _refresh_thread 全局变量。"""
         config = mock.MagicMock()
         config.enable_utxo_auto_refresh = True
         config.utxo_refresh_interval = 120
         config.utxo_snapshot_path = "/tmp/snap.dat"
         monkeypatch.setattr(threading, "Thread", lambda **kw: mock.MagicMock())
-        ce._start_utxo_refresher(
-            config, mock.MagicMock(), mock.MagicMock()
-        )
+        ce._start_utxo_refresher(config, mock.MagicMock(), mock.MagicMock())
         assert ce._refresh_thread is not None
 
 
@@ -985,9 +982,7 @@ class TestStartUtxoRefresher:
 class TestDoUtxoRefresh:
     """测试 UTXO 刷新各出错路径和完整流程。"""
 
-    def _setup_base_mocks(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def _setup_base_mocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """设置 _config 和 _swappable_target 基本 mock。"""
         ce._config = mock.MagicMock()
         ce._config.utxo_snapshot_path = "/tmp/snap.dat"
@@ -996,9 +991,7 @@ class TestDoUtxoRefresh:
         ce._swappable_target = mock.MagicMock()
         ce._swappable_xonly = None
 
-    def test_no_config_returns_false(
-        self, mock_logger: mock.MagicMock
-    ) -> None:
+    def test_no_config_returns_false(self, mock_logger: mock.MagicMock) -> None:
         ce._config = None
         ce._swappable_target = mock.MagicMock()
         assert ce._do_utxo_refresh(mock_logger) is False
@@ -1154,7 +1147,9 @@ class TestWorkerSequential:
         counter = mock.MagicMock()
         counter.next.return_value = 1
         target = mock.MagicMock()
-        monkeypatch.setattr(ce, "check_single_key_chain", mock.MagicMock(return_value=(None, None)))
+        monkeypatch.setattr(
+            ce, "check_single_key_chain", mock.MagicMock(return_value=(None, None))
+        )
         result = ce.worker_sequential(counter, target, 0, b"\x00" * 32)
         assert result >= 0
 
@@ -1247,7 +1242,9 @@ class TestRunGpuMode:
         )
         ce._GPU_AVAILABLE = True
         monkeypatch.setattr(
-            ce, "load_checkpoint", lambda: {"mode": "gpu_sequential", "next_key": 999, "checked": 5000}
+            ce,
+            "load_checkpoint",
+            lambda: {"mode": "gpu_sequential", "next_key": 999, "checked": 5000},
         )
         monkeypatch.setattr(ce, "GPUBatchScheduler", mock.MagicMock())
         monkeypatch.setattr(ce, "DispatcherConfig", mock.MagicMock())
@@ -1339,7 +1336,9 @@ class TestRunCpuMode:
             threads=1,
         )
         monkeypatch.setattr(
-            ce, "load_checkpoint", lambda: {"mode": "sequential", "next_key": 500, "checked": 400}
+            ce,
+            "load_checkpoint",
+            lambda: {"mode": "sequential", "next_key": 500, "checked": 400},
         )
         worker = mock.MagicMock(return_value=0)
         monkeypatch.setattr(ce, "worker_sequential", worker)
@@ -1358,6 +1357,7 @@ class TestHealthCheck:
     def test_basic_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """基本健康检查输出 JSON（模拟 UTXO 文件存在）。"""
         import io
+
         ce._db = mock.MagicMock()
         ce._db.count_results.return_value = 42
         ce._config = mock.MagicMock()
@@ -1373,6 +1373,7 @@ class TestHealthCheck:
     def test_database_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """数据库异常时标记 degraded。"""
         import io
+
         db = mock.MagicMock()
         db.count_results.side_effect = Exception("db down")
         ce._db = db
@@ -1387,6 +1388,7 @@ class TestHealthCheck:
     def test_no_db(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """数据库未初始化。"""
         import io
+
         ce._db = None
         ce._config = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = False
@@ -1396,18 +1398,19 @@ class TestHealthCheck:
         data = json.loads(out.getvalue())
         assert data["checks"]["database"]["status"] == "not_initialized"
 
-    def test_gpu_device_enum_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_gpu_device_enum_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """GPU 设备枚举异常应记录到状态。"""
         import io
+
         ce._db = mock.MagicMock()
         ce._db.count_results.return_value = 0
         ce._config = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = False
         ce._GPU_AVAILABLE = True
         monkeypatch.setattr(
-            ce, "gpu_list_devices", mock.MagicMock(side_effect=RuntimeError("opencl err"))
+            ce,
+            "gpu_list_devices",
+            mock.MagicMock(side_effect=RuntimeError("opencl err")),
         )
         out = io.StringIO()
         monkeypatch.setattr(sys, "stdout", out)
@@ -1416,12 +1419,11 @@ class TestHealthCheck:
         assert "device_enum_error" in data["checks"]["gpu"]
         assert "opencl err" in data["checks"]["gpu"]["device_enum_error"]
 
-    def test_degraded_when_utxo_missing(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_degraded_when_utxo_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """UTXO 数据缺失时状态为 degraded。"""
         import io
         from pathlib import Path
+
         monkeypatch.setattr(Path, "exists", lambda _: False)
         ce._db = mock.MagicMock()
         ce._db.count_results.return_value = 0
@@ -1443,7 +1445,9 @@ class TestHealthCheck:
 class TestLoadTargets:
     """_load_targets 的加载路径。"""
 
-    def test_basic_load(self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_basic_load(
+        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """基本加载路径（无 P2TR）。"""
         args = mock.MagicMock(p2tr=False, xonly_file="")
         mock_target = mock.MagicMock()
@@ -1452,7 +1456,9 @@ class TestLoadTargets:
         t, x = ce._load_targets(args)
         assert x is None
 
-    def test_p2tr_load(self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_p2tr_load(
+        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """P2TR 加载路径。"""
         args = mock.MagicMock(p2tr=True, xonly_file="")
         mock_target = mock.MagicMock()
