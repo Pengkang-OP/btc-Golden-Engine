@@ -52,12 +52,11 @@ class TestBenchmarkCPU:
         import collision_target as ct
 
         mock = _make_utxo(tmp_dir)
-        monkeypatch.setattr(ct, "HASH_BIN", Path(mock["bin"]))
-        monkeypatch.setattr(ct, "HASH_IDX", Path(mock["idx"]))
-        monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock["bloom"]))
+        # 注意: 必须将 mock 路径传给 load(), 不能只 monkeypatch 模块常量
+        # 因为 Hash160Set.BIN_DEFAULT 在类定义时已拷贝引用
 
         target = ct.Hash160Set()
-        target.load(quiet=True)
+        target.load(bin_path=mock["bin"], idx_path=mock["idx"], quiet=True)
 
         try:
             # 预热
@@ -85,9 +84,6 @@ class TestBenchmarkCPU:
         import collision_target as ct
 
         mock = _make_utxo(tmp_dir)
-        monkeypatch.setattr(ct, "HASH_BIN", Path(mock["bin"]))
-        monkeypatch.setattr(ct, "HASH_IDX", Path(mock["idx"]))
-        monkeypatch.setattr(ct, "BLOOM_FILE", Path(mock["bloom"]))
         monkeypatch.setattr(ce, "RESULTS_FILE", tmp_dir / "collision_results.json")
         monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_dir / "checkpoint.json")
 
@@ -100,7 +96,7 @@ class TestBenchmarkCPU:
         ce._init_core(str(cfg_p))
 
         target = ct.Hash160Set()
-        target.load(quiet=True)
+        target.load(bin_path=mock["bin"], idx_path=mock["idx"], quiet=True)
 
         try:
             # 全量 EC 乘基准
