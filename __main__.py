@@ -1,4 +1,4 @@
-"""Allow running as `python -m collision_engine` from project root."""
+"""入口模块，允许从项目根目录通过 `python __main__.py` 运行。"""
 
 import sys
 from pathlib import Path

@@ -1,0 +1,17 @@
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `.trunk\configs\ruff.toml`:
+  - 'ignore' -> 'lint.ignore'
+  - 'select' -> 'lint.select'
+F401 [*] `warnings` imported but unused
+ --> distributed\protocol_pb2_grpc.py:4:8
+  |
+2 | """Client and server classes corresponding to protobuf-defined services."""
+3 | import grpc
+4 | import warnings
+  |        ^^^^^^^^
+5 |
+6 | import distributed.protocol_pb2 as protocol__pb2
+  |
+help: Remove unused import: `warnings`
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

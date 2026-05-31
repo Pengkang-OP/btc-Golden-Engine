@@ -276,7 +276,10 @@ class Hash160Set:
         if fb in self._empty:
             return False
 
-        start, end = self._idx[fb]
+        bounds = self._idx.get(fb)
+        if bounds is None:
+            return False
+        start, end = bounds
         if start > end:
             return False
 
@@ -581,7 +584,10 @@ class XOnlySet:
         if fb in self._empty:
             return False
 
-        start, end = self._idx[fb]
+        bounds = self._idx.get(fb)
+        if bounds is None:
+            return False
+        start, end = bounds
         if start > end:
             return False
 

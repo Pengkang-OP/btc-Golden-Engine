@@ -8,17 +8,17 @@ services:
     image: bitcoin-collision-finder:latest
     stdin_open: true
     tty: true
-    network_mode: host
+    network_mode: host  # 注意: Docker Desktop (Windows/macOS) 不支持 host 网络模式
     volumes:
-      - ./utxo_hash160.bin:/data/utxo_hash160.bin:ro
-      - ./utxo_hash160.idx:/data/utxo_hash160.idx:ro
-      - ./utxo_xonly.bin:/data/utxo_xonly.bin:ro
-      - ./results:/data/results
-      - ./checkpoints:/data/checkpoints
-      - ./logs:/data/logs
+      - ./utxo_hash160.bin:/app/utxo_hash160.bin:ro
+      - ./utxo_hash160.idx:/app/utxo_hash160.idx:ro
+      - ./utxo_xonly.bin:/app/utxo_xonly.bin:ro
+      - ./results:/app/results
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
     environment:
       - LOG_LEVEL=INFO
-      - RESULTS_DIR=/data/results
+      - RESULTS_DIR=/app/results
     command: ["--help"]
 
   web-ui:
@@ -26,17 +26,18 @@ services:
       context: .
       dockerfile: Dockerfile
     image: bitcoin-collision-finder:latest
-    depends_on:
-      - engine
+    # engine 容器启动即退出（仅展示 --help），故 depends_on 无实际意义
+    # depends_on:
+    #   - engine
     ports:
       - "8080:8080"
     volumes:
-      - ./results:/data/results
-      - ./checkpoints:/data/checkpoints
-      - ./logs:/data/logs
+      - ./results:/app/results
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
     environment:
       - LOG_LEVEL=INFO
-      - RESULTS_DIR=/data/results
+      - RESULTS_DIR=/app/results
     restart: unless-stopped
     entrypoint: ["python", "-m", "api.server"]
     command: []

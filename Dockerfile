@@ -22,7 +22,7 @@ COPY pyproject.toml .
 # （GPU 依赖 pyopencl 需要在宿主机有 OpenCL ICD 和运行时，容器内略去）
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir ".[web]" || true
+    pip install --no-cache-dir ".[web]"
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
 FROM python:3.12-slim AS runtime

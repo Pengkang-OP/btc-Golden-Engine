@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -23,7 +24,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
 
 import jinja2
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -75,7 +76,7 @@ class EngineStatus:
             self._cached_ok = True
         return self._cached
 
-    def write(self, data: dict[str, Any]) -> None:
+    def write(self, data: dict[str, Any]) -> None:  # pragma: no cover
         """写入引擎状态（由引擎进程调用）。"""
         try:
             self.STATUS_FILE.write_text(
@@ -265,9 +266,20 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
 
     app.include_router(router)
 
-    # ── Prometheus /metrics 端点 ─────────────────────────────
+    # ── Prometheus /metrics 端点（可选认证）─────────────────
+    _ENGINE_API_KEY = os.environ.get("ENGINE_API_KEY", "")
+
+    def _require_metrics_auth(request: Request) -> None:
+        """如果设置了 ENGINE_API_KEY，则验证 X-API-Key 请求头。"""
+        if _ENGINE_API_KEY:
+            key = request.headers.get("X-API-Key", "")
+            if key != _ENGINE_API_KEY:
+                raise HTTPException(status_code=403, detail="Forbidden")
+
     @app.get("/metrics")
-    async def metrics_endpoint() -> PlainTextResponse:
+    async def metrics_endpoint(
+        _: None = Depends(_require_metrics_auth),
+    ) -> PlainTextResponse:
         """Prometheus /metrics 端点 (text/plain 格式, 零依赖)。"""
 
         registry = get_registry()

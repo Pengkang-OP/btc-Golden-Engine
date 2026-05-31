@@ -7,7 +7,7 @@
 - **CPU 多线程并行**：ThreadPoolExecutor 充分利用多核处理器
 - **GPU 加速**（v1.1.0 新增）：OpenCL 并行 EC 乘法 + HASH160，预期单 GPU ~500K keys/s
 - **两种扫描模式**：顺序扫描（可 checkpoint 恢复）和随机扫描
-- **大目标集**：基于 mmap + 前缀索引 + 二分查找，支持 3.3 GB / 1.65 亿条 HASH160 的高效查询
+- **大目标集**：基于 mmap + 前缀索引 + 二分查找，支持 1.65 GB / 1.65 亿条 HASH160 的高效查询
 - **碰撞结果保存**：自动保存碰撞结果到 JSON 文件（WIF、地址等详细信息）
 
 ## 快速开始
@@ -59,7 +59,7 @@ python extract_utxo_hash160.py
 ```
 
 生成的文件：
-- `utxo_hash160.bin` — 排序后的 HASH160 列表（~3.3 GB）
+- `utxo_hash160.bin` — 排序后的 HASH160 列表（~1.65 GB）
 - `utxo_hash160.idx` — 前缀索引
 
 ## 参数说明
@@ -105,7 +105,7 @@ g:/Bitcoin/
 │   ├── gpu_dispatcher.py     # 多 GPU 调度器
 │   └── gpu_device.py         # 设备发现工具
 ├── tests/                    # [v1.4.0+] 测试套件
-├── utxo_hash160.bin          # HASH160 数据（~3.3 GB, mmap）
+├── utxo_hash160.bin          # HASH160 数据（~1.65 GB, mmap）
 ├── utxo_hash160.idx          # 前缀索引
 ├── collision_results.json    # 碰撞结果（JSON 兼容）
 ├── collision_results.db      # [v1.3.0] SQLite 持久化

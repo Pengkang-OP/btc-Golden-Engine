@@ -205,7 +205,7 @@ class DistributedScanner:
         xonly_target,
     ) -> None:
         """扫描指定 key 范围。尝试 GPU 模式，回退到 CPU 模式。"""
-        from gpu_engine import _GPU_AVAILABLE as gpu_available
+        from collision_engine import _GPU_AVAILABLE as gpu_available
 
         use_gpu = self._gpu_enabled and gpu_available
 
@@ -466,7 +466,7 @@ class DistributedScanner:
                 HitReport(
                     worker_id=self._worker_id,
                     privkey_hex=getattr(result, "privkey_hex", ""),
-                    key_value=getattr(result, "key_value", 0),
+                    key_value=int(result.privkey_hex, 16) & 0x7FFFFFFFFFFFFFFF,  # protobuf int64 有符号
                 )
             )
             _logger.info(

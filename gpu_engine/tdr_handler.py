@@ -178,6 +178,5 @@ def is_tdr_error(e: Exception) -> bool:
         "command_execution_failure",
         "device_not_available",
         "out_of_host_memory",
-        "out_of_resources",
     ]
     return any(k in msg for k in keywords)

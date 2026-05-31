@@ -112,9 +112,10 @@ def test_quiet_mode():
     print("  OK: quiet_mode")
 
 
-test_default_timeout()
-test_optimized_timeout()
-test_missing_delay()
-test_import_error()
-test_quiet_mode()
-print("\nAll 5 warn_tdr_settings tests PASSED")
+if __name__ == "__main__":
+    test_default_timeout()
+    test_optimized_timeout()
+    test_missing_delay()
+    test_import_error()
+    test_quiet_mode()
+    print("\nAll 5 warn_tdr_settings tests PASSED")

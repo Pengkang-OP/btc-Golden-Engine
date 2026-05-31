@@ -48,6 +48,13 @@ class Notifier:
             thread_name_prefix="notifier",
         )
 
+    def close(self) -> None:
+        """释放线程池资源，防止线程泄漏。"""
+        self._executor.shutdown(wait=False)
+
+    def __del__(self) -> None:
+        self.close()
+
     # ── 公共接口 ──────────────────────────────────────────
 
     def on_hit(self, result: Any) -> None:

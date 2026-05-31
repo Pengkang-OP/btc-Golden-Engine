@@ -220,18 +220,20 @@ class EngineConfig:
 # ── 便捷函数 ──
 
 _default_config: Optional[EngineConfig] = None
+_config_lock: threading.Lock = threading.Lock()
 
 
 def load_config(path: Optional[os.PathLike[str]] = None) -> EngineConfig:
-    """加载配置，失败时回退到默认配置。"""
+    """加载配置，失败时回退到默认配置（线程安全）。"""
     global _default_config
     if path is not None:
         return EngineConfig.load(path)
-    if _default_config is None:
-        try:
-            _default_config = EngineConfig.load()
-        except (FileNotFoundError, json.JSONDecodeError):
-            _default_config = EngineConfig()
+    with _config_lock:
+        if _default_config is None:
+            try:
+                _default_config = EngineConfig.load()
+            except (FileNotFoundError, json.JSONDecodeError):
+                _default_config = EngineConfig()
     return _default_config
 
 

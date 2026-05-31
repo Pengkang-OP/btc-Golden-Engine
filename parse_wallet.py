@@ -26,12 +26,9 @@ def parse_wallet_dat(file_path):
         address_count = 0
 
         addr_formats = [
-            b"\x00\x14",  # P2PKH
-            b"\x00\x16",  # P2SH
-            b"\x00\x20",  # P2WPKH
-            b"\x00\x30",  # P2WSH
-            b"\x00\x24",  # P2WPKH over P2SH
-            b"\x00\x34",  # P2WSH over P2SH
+            b"\x00\x14",  # P2WPKH (OP_0 <20-byte hash160>)
+            b"\x00\x16",  # P2SH (OP_HASH160 <20-byte> → 22 total w/ OP)
+            b"\x00\x20",  # P2WSH (OP_0 <32-byte sha256>)
         ]
 
         for fmt in addr_formats:
@@ -104,13 +101,22 @@ def hash_to_bech32(hash_bytes, hrp):
 
 
 def base58_encode(data):
-    """Base58 encoding"""
+    """Base58 encoding with leading zero handling"""
     alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    # count leading zero bytes
+    leading_zeros = 0
+    for b in data:
+        if b == 0:
+            leading_zeros += 1
+        else:
+            break
     num = int.from_bytes(data, "big")
     encoded = ""
     while num > 0:
         num, remainder = divmod(num, 58)
         encoded = alphabet[remainder] + encoded
+    # prepend "1" for each leading zero byte (Base58Check convention)
+    encoded = "1" * leading_zeros + encoded
     return encoded
 
 

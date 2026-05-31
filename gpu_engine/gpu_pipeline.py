@@ -195,7 +195,11 @@ class GPUPipeline:
             privkey_bytes: (batch*32,) uint8 array 或 None（按 mode 自动生成）
         """
         if privkey_bytes is not None:
-            self._h_privkeys[: len(privkey_bytes)] = privkey_bytes
+            n = len(privkey_bytes)
+            self._h_privkeys[:n] = privkey_bytes
+            # 清除剩余缓冲区，防止旧数据残留
+            if n < len(self._h_privkeys):
+                self._h_privkeys[n:] = 0
             return
 
         if self.mode == "sequential":
@@ -208,7 +212,7 @@ class GPUPipeline:
         rand_bytes = os.urandom(self.batch_size * 32)
         self._h_privkeys[:] = np.frombuffer(rand_bytes, dtype=np.uint8)
 
-        # 限制首字节 ≤ 0xFE 确保值 < N（浪费 ~0.4% keyspace）
+        # 限制 LSB（小端第一字节）≤ 0xFE 以确保 256 位值 < 阶 N（浪费 ~0.4%）
         first_bytes = self._h_privkeys[::32]
         clamp_mask = first_bytes >= 0xFE
         n_clamp = int(np.sum(clamp_mask))
@@ -224,6 +228,7 @@ class GPUPipeline:
         view = self._h_privkeys.reshape(-1, 32)
         zero_mask = np.all(view == 0, axis=1)
         if np.any(zero_mask):
+            logger.warning("修复 %d 个全零私钥 -> 设为 1", int(np.sum(zero_mask)))
             view[zero_mask, 0] = 1
 
     def _fill_sequential_privkeys(self) -> None:
@@ -452,7 +457,7 @@ class GPUPipeline:
         if self._queue is not None:
             try:
                 self._queue.release()
-            except cl.RuntimeError:
+            except Exception:
                 self._queue.finish()
             self._queue = None
         if self._ctx is not None:

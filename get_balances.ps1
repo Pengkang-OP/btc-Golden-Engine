@@ -3,9 +3,9 @@
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=" -f Green -n 100
+Write-Host ("=" * 100) -f Green
 Write-Host "Bitcoin Core - 获取有余额的地址" -f Green
-Write-Host "=" -f Green -n 100
+Write-Host ("=" * 100) -f Green
 
 $bitcoinCli = "G:\Bitcoin\daemon\bitcoin-cli.exe"
 $datadir = "G:\Bitcoin"
@@ -125,9 +125,9 @@ try {
     $addressesWithDetails = $addressesWithDetails | Sort-Object -Property Balance -Descending
 
     Write-Host "`n"
-    Write-Host "=" -f Green -n 100
+    Write-Host ("=" * 100) -f Green
     Write-Host "📊 比特币地址余额表（按余额降序排列）" -f Green
-    Write-Host "=" -f Green -n 100
+    Write-Host ("=" * 100) -f Green
 
     $table = $addressesWithDetails | ForEach-Object {
         [PSCustomObject]@{
@@ -169,7 +169,7 @@ try {
 
     for ($i = 0; $i -lt $addressesWithDetails.Count; $i++) {
         $addr = $addressesWithDetails[$i]
-        $mdContent += "`n| $($i + 1) | `$($addr.Address)`$ | $($addr.Type) | $($addr.Balance:F8) |"
+        $mdContent += "`n| $($i + 1) | $($addr.Address) | $($addr.Type) | $($addr.Balance:F8) |"
     }
 
     $mdContent += @"

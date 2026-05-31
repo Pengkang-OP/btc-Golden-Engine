@@ -114,7 +114,6 @@ class WorkerRegistry:
                 return False
             worker.last_heartbeat = time.time()
             worker.keys_checked = keys_checked
-            worker.current_start = current_key
             worker.status = status
             worker.error_message = error_message
             return True
@@ -163,10 +162,21 @@ class WorkerRegistry:
                     )
                     w.status = "error"
                     w.error_message = "heartbeat timeout"
-                    # 重新分配此 range
+                    # 仅当请求方 worker 无活跃范围时，才分配被回收的 range，
+                    # 避免覆盖 worker 自身的当前作业范围
                     worker = self._workers.get(worker_id)
                     if worker is None:
                         return None
+                    # 如果 worker 已经在扫描中，不覆盖其现有范围
+                    if worker.status == "scanning" or worker.current_start > 0:
+                        # 仅回收被收回的 range 到全局池
+                        if w.current_start > 0:
+                            mid = w.current_start + (w.current_end - w.current_start) // 2
+                            if mid > self._global_cursor:
+                                self._global_cursor = mid
+                        w.current_start = 0
+                        w.current_end = 0
+                        return None  # 由 assign_range 正常分配
                     worker.current_start = w.current_start
                     mid = w.current_start + (w.current_end - w.current_start) // 2
                     self._global_cursor = (

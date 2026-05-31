@@ -129,7 +129,7 @@ def parse():
                     # skip script bytes
                     if sc == 0x00 or sc == 0x01:
                         off += 20
-                    elif sc in (0x02, 0x03, 0x04, 0x05):
+                    elif sc in (0x02, 0x03, 0x04):
                         off += 32
                     else:
                         off += sc - 6

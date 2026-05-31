@@ -1,0 +1,14 @@
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `.trunk\configs\ruff.toml`:
+  - 'ignore' -> 'lint.ignore'
+  - 'select' -> 'lint.select'
+distributed\master.py:16:8: F401 [*] `sys` imported but unused
+distributed\master.py:197:13: F841 Local variable `now` is assigned to but never used
+distributed\models.py:10:36: F401 [*] `dataclasses.field` imported but unused
+distributed\models.py:11:20: F401 [*] `typing.Optional` imported but unused
+distributed\protocol_pb2_grpc.py:4:8: F401 [*] `warnings` imported but unused
+distributed\worker.py:31:1: E402 Module level import not at top of file
+distributed\worker.py:37:1: E402 Module level import not at top of file
+distributed\worker.py:216:9: F841 Local variable `chunk_size` is assigned to but never used
+distributed\worker.py:357:16: F401 [*] `hashlib` imported but unused
+Found 9 errors.
+[*] 5 fixable with the `--fix` option (2 hidden fixes can be enabled with the `--unsafe-fixes` option).

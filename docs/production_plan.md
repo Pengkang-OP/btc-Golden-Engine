@@ -66,7 +66,7 @@ python collision_engine.py --gpu --gpu-mode sequential
 
 ## 配置热重载
 
-设置 `ENGINE_REFRESH_INTERVAL=60` 环境变量后，引擎会每 60 秒自动检查配置文件变更并重载。
+设置 `ENGINE_REFRESH_INTERVAL=60` 环境变量后，引擎会每 60 秒自动检查配置文件变更并重载。<!-- TODO: 该环境变量尚未在 collision_engine.py 中实现 -->
 
 ## 优雅关闭
 

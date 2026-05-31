@@ -1,0 +1,21 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.local-packages/
+
+# Data files (large binary)
+*.bin
+*.idx
+
+# Build artifacts
+*.exe
+
+# IDE / tools
+.trunk/
+.idea/
+.vscode/

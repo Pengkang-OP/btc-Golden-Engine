@@ -160,7 +160,7 @@ class GPUBatchScheduler:
                     logger.info("  [%d] %s [OK]", i, dev_info.device_name)
             except Exception as e:
                 logger.error("  [%d] %s [FAIL]: %s", i, dev_info.device_name, e)
-                self._workers.append(WorkerResult(device_name=str(dev_info)))
+                self._workers.append(WorkerResult(device_name=dev_info.device_name))
 
         return len(self._pipelines) > 0
 

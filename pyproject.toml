@@ -34,7 +34,6 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-benchmark>=4.0",
     "httpx>=0.28.0",
-    "pyopencl>=2024.1",
 ]
 distributed = [
     "grpcio>=1.60.0",
@@ -63,7 +62,7 @@ collision-engine = "collision_engine:main"
 include = ["core*", "gpu_engine*", "distributed*"]
 
 [tool.ruff]
-exclude = ["distributed/protocol_pb2.py", "distributed/protocol_pb2_grpc.py", "distributed/protocol_pb2*.py"]
+exclude = ["distributed/protocol_pb2*.py"]
 lint.ignore = ["E501"]
 
 [tool.mypy]
