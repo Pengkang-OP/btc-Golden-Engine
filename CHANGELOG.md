@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.1.0] — 2026-05-31
+
+### Added
+- **P3 #3: 分布式扫描 (Master-Worker gRPC 架构)**:
+  - `distributed/protocol.proto`: MasterService gRPC 协议定义（注册/心跳/任务分配/碰撞上报/目标信息）
+  - `distributed/master.py`: WorkerRegistry（线程安全）+ MasterService gRPC handler
+  - `distributed/worker.py`: 注册/心跳/扫描循环 + CPU/GPU 双模式 + 断线重连
+  - `distributed/models.py`: WorkerInfo/Assignment dataclass
+  - `distributed/README.md`: 分布式部署和配置文档
+  - `distributed/test_distributed.py`: 模块单元测试（365 passed）
+  - `collision_engine.py`: 提取 `check_single_key/check_single_key_chain/save_result` 为可导入函数；新增 `--distributed/--master-addr/--worker-id` CLI 参数
+  - `api/server.py`: `create_app(enable_grpc_master=True)` 可启动 gRPC server
+  - `api/routes.py`: 新增 `/api/workers`、`/api/target/download/{filename}` 路由
+
+### Changed
+- `pyproject.toml`: 新增 `[distributed]` optional-deps（grpcio, protobuf）
+- `requirements.txt`: 添加 `grpcio>=1.60.0`、`protobuf>=4.25.0`、`grpcio-tools`
+
 ## [2.0.1] — 2026-05-31
 
 ### Added
