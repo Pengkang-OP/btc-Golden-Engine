@@ -387,7 +387,9 @@ class TestEngineStatusReadWrite:
         assert result == cached
 
     @staticmethod
-    def _mock_status_file(es: Any, read_text_ret: Any | None = None, write_text_side_effect: Any = None) -> mock.MagicMock:
+    def _mock_status_file(
+        es: Any, read_text_ret: Any | None = None, write_text_side_effect: Any = None
+    ) -> mock.MagicMock:
         """用 MagicMock 替换 EngineStatus 实例的 STATUS_FILE。"""
         mock_file = mock.MagicMock()
         if read_text_ret is not None:
@@ -466,7 +468,9 @@ class TestEngineStatusReadWrite:
         written = json.loads(mock_file.write_text.call_args[0][0])
         assert written == data
 
-    def test_write_os_error(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_write_os_error(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """写入状态文件失败 → 记录警告日志。"""
         import logging
         import api.server as api_server
@@ -503,7 +507,9 @@ class TestLoadTargetSets:
         import api.server as api_server
 
         ct_mock = mock.MagicMock()
-        ct_mock.Hash160Set.return_value.load.side_effect = FileNotFoundError("no utxo file")
+        ct_mock.Hash160Set.return_value.load.side_effect = FileNotFoundError(
+            "no utxo file"
+        )
         ct_mock.XOnlySet.return_value.load.return_value = None
         ct_mock.XOnlySet.return_value.__len__.return_value = 50
         monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
@@ -520,7 +526,9 @@ class TestLoadTargetSets:
         ct_mock = mock.MagicMock()
         ct_mock.Hash160Set.return_value.load.return_value = None
         ct_mock.Hash160Set.return_value.__len__.return_value = 100
-        ct_mock.XOnlySet.return_value.load.side_effect = FileNotFoundError("no xonly file")
+        ct_mock.XOnlySet.return_value.load.side_effect = FileNotFoundError(
+            "no xonly file"
+        )
         monkeypatch.setitem(sys.modules, "collision_target", ct_mock)
 
         result = api_server.load_target_sets()
@@ -571,7 +579,9 @@ class TestMainEntry:
         assert kwargs.get("port") == 8080
         assert kwargs.get("log_level") == "info"
 
-    def test_main_sets_logging(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_main_sets_logging(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """main() 设置 logging.basicConfig。"""
         import logging
         import api.server as api_server
@@ -599,7 +609,9 @@ class TestMainEntry:
 class TestRoutesErrorPaths:
     """api/routes.py 各端点异常/边界路径覆盖。"""
 
-    def test_build_stats_db_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_build_stats_db_exception(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """_build_stats 中 db.count_results 抛出异常 → total_collisions=0。"""
         import api.routes as routes
 
@@ -611,7 +623,9 @@ class TestRoutesErrorPaths:
         assert resp.status_code == 200
         assert resp.json()["total_collisions"] == 0
 
-    def test_build_stats_hash160_len_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_build_stats_hash160_len_exception(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """_build_stats 中 len(_hash160_set) 抛出异常 → hash160_loaded=False。"""
         import api.routes as routes
 
@@ -623,7 +637,9 @@ class TestRoutesErrorPaths:
         tc = resp.json()["target_count"]
         assert tc["hash160_loaded"] is False
 
-    def test_build_stats_xonly_len_exception(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_build_stats_xonly_len_exception(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """_build_stats 中 len(_xonly_set) 抛出异常 → xonly_loaded=False。"""
         import api.routes as routes
 
@@ -635,7 +651,9 @@ class TestRoutesErrorPaths:
         tc = resp.json()["target_count"]
         assert tc["xonly_loaded"] is False
 
-    def test_dashboard_render_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_dashboard_render_error(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Dashboard 模板渲染失败 → 返回错误 HTML。"""
         import api.routes as routes
 
@@ -647,7 +665,9 @@ class TestRoutesErrorPaths:
         assert resp.status_code == 200
         assert "Dashboard 渲染错误" in resp.text
 
-    def test_health_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_health_db_error(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """健康检查 db 失败 → database=error。"""
         import api.routes as routes
 
@@ -658,7 +678,9 @@ class TestRoutesErrorPaths:
         resp = client.get("/api/health")
         assert resp.json()["database"] == "error"
 
-    def test_get_results_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_results_db_error(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """查询碰撞结果时 db 失败 → 返回 error 字段。"""
         import api.routes as routes
 
@@ -671,7 +693,9 @@ class TestRoutesErrorPaths:
         assert "error" in data
         assert data["total"] == 0
 
-    def test_get_results_short_privkey(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_results_short_privkey(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """私钥长度 <= 16 时不做截断。"""
         import api.routes as routes
 
@@ -686,14 +710,20 @@ class TestRoutesErrorPaths:
         items = resp.json()["items"]
         assert items[0]["privkey_hex_short"] == "abcd"
 
-    def test_get_results_short_wif(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_results_short_wif(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """WIF 长度 <= 16 时不做截断。"""
         import api.routes as routes
 
         mock_db = mock.MagicMock()
         mock_db.count_results.return_value = 1
         mock_db.list_results.return_value = [
-            {"privkey_hex": "a" * 64, "wif_compressed": "short_wif_12", "wif_uncompressed": ""}
+            {
+                "privkey_hex": "a" * 64,
+                "wif_compressed": "short_wif_12",
+                "wif_uncompressed": "",
+            }
         ]
         monkeypatch.setattr(routes, "get_db", lambda: mock_db)
 
@@ -701,7 +731,9 @@ class TestRoutesErrorPaths:
         items = resp.json()["items"]
         assert items[0]["wif_short"] == "short_wif_12"
 
-    def test_get_status_db_error(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_status_db_error(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """引擎状态查询 db 失败 → collision_count=0。"""
         import api.routes as routes
 

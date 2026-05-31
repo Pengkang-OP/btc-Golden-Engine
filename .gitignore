@@ -71,6 +71,11 @@ _mypy_*.txt
 out.txt
 _test_out.txt
 
+# CI diagnostic scripts and logs (PAT tokens, CI logs)
+_download_logs.py
+_check_ci*.py
+ci_log_*.txt
+
 # Trunk (platform-specific tooling cache)
 .trunk/plugins/
 .trunk/tools/

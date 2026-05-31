@@ -1363,6 +1363,9 @@ class TestHealthCheck:
         ce._config = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = False
         monkeypatch.setattr(Path, "exists", lambda _: True)
+        mock_stat = mock.MagicMock()
+        mock_stat.st_size = 2 * 1024**3  # pretend 2 GB
+        monkeypatch.setattr(Path, "stat", lambda _: mock_stat)
         out = io.StringIO()
         monkeypatch.setattr(sys, "stdout", out)
         ce._health_check()

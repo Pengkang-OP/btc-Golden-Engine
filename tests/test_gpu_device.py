@@ -96,8 +96,9 @@ class TestListDevices:
     def test_no_devices(self):
         import tests.test_gpu_device as this_mod
 
-        with patch("gpu_engine.gpu_device.list_devices", return_value=[]), (
-            patch.object(this_mod, "list_devices", return_value=[])
+        with (
+            patch("gpu_engine.gpu_device.list_devices", return_value=[]),
+            patch.object(this_mod, "list_devices", return_value=[]),
         ):
             devices = list_devices()
             assert devices == []

@@ -280,6 +280,7 @@ class ResultDB:
         except sqlite3.Error as exc:
             # 关闭失败不影响整体流程，但记录警告供排查
             import logging
+
             logging.getLogger("ResultDB").warning("数据库连接关闭异常: %s", exc)
         self._closed = True
 
