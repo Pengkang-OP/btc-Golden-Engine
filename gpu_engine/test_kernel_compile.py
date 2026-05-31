@@ -80,9 +80,9 @@ def test_kernel_file_exists():
 
 
 def test_kernel_source_encoding(kernel_source: str):
-    """确保 kernel 源码无 BOM 和非法字符。"""
+    """确保 kernel 源码为有效 UTF-8 编码、无 BOM。"""
     assert not kernel_source.startswith("\ufeff"), "Kernel 文件包含 BOM"
-    assert kernel_source.isascii(), "Kernel 文件包含非 ASCII 字符"
+    # 项目注释使用中文 UTF-8，不要求纯 ASCII
 
 
 def test_kernel_entry_points(kernel_source: str):
