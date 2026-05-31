@@ -57,6 +57,7 @@ from collision_target import (  # noqa: E402
     Hash160Set,
     XOnlySet,
     SwappableTarget,
+    TargetProtocol,
 )
 from core import (  # noqa: E402
     EngineConfig,
@@ -354,7 +355,8 @@ def _start_utxo_refresher(
     """
     global _refresh_thread
     if not config.enable_utxo_auto_refresh:
-        logger and logger.info("[UTXO] 自动刷新未启用")
+        if logger:
+            logger.info("[UTXO] 自动刷新未启用")
         return None
 
     log = logger or logging.getLogger(__name__)
@@ -397,7 +399,7 @@ def _init_core(cfg_path: str | None = None) -> None:
     """初始化全局日志和配置（惰性，在 main() 中首次调用）。"""
     global _logger, _config, _db
     # 配置
-    _config = EngineConfig.load(cfg_path) if cfg_path else EngineConfig()
+    _config = EngineConfig.load(Path(cfg_path)) if cfg_path else EngineConfig()
     # 日志
     _logger = setup_logger(
         log_path=_config.log_path,
@@ -690,8 +692,8 @@ class SequentialCounter:
 
 def check_single_key(
     privkey_int: int,
-    target: object,
-    xonly_target: object | None = None,
+    target: TargetProtocol,
+    xonly_target: TargetProtocol | None = None,
 ) -> Optional[CollisionResult]:
     """检查一个私钥：推导 2 种 HASH160 + P2TR Tweaked Key → 在 UTXO 集中查询"""
     try:
@@ -761,10 +763,10 @@ def check_single_key(
 
 def check_single_key_chain(
     privkey_int: int,
-    target: object,
+    target: TargetProtocol,
     stride_bytes: bytes,
     prev_pubkey_point: object | None = None,
-    xonly_target: object | None = None,
+    xonly_target: TargetProtocol | None = None,
 ) -> tuple[Optional[CollisionResult], object | None]:
     """顺序链式检查：利用点加法链加速公钥推导。
 
@@ -788,7 +790,7 @@ def check_single_key_chain(
             priv = PrivateKey(privkey_bytes)
             pubkey = priv.public_key
         else:
-            pubkey = prev_pubkey_point
+            pubkey = prev_pubkey_point  # type: ignore[assignment]
             pubkey.add(stride_bytes, update=True)
 
         # ── 压缩公钥路径 ──
@@ -878,10 +880,10 @@ _global_last_checkpoint = time.time()
 
 def worker_sequential(
     counter: SequentialCounter,
-    target: object,
+    target: TargetProtocol,
     thread_id: int,
     stride_bytes: bytes | None = None,
-    xonly_target: object | None = None,
+    xonly_target: TargetProtocol | None = None,
 ) -> int:
     """顺序模式工作线程（点加法链加速）。
 
@@ -948,10 +950,10 @@ def worker_sequential(
 
 
 def worker_random(
-    target: object,
+    target: TargetProtocol,
     thread_id: int,
     check_limit: int = 0,
-    xonly_target: object | None = None,
+    xonly_target: TargetProtocol | None = None,
 ) -> int:
     """随机模式工作线程"""
     global _global_checked
@@ -987,9 +989,9 @@ def worker_random(
 
 # ── GPU 模式 ──────────────────────────────────────────────────
 def _run_gpu_mode(
-    target: object,
+    target: TargetProtocol,
     args: argparse.Namespace,
-    xonly_target: object | None = None,
+    xonly_target: TargetProtocol | None = None,
 ) -> None:
     """GPU 加速的碰撞扫描入口。"""
     # 解析设备索引
@@ -1350,9 +1352,9 @@ def _load_targets(
 
 
 def _display_banner(
-    target: object,
+    target: TargetProtocol,
     args: argparse.Namespace,
-    xonly_target: object | None,
+    xonly_target: TargetProtocol | None,
 ) -> None:
     """打印引擎启动 banner。"""
     _logger.info("\n%s", "#" * 70)
@@ -1372,9 +1374,9 @@ def _display_banner(
 
 
 def _run_cpu_mode(
-    target: object,
+    target: TargetProtocol,
     args: argparse.Namespace,
-    xonly_target: object | None,
+    xonly_target: TargetProtocol | None,
 ) -> None:
     """运行 CPU 扫描（顺序或随机模式）。包含 checkpoing 恢复/保存逻辑。"""
     global _global_start_time, _global_checked
@@ -1489,8 +1491,8 @@ def _print_final_report() -> None:
 
 
 def _cleanup(
-    target: object,
-    xonly_target: XOnlySet | None,
+    target: TargetProtocol,
+    xonly_target: TargetProtocol | None,
 ) -> None:
     """清理资源：关闭目标集和数据库连接。"""
     target.close()
@@ -1521,12 +1523,14 @@ def main() -> None:
 
     # ── 应用 UTXO 刷新 CLI 参数（覆盖配置） ──
     if args.utxo_refresh is not None:
+        assert _config is not None
         _config.enable_utxo_auto_refresh = args.utxo_refresh
         _logger.info(
             "UTXO 自动刷新: %s (CLI 覆盖)",
             "启用" if args.utxo_refresh else "禁用",
         )
     if args.utxo_refresh_interval > 0:
+        assert _config is not None
         _config.utxo_refresh_interval = args.utxo_refresh_interval
         _logger.info("UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval)
 
@@ -1559,7 +1563,7 @@ def main() -> None:
 
     # ── 启动 UTXO 自动刷新 ──
     _start_utxo_refresher(
-        _config,
+        _config,  # type: ignore[arg-type]
         target,
         xonly_target,
         logger=_logger,

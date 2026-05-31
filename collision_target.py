@@ -30,6 +30,7 @@ import struct
 import threading
 import time
 from pathlib import Path
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -593,6 +594,21 @@ class XOnlySet:
 
     def __exit__(self, *args):
         self.close()
+
+
+# ── TargetProtocol ────────────────────────────────────────────────
+
+
+class TargetProtocol(Protocol):
+    """碰撞引擎对目标集的 duck-type 接口协议。
+
+    Hash160Set / XOnlySet / SwappableTarget 均实现此协议，
+    使 collision_engine.py 中可使用静态类型而非 ``object``。
+    """
+
+    def __contains__(self, item: object) -> bool: ...
+    def __len__(self) -> int: ...
+    def close(self) -> None: ...
 
 
 # ── SwappableTarget ─────────────────────────────────────────────

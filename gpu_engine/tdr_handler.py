@@ -116,24 +116,24 @@ def warn_tdr_settings(quiet: bool = False) -> Optional[float]:
     try:
         import winreg
 
-        key = winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE,
+        key = winreg.OpenKey(  # type: ignore[attr-defined]
+            winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
             _TDR_REG_KEY,
             0,
-            winreg.KEY_READ,
+            winreg.KEY_READ,  # type: ignore[attr-defined]
         )
         try:
-            raw_val, _ = winreg.QueryValueEx(key, _TDR_DELAY_KEY)
+            raw_val, _ = winreg.QueryValueEx(key, _TDR_DELAY_KEY)  # type: ignore[attr-defined]
             tdr_delay = float(raw_val)
         except FileNotFoundError:
             tdr_delay = _TDR_DEFAULT_TIMEOUT
 
         try:
-            winreg.QueryValueEx(key, _TDR_DDI_DELAY_KEY)
+            winreg.QueryValueEx(key, _TDR_DDI_DELAY_KEY)  # type: ignore[attr-defined]
         except FileNotFoundError:
             pass
 
-        winreg.CloseKey(key)
+        winreg.CloseKey(key)  # type: ignore[attr-defined]
 
         if tdr_delay <= 2 and not quiet:
             logger.info("[GPU][TDR] Windows TDR 超时 = %ss (默认)。", tdr_delay)

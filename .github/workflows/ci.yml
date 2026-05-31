@@ -77,7 +77,9 @@ jobs:
         run: python gpu_engine/test_vectors.py
 
       - name: Run kernel verification tests (no GPU)
-        run: pytest gpu_engine/test_kernel_compile.py -v --tb=short -k "not gpu"
+        # 注意: 不要用 -k "not gpu" 过滤, 因为 gpu_engine 包名含 "gpu"
+        # 所有测试都会因包名匹配而排除。改用 skipif 标记自动跳过。
+        run: pytest gpu_engine/test_kernel_compile.py -v --tb=short
 
       - name: Run core module tests
         run: pytest tests/ -v --tb=short -x

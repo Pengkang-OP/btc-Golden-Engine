@@ -72,14 +72,14 @@ class GPUPipeline:
             enabled=tdr_safe,
             max_kernel_time=max_kernel_time,
         )
-        self._ctx = None
-        self._queue = None
-        self._program = None
-        self._kernel_hash160 = None
-        self._kernel_pubkey = None
-        self._d_privkeys = None
-        self._d_hash160s = None
-        self._d_pubkeys = None
+        self._ctx: Any = None
+        self._queue: Any = None
+        self._program: Any = None
+        self._kernel_hash160: Any = None
+        self._kernel_pubkey: Any = None
+        self._d_privkeys: Any = None
+        self._d_hash160s: Any = None
+        self._d_pubkeys: Any = None
         self._h_privkeys = np.zeros(batch_size * 32, dtype=np.uint8)
         self._h_hash160s = np.zeros(batch_size * 20, dtype=np.uint8)
 
@@ -151,7 +151,7 @@ class GPUPipeline:
         self._queue = cl.CommandQueue(
             self._ctx,
             self._device,
-            properties=props,
+            properties=props,  # type: ignore[arg-type]
         )
 
         # 编译 kernel
