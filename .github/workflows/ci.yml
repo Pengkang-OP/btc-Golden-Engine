@@ -87,7 +87,8 @@ jobs:
         run: pytest gpu_engine/test_kernel_compile.py -v --tb=short
 
       - name: Run core module tests
-        run: pytest tests/ -v --tb=short -x
+        # 说明: --ignore 排除基准回归测试（由 benchmark.yml 单独处理）
+        run: pytest tests/ -v --tb=short -x --ignore=tests/test_benchmark_regression.py
 
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest'

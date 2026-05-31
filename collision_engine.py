@@ -1581,8 +1581,6 @@ def _print_final_report() -> None:
     )
 
 
-
-
 def _cleanup(
     target: TargetProtocol,
     xonly_target: TargetProtocol | None,
