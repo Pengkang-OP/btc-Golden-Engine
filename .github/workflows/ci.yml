@@ -39,10 +39,10 @@ jobs:
           pip install "ruff==0.9.7" "mypy==1.15.0"
 
       - name: Lint check (ruff)
-        run: ruff check . --exclude .github --exclude __pycache__
+        run: ruff check .
 
       - name: Format check (ruff)
-        run: ruff format --check . --exclude .github --exclude __pycache__
+        run: ruff format --check .
 
       - name: Type check (mypy) — 全项目
         run: |
