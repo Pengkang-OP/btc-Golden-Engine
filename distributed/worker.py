@@ -105,7 +105,7 @@ class DistributedScanner:
                     cpu_cores=self._cpu_cores,
                     gpu_count=self._detect_gpu_count(),
                     address=f"worker-{self._worker_id}",
-                    version="2.0.1-distributed",
+                    version="2.3.0",
                 )
             )
             if not resp.accepted:

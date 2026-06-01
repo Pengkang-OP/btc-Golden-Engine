@@ -30,6 +30,8 @@
   python collision_engine.py --gpu --gpu-mode sequential --gpu-start 0x100000
 """
 
+__version__ = "2.3.0"
+
 import sys
 import os
 import json
@@ -1469,7 +1471,7 @@ def _display_banner(
 ) -> None:
     """打印引擎启动 banner。"""
     _logger.info("\n%s", "#" * 70)
-    _logger.info("#   Bitcoin 私钥碰撞对撞引擎 v1.1.0")
+    _logger.info("#   Bitcoin 私钥碰撞对撞引擎 v2.3.0")
     _logger.info(
         "#   目标集: %s 个有余额地址的 HASH160 | P2TR: %s",
         f"{len(target):,}",

@@ -102,7 +102,7 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
 
     app = FastAPI(
         title="Bitcoin Collision Engine Dashboard",
-        version="1.0.0",
+        version="2.3.0",
         description="私钥碰撞检测系统实时监控仪表盘",
         lifespan=lifespan,
     )

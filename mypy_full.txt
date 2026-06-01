@@ -1,2 +1,0 @@
-api\routes.py:238: error: Function is missing a return type annotation  [no-untyped-def]
-Found 1 error in 1 file (checked 20 source files)

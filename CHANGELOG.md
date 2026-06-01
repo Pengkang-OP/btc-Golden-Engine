@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.0] — 2026-06-01
+
+### Added
+- `collision_engine.py` 新增 `__version__ = "2.3.0"` 运行时版本常量
+- 分布式扫描 Worker 注册新增版本字段一致性
+
+### Changed
+- **版本统一**: 全项目版本号同步为 v2.3.0（`pyproject.toml`, `api/server.py`, `api/routes.py`, `distributed/worker.py`, `collision_engine.py` banner）
+- **README 项目结构**：更新反映当前实际目录（补充 `distributed/`, `api/`, `core/`, `docs/`, `daemon/`），移除过时的 `[v1.3.0]` 版本标记
+- **README CLI 参数表**：补充 `--p2tr`、`--gpu-mode`、`--distributed`、`--utxo-refresh`、`--utxo-refresh-interval` 等遗漏参数
+
+### Removed
+- 清理 30+ 个根目录临时/诊断文件：CI 诊断脚本（`_check_ci*.py`, `_get_*.py`, `_wait_ci.py`）、mypy 输出（`_mypy_*.txt`, `mypy_full.txt`）、pytest 输出（`pytest_*_out.txt`）、ruff 输出（`ruff_*.txt`）、临时产物（`bench_out.txt`, `fmt_out.txt`, `test_kernel_out.txt` 等）
+
 ## [2.2.0] — 2026-06-01
 
 ### Added

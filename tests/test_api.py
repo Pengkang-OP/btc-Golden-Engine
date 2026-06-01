@@ -163,7 +163,7 @@ class TestHealthCheck:
         """包含版本字段。"""
         resp = client.get("/api/health")
         data = resp.json()
-        assert data["version"] == "1.0.0"
+        assert data["version"] == "2.3.0"
 
     def test_health_timestamp(self, client: TestClient) -> None:
         """时间戳为 UTC ISO 格式。"""

@@ -71,9 +71,18 @@ python extract_utxo_hash160.py
 | `--count` | int | 0 (无限) | 要检查的私钥数量 |
 | `--threads` | int | CPU 核心数 | CPU 线程数 |
 | `--gpu` | flag | — | 启用 GPU 加速模式 |
+| `--gpu-mode` | `sequential`, `random` | `random` | GPU 扫描模式 |
+| `--gpu-start` | hex | — | GPU 顺序模式起始私钥（支持 checkpoint 恢复） |
 | `--gpu-devices` | str | 所有 GPU | GPU 设备索引（逗号分隔） |
 | `--gpu-batch-size` | int | 65536 | 每个 GPU batch 的私钥数 |
 | `--list-gpu` | flag | — | 列出 OpenCL 设备 |
+| `--p2tr` | flag | — | 启用 P2TR (Taproot) 碰撞匹配 |
+| `--utxo-refresh` | flag | — | 启用定时 UTXO 刷新 |
+| `--utxo-refresh-interval` | int | 3600 | UTXO 刷新间隔（秒） |
+| `--distributed` | flag | — | 分布式扫描模式（需要 gRPC） |
+| `--master-addr` | str | `localhost:50051` | Master 地址 |
+| `--worker-id` | str | auto | Worker 唯一标识 |
+| `--health` | flag | — | 健康检查模式 |
 
 ## 输出
 
@@ -89,31 +98,53 @@ python extract_utxo_hash160.py
 
 ```
 g:/Bitcoin/
-├── collision_engine.py       # 主入口（CPU + GPU 模式）
-├── collision_target.py       # HASH160 目标集加载（mmap + 二分查找）
-├── extract_utxo_hash160.py   # UTXO 快照解析器
-├── core/                     # [v1.3.0] 基础设施包
-│   ├── __init__.py
-│   ├── config.py              # 配置管理 (EngineConfig)
-│   ├── logger.py              # 日志系统 (RotatingFileHandler)
-│   ├── errors.py              # 异常体系 (CollisionEngineError)
-│   └── database.py            # SQLite 结果持久化 (WAL 模式)
-├── gpu_engine/               # GPU 加速模块
-│   ├── __init__.py
-│   ├── gpu_kernel.h          # OpenCL C 内核（secp256k1 + SHA-256 + RIPEMD-160）
-│   ├── gpu_pipeline.py       # pyopencl 管道
-│   ├── gpu_dispatcher.py     # 多 GPU 调度器
-│   └── gpu_device.py         # 设备发现工具
-├── tests/                    # [v1.4.0+] 测试套件
-├── utxo_hash160.bin          # HASH160 数据（~1.65 GB, mmap）
-├── utxo_hash160.idx          # 前缀索引
-├── collision_results.json    # 碰撞结果（JSON 兼容）
-├── collision_results.db      # [v1.3.0] SQLite 持久化
-├── logs/collision.log        # [v1.3.0] 运行日志
+├── collision_engine.py          # 主入口（CPU + GPU + 分布式模式）
+├── collision_target.py          # HASH160 / XOnly 目标集加载（mmap + Bloom filter）
+├── extract_utxo_hash160.py      # UTXO 快照 P2PKH/P2WPKH 解析器
+├── extract_utxo_xonly.py        # UTXO 快照 P2TR (Taproot) 解析器
+├── __main__.py                  # python -m 入口
+├── core/                        # 基础设施包
+│   ├── config.py                # 配置管理 (EngineConfig + 热重载)
+│   ├── logger.py                # 日志系统 (RotatingFileHandler + JSON 格式)
+│   ├── errors.py                # 异常体系 (CollisionEngineError)
+│   ├── database.py              # SQLite 结果持久化 (WAL 模式)
+│   ├── notifier.py              # 碰撞通知（邮件/Telegram/Webhook）
+│   └── metrics.py               # Prometheus 指标注册表
+├── api/                         # Web API 层 (FastAPI)
+│   ├── server.py                # FastAPI 应用 + lifespan 管理
+│   ├── routes.py                # REST 端点 + WebSocket
+│   ├── state.py                 # 应用状态单例
+│   └── templates/index.html     # 仪表盘前端
+├── gpu_engine/                  # GPU 加速模块
+│   ├── gpu_kernel.h             # OpenCL C 内核（secp256k1 + SHA-256 + RIPEMD-160）
+│   ├── gpu_pipeline.py          # pyopencl 管道
+│   ├── gpu_dispatcher.py        # 多 GPU 调度器
+│   └── gpu_device.py            # 设备发现工具
+├── distributed/                 # 分布式扫描 (gRPC)
+│   ├── master.py                # Master 协调器 + WorkerRegistry
+│   ├── worker.py                # Worker 扫描器 (CPU/GPU)
+│   ├── models.py                # WorkerInfo/Assignment dataclass
+│   ├── protocol.proto           # gRPC 协议定义
+│   └── protocol_pb2*.py         # 生成的 protobuf 代码
+├── daemon/                      # Bitcoin Core 可执行文件
+│   ├── bitcoind.exe             # Bitcoin Core daemon
+│   ├── bitcoin-cli.exe          # RPC 客户端
+│   ├── bitcoin-tx.exe           # 交易工具
+│   └── bitcoin-wallet.exe       # 钱包工具
+├── tests/                       # 测试套件（19 个测试文件, 348+ 测试）
+├── docs/
+│   ├── gpu_usage.md             # GPU 使用指南 + 基准数据
+│   ├── gpu_optimization_plan.md # GPU 优化开发计划（10 项）
+│   ├── production_plan.md       # 生产化部署计划
+│   ├── monitoring_guide.md      # Prometheus + Grafana 监控
+│   └── benchmark_regression.md  # 性能基准回归测试方案
+├── utxo_hash160.bin / .idx / .bloom   # P2PKH/P2WPKH 目标数据
+├── utxo_xonly.bin / .idx / .bloom     # P2TR (Taproot) 目标数据
+├── collision_results.json       # 碰撞结果
+├── collision_results.db         # SQLite 持久化
+├── logs/collision.log           # 运行日志
 ├── CHANGELOG.md
-└── docs/
-    ├── gpu_usage.md          # GPU 使用指南
-    └── production_plan.md    # 生产化计划
+└── COPYING.txt
 ```
 
 ## 性能（实测）

@@ -114,7 +114,7 @@ async def health_check() -> dict[str, Any]:
         "status": "ok",
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "database": "connected" if db_ok else "error",
-        "version": "1.0.0",
+        "version": "2.3.0",
     }
 
 
