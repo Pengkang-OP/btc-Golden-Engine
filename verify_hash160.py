@@ -140,7 +140,8 @@ def check_index_match(n: int) -> None:
                             errors += 1
                             if errors <= 3:
                                 print(
-                                    f"  [FAIL] Bucket boundary: 0x{prev_b:02x} last > 0x{fb:02x} first",
+                                    f"  [FAIL] Bucket boundary: "
+                                    f"0x{prev_b:02x} last > 0x{fb:02x} first",
                                 )
                     break
                 prev_b -= 1

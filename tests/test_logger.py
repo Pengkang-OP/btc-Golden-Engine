@@ -49,9 +49,7 @@ class TestSetupLogger:
             level="DEBUG",
         )
         file_handlers = [
-            h
-            for h in logger.handlers
-            if isinstance(h, logging.handlers.RotatingFileHandler)
+            h for h in logger.handlers if isinstance(h, logging.handlers.RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
         assert file_handlers[0].baseFilename == str(log_path)

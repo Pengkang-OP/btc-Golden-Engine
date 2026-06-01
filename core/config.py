@@ -32,9 +32,7 @@ class EngineConfig:
     """
 
     # ── 椭圆曲线 ──
-    secp256k1_order: int = (
-        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-    )
+    secp256k1_order: int = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
     # ── 文件路径 ──
     results_db: str = "collision_results.db"  # SQLite 数据库路径
@@ -184,9 +182,7 @@ class EngineConfig:
 
         raw = json.loads(path.read_text(encoding="utf-8"))
         # 过滤掉私有字段和 config_path (不在 JSON 中)
-        filtered = {
-            k: v for k, v in raw.items() if not k.startswith("_") and k != "config_path"
-        }
+        filtered = {k: v for k, v in raw.items() if not k.startswith("_") and k != "config_path"}
         config = cls(**filtered)
         config.config_path = path  # 记录配置文件路径用于 hot reload
         config._mtime = path.stat().st_mtime

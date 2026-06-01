@@ -1,22 +1,28 @@
 # Bitcoin Collision Engine — 依赖清单
 # 安装: pip install -r requirements.txt
+#
+# 安全更新记录：
+# 2026-06-01: coincurve>=21.0.0 (libsecp256k1 0.6.0)
+# 2026-06-01: jinja2>=3.1.5 (修复 CVE-2024-56326)
+# 2026-06-01: grpcio>=1.66.0 (修复 CVE-2024-11407 / CVE-2024-7246)
+# 详见 docs/dependency_security.md
 
-coincurve>=3.0.0
-bech32>=1.2.0
+coincurve>=21.0.0,<22
+bech32>=1.2.0,<3
 numpy>=1.24.0
 
 # GPU 加速（可选）
 # pyopencl>=2024.1
 
 # Web UI
-fastapi>=0.110.0
+fastapi>=0.115.0
 uvicorn[standard]>=0.29.0
-jinja2>=3.1.0
+jinja2>=3.1.5
 rich>=13.0.0
 websockets>=12.0
 
 # 分布式扫描
-grpcio>=1.60.0
+grpcio>=1.66.0
 protobuf>=4.25.0
 
 # 测试

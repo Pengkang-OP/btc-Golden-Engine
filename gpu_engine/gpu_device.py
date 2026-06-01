@@ -63,7 +63,12 @@ def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
     filter_type = type_map.get(device_type) if device_type else None
 
     devices: list[DeviceInfo] = []
-    for platform in cl.get_platforms():
+    try:
+        platforms = cl.get_platforms()
+    except cl.RuntimeError:
+        logger.warning("[GPU] 无法枚举 OpenCL 平台")
+        return []
+    for platform in platforms:
         try:
             all_devices = platform.get_devices()
         except cl.RuntimeError:

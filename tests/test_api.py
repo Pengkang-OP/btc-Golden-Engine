@@ -441,7 +441,8 @@ class TestEngineStatusReadWrite:
         es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
-        es.STATUS_FILE.read_text.side_effect = json.JSONDecodeError("bad token", "", 0)  # type: ignore[attr-defined]
+        mock_error = json.JSONDecodeError("bad token", "", 0)
+        es.STATUS_FILE.read_text.side_effect = mock_error  # type: ignore[attr-defined]
 
         result = es.read()
         assert result["running"] is False
@@ -454,7 +455,8 @@ class TestEngineStatusReadWrite:
         es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
-        es.STATUS_FILE.read_text.side_effect = OSError("permission denied")  # type: ignore[attr-defined]
+        mock_os_error = OSError("permission denied")
+        es.STATUS_FILE.read_text.side_effect = mock_os_error  # type: ignore[attr-defined]
 
         result = es.read()
         assert result["running"] is False

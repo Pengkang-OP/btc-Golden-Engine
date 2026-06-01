@@ -299,10 +299,7 @@ class TestWorkerRegistry:
                 with lock:
                     errors.append(e)
 
-        threads = [
-            threading.Thread(target=register_and_assign, args=(f"w{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=register_and_assign, args=(f"w{i}",)) for i in range(5)]
         for t in threads:
             t.start()
         for t in threads:

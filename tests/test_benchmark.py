@@ -168,8 +168,7 @@ def _mock_pyopencl(monkeypatch) -> None:
     if not kfile.exists():
         kfile.parent.mkdir(parents=True, exist_ok=True)
         kfile.write_text(
-            "__kernel void ec_mul_hash160("
-            "__global const uchar* in, __global uchar* out) {}",
+            "__kernel void ec_mul_hash160(__global const uchar* in, __global uchar* out) {}",
         )
 
 

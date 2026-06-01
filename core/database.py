@@ -89,8 +89,7 @@ class ResultDB:
                 "CREATE INDEX IF NOT EXISTS idx_timestamp ON collisions(timestamp)",
             )
             self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_address_type"
-                " ON collisions(address_type)",
+                "CREATE INDEX IF NOT EXISTS idx_address_type ON collisions(address_type)",
             )
             self._conn.commit()
         except (sqlite3.Error, OSError) as exc:

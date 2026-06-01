@@ -167,9 +167,7 @@ class GPUBatchScheduler:
                         if self.config.mode == "sequential"
                         else base_start
                     ),
-                    sequential_stride=(
-                        gpu_stride if self.config.mode == "sequential" else None
-                    ),
+                    sequential_stride=(gpu_stride if self.config.mode == "sequential" else None),
                     tdr_safe=self.config.tdr_safe,
                     max_kernel_time=self.config.max_kernel_time,
                     bloom_data=self.config.bloom_data,
@@ -279,9 +277,7 @@ class GPUBatchScheduler:
         for i, w in enumerate(self._workers):
             rate = w.keys_checked / w.total_elapsed if w.total_elapsed > 0 else 0
             logger.info(
-                "  [%d] %s\n"
-                "       检查: %s | 命中: %d\n"
-                "       速率: %s keys/s | 错误: %d",
+                "  [%d] %s\n       检查: %s | 命中: %d\n       速率: %s keys/s | 错误: %d",
                 i,
                 w.device_name,
                 f"{w.keys_checked:,}",

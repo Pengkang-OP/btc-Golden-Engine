@@ -199,9 +199,7 @@ def _make_platforms(
     FakeDev.type = 4  # GPU = 4 in pyopencl
 
     mock_cl = mock.MagicMock()
-    mock_cl.get_platforms.return_value = [
-        FakePlatform(n_gpu) for _ in range(n_platforms)
-    ]
+    mock_cl.get_platforms.return_value = [FakePlatform(n_gpu) for _ in range(n_platforms)]
     mock_cl.device_type.GPU = 4
     mock_cl.RuntimeError = RuntimeError
     _sys.modules["pyopencl"] = mock_cl

@@ -23,6 +23,7 @@ SNAPSHOT = BASE / "utxo_snapshot.dat"
 XONLY_BIN = BASE / "utxo_xonly.bin"
 XONLY_IDX = BASE / "utxo_xonly.idx"
 CHUNK = 100_000
+MAX_PARSE_ERRORS = 1000
 
 SNAPSHOT_MAGIC = b"utxo\xff"
 NETWORK_MAGIC = bytes.fromhex("f9beb4d9")
@@ -173,8 +174,8 @@ def parse() -> tuple[list[bytearray], dict] | None:
             if errs <= 10 or errs % 50 == 0:
                 print(f"\n  [RECOV] #{errs} off={off:,} err={e}")
             off = min(off + 1, total_len)
-            if errs > 1000:
-                print("\n  [FATAL] >1000 errors. Aborting.")
+            if errs > MAX_PARSE_ERRORS:
+                print(f"\n  [FATAL] >{MAX_PARSE_ERRORS} errors. Aborting.")
                 break
 
         if parsed > 0 and parsed % 500000 == 0:

@@ -74,9 +74,7 @@ class GPUPipeline:
         self.mode = mode
         self._seq_start = sequential_start
         # stride: 多 GPU 时每个 worker 每批推进量(单 GPU = batch_size)
-        self._seq_stride = (
-            sequential_stride if sequential_stride is not None else batch_size
-        )
+        self._seq_stride = sequential_stride if sequential_stride is not None else batch_size
         # TDR 安全设置
         self._tdr_safe = tdr_safe
         self._max_kernel_time = max_kernel_time
@@ -448,11 +446,7 @@ class GPUPipeline:
         _ran_calib = False
         calib_size = 0
         _calib_min_batch = 256
-        if (
-            self._tdr_safe
-            and not self._timer.is_calibrated
-            and self.batch_size > _calib_min_batch
-        ):
+        if self._tdr_safe and not self._timer.is_calibrated and self.batch_size > _calib_min_batch:
             _ran_calib = True
             calib_size = min(self._tdr_config.calibration_keys, self.batch_size)
             try:
@@ -480,8 +474,7 @@ class GPUPipeline:
                     new_size = max(64, cur_size // 4)
                     if not self.quiet:
                         logger.warning(
-                            "[GPU][TDR] 检测到 TDR 超时 (sub_batch=%s),"
-                            "降低到 %s 并重试",
+                            "[GPU][TDR] 检测到 TDR 超时 (sub_batch=%s),降低到 %s 并重试",
                             cur_size,
                             new_size,
                         )

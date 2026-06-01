@@ -47,9 +47,7 @@ def main() -> None:
     # 输出为 JSON 供自动比对
     import json
 
-    vec = [
-        {"name": n, "pubkey": p, "sha256": s, "hash160": h} for n, p, s, h in results
-    ]
+    vec = [{"name": n, "pubkey": p, "sha256": s, "hash160": h} for n, p, s, h in results]
     vec_file = Path(__file__).parent / "kernel_test_vectors.json"
     vec_file.write_text(json.dumps(vec, indent=2), encoding="utf-8")
 

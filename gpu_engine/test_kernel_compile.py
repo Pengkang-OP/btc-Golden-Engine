@@ -123,9 +123,7 @@ def test_kernel_no_inline_constants(kernel_source: str) -> None:
         r"uint\s+\w+\s*\[\s*(?:64|80)\s*\]",
         kernel_source,
     )
-    assert not func_body_k, (
-        f"发现函数内栈上大数组定义 (应该移到 __constant): {func_body_k}"
-    )
+    assert not func_body_k, f"发现函数内栈上大数组定义 (应该移到 __constant): {func_body_k}"
 
 
 def test_kernel_includes_line_count(kernel_source: str) -> None:
@@ -195,7 +193,9 @@ def test_vectors_correctness(test_vectors: list[dict[str, Any]]) -> None:
         "privkey=1": 1,
         "privkey=2": 2,
         "privkey=42": 42,
-        "privkey=SECP256K1_ORDER-1": 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140,
+        "privkey=SECP256K1_ORDER-1": (
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140
+        ),
         "privkey=EFF": 0xEFF,
     }
 

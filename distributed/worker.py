@@ -246,16 +246,12 @@ class DistributedScanner:
         use_gpu = self._gpu_enabled and gpu_available
 
         if use_gpu:
-            actual_start = (
-                max(start_key, self._gpu_start) if self._gpu_start else start_key
-            )
+            actual_start = max(start_key, self._gpu_start) if self._gpu_start else start_key
             self._scan_gpu(actual_start, end_key, target, xonly_target)
         else:
             self._scan_cpu(start_key, end_key, target, xonly_target)
 
-    def _scan_cpu(
-        self, start_key: int, end_key: int, target: Any, xonly_target: Any
-    ) -> None:
+    def _scan_cpu(self, start_key: int, end_key: int, target: Any, xonly_target: Any) -> None:
         """CPU 模式扫描:多线程 + 点加法链加速..
 
         每个线程管理自己的 stride 序列(等差数列),线程 i 扫描
@@ -331,9 +327,7 @@ class DistributedScanner:
                         exc,
                     )
 
-    def _scan_gpu(
-        self, start_key: int, end_key: int, target: Any, xonly_target: Any
-    ) -> None:
+    def _scan_gpu(self, start_key: int, end_key: int, target: Any, xonly_target: Any) -> None:
         """GPU 模式扫描.."""
         try:
             from gpu_engine import DispatcherConfig, GPUBatchScheduler

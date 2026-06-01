@@ -126,9 +126,7 @@ def double_sha256(data: bytes) -> bytes:
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
 
-def convertbits(
-    data: list[int], frombits: int, tobits: int, pad: bool = True
-) -> list[int] | None:
+def convertbits(data: list[int], frombits: int, tobits: int, pad: bool = True) -> list[int] | None:
     """Convert between bit groups."""
     acc = 0
     bits = 0
@@ -205,7 +203,8 @@ def main() -> None:
 
         for i, addr_info in enumerate(addresses, 1):
             print(
-                f"{i:<6} {addr_info['address']:<45} {addr_info['type']:<10} {addr_info['balance']:<15.8f}",
+                f"{i:<6} {addr_info['address']:<45} "
+                f"{addr_info['type']:<10} {addr_info['balance']:<15.8f}",
             )
 
         print("-" * 80)

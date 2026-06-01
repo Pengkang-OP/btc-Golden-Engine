@@ -97,19 +97,46 @@ CHECKPOINT_FILE = Path(__file__).parent / "collision_checkpoint.json"
 PROGRESS_INTERVAL = 5000  # 每 N 个 key 报告一次
 CHECKPOINT_INTERVAL = 60_000  # 每 N 个 key 保存一次 checkpoint
 
-# ── 全局日志与配置 ────────────────────────────────────────────
+
+# ── 引擎全局状态(封装在 _EngineState 中以减少裸全局变量) ────
+class _EngineState:
+    """引擎共享状态容器.通过模块级实例访问以减少裸全局变量.."""
+
+    logger: Any = None
+    config: EngineConfig | None = None
+    db: ResultDB | None = None
+    notifier: Notifier | None = None
+    shutdown_requested = False
+
+    # 可交换的目标集(UTXO 自动刷新)
+    swappable_target: SwappableTarget | None = None
+    swappable_xonly: SwappableTarget | None = None
+
+    # UTXO 刷新状态
+    refresh_thread: threading.Thread | None = None
+    refresh_last_time: float = 0.0
+    refresh_last_result: str = "N/A"
+
+    # CPU 扫描统计(线程安全)
+    counter_lock = threading.Lock()
+    global_checked = 0
+    global_start_time: float = 0.0
+    global_last_checkpoint: float = 0.0
+
+
+_state = _EngineState()
 _logger: Any = None
 _config: EngineConfig | None = None
 _db: ResultDB | None = None
 _notifier: Notifier | None = None
 _shutdown_requested = False
 
-# ── UTXO 自动刷新全局状态 ─────────────────────────────────────
-_swappable_target: SwappableTarget | None = None  # 包裹 Hash160Set
-_swappable_xonly: SwappableTarget | None = None  # 包裹 XOnlySet
+# ── UTXO 自动刷新全局状态(旧别名,逐步迁移到 _state) ─────────
+_swappable_target: SwappableTarget | None = None
+_swappable_xonly: SwappableTarget | None = None
 _refresh_thread: threading.Thread | None = None
-_refresh_last_time: float = 0.0  # 上次成功刷新时间戳
-_refresh_last_result: str = "N/A"  # 上次刷新结果描述
+_refresh_last_time: float = 0.0
+_refresh_last_result: str = "N/A"
 
 
 def _handle_signal(signum: int, frame: object | None = None) -> None:  # noqa: ARG001
@@ -909,7 +936,7 @@ def check_single_key_chain(
     return (None, None)
 
 
-# ── 线程工作函数 ──────────────────────────────────────────────
+# ── 线程工作函数(全局统计通过 _state 管理) ─────────────────
 _counter_lock = threading.Lock()
 _global_checked = 0
 _global_start_time = time.time()
@@ -1039,9 +1066,7 @@ def _run_gpu_mode(
     device_indices = None
     if args.gpu_devices:
         try:
-            device_indices = [
-                int(s.strip()) for s in args.gpu_devices.split(",") if s.strip()
-            ]
+            device_indices = [int(s.strip()) for s in args.gpu_devices.split(",") if s.strip()]
         except ValueError:
             _logger.exception("[错误] --gpu-devices 格式无效: %s", args.gpu_devices)
             sys.exit(1)
@@ -1617,11 +1642,19 @@ def _print_final_report() -> None:
     rate = final_checked / elapsed if elapsed > 0 else 0
 
     hit_count = 0
-    if RESULTS_FILE.exists():
+    if _db is not None:
+        try:
+            hit_count = _db.count_results()
+        except DatabaseError:
+            hit_count = 0
+    elif RESULTS_FILE.exists():
         try:
             hit_count = len(json.loads(RESULTS_FILE.read_text()))
-        except Exception as exc:  # noqa: BLE001
+        except (json.JSONDecodeError, OSError) as exc:
             _logger.warning("无法读取碰撞结果文件: %s", exc)
+            hit_count = 0
+    else:
+        hit_count = 0
 
     _logger.info(
         "\n%s\n  扫描结束\n"
@@ -1660,19 +1693,20 @@ def _cleanup(
     if _notifier is not None:
         try:
             _notifier.shutdown(wait=True)
-        except Exception as exc:  # noqa: BLE001
+        except OSError as exc:
             _logger.warning("通知器关闭异常: %s", exc)
 
     if _db is not None:
         try:
             _db.close()
             _logger.info("数据库连接已关闭")
-        except Exception as exc:  # noqa: BLE001
+        except (OSError, DatabaseError) as exc:
             _logger.warning("数据库关闭异常: %s", exc)
 
 
 def main() -> None:
     """主入口:解析参数 → 初始化 → 分发 CPU 或 GPU 模式.."""
+    global _notifier
     parser = _build_arg_parser()
     args = parser.parse_args()
 
@@ -1805,9 +1839,19 @@ def main() -> None:
     _display_banner(target, args, xonly_target)
 
     # ── 检查已有结果 ──
-    if RESULTS_FILE.exists():
-        old_hits = len(json.loads(RESULTS_FILE.read_text()))
-        _logger.info("[信息] 已有碰撞结果文件: %d 条命中记录", old_hits)
+    old_hits = 0
+    if _db is not None:
+        try:
+            old_hits = _db.count_results()
+        except DatabaseError:
+            pass
+    elif RESULTS_FILE.exists():
+        try:
+            old_hits = len(json.loads(RESULTS_FILE.read_text()))
+        except (json.JSONDecodeError, OSError):
+            pass
+    if old_hits > 0:
+        _logger.info("[信息] 已有碰撞结果: %d 条命中记录", old_hits)
     else:
         _logger.info("[信息] 碰撞结果将保存至: %s", RESULTS_FILE.name)
 

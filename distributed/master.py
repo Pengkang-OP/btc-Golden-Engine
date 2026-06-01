@@ -202,9 +202,7 @@ class WorkerRegistry:
                     if worker.status == "scanning" or worker.current_start > 0:
                         # 仅回收被收回的 range 到全局池
                         if w.current_start > 0:
-                            mid = (
-                                w.current_start + (w.current_end - w.current_start) // 2
-                            )
+                            mid = w.current_start + (w.current_end - w.current_start) // 2
                             self._global_cursor = max(self._global_cursor, mid)
                         w.current_start = 0
                         w.current_end = 0

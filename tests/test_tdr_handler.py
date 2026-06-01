@@ -210,12 +210,8 @@ class TestWarnTDRSettings:
         result = warn_tdr_settings(quiet=False)
 
         assert result == 2.0
-        assert any(
-            "Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records
-        )
-        assert any(
-            "引擎已启用自动 sub-batch 拆分" in rec.message for rec in caplog.records
-        )
+        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
+        assert any("引擎已启用自动 sub-batch 拆分" in rec.message for rec in caplog.records)
 
     def test_optimized_timeout_not_quiet(
         self,
@@ -247,9 +243,7 @@ class TestWarnTDRSettings:
         result = warn_tdr_settings(quiet=False)
 
         assert result == _TDR_DEFAULT_TIMEOUT
-        assert any(
-            "Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records
-        )
+        assert any("Windows TDR 超时 = 2.0s (默认)" in rec.message for rec in caplog.records)
 
     def test_import_error_non_windows(
         self,

@@ -20,6 +20,8 @@ HASH_BIN = BASE / "utxo_hash160.bin"
 HASH_IDX = BASE / "utxo_hash160.idx"
 STATS = BASE / "utxo_hash160_stats.json"
 
+# 解析错误数量超过此阈值时终止解析
+MAX_PARSE_ERRORS = 1000
 
 SNAPSHOT_MAGIC = b"utxo\xff"
 NETWORK_MAGIC = bytes.fromhex("f9beb4d9")
@@ -220,11 +222,7 @@ def parse() -> tuple[list[bytearray], dict] | None:
                         buckets[h[0]].extend(h)
                         types["P2PKH"] += 1
 
-                    elif (
-                        raw_len == 23
-                        and script[:2] == b"\xa9\x14"
-                        and script[22:23] == b"\x87"
-                    ):
+                    elif raw_len == 23 and script[:2] == b"\xa9\x14" and script[22:23] == b"\x87":
                         types["P2SH"] += 1
 
                     elif (raw_len == 35 and script[0:1] == b"\x21") or (
@@ -241,16 +239,15 @@ def parse() -> tuple[list[bytearray], dict] | None:
                 print(f"\n  [RECOV] #{errs} off={off:,} gap={off - last_off:,} err={e}")
             off = min(off + 1, total_len)
             last_off = off
-            if errs > 1000:
-                print("\n  [FATAL] >1000 errors. Aborting.")
+            if errs > MAX_PARSE_ERRORS:
+                print(f"\n  [FATAL] >{MAX_PARSE_ERRORS} errors. Aborting.")
                 break
 
         if parsed > 0 and parsed % 10000 == 0:
             total_h = sum(len(b) // 20 for b in buckets)
             elapsed = time.time() - t0
             print(
-                f"  parsed={parsed:,} hash160={total_h:,} off={off:,}/{total_len:,}  "
-                f"errors={errs}",
+                f"  parsed={parsed:,} hash160={total_h:,} off={off:,}/{total_len:,}  errors={errs}",
                 end="\r",
             )
 
@@ -258,9 +255,8 @@ def parse() -> tuple[list[bytearray], dict] | None:
     total_h = sum(len(b) // 20 for b in buckets)
     rate = f"{parsed / elapsed:,.0f}" if elapsed > 0 else "N/A"
     print(f"\n  Parse done: {elapsed:.0f}s  {rate} outputs/s")
-    print(
-        f"  Final offset: {off:,}/{total_len:,}  ({(total_len - off) / total_len * 100:.1f}% remaining)",
-    )
+    pct = (total_len - off) / total_len * 100
+    print(f"  Final offset: {off:,}/{total_len:,}  ({pct:.1f}% remaining)")
     print(f"  Hash160 extracted: {total_h:,}  errors: {errs}")
 
     types["TOTAL_PARSED"] = parsed

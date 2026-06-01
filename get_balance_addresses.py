@@ -109,9 +109,8 @@ def main() -> list[dict[str, Any]] | None:
         print("\n❌ 无法连接到 Bitcoin 守护进程:")
         print(f"   {err}")
         print("\n⚠️  请先启动 bitcoind:")
-        print(
-            f"   & '{BITCOIN_CLI_PATH.replace('bitcoin-cli', 'bitcoind')}' -daemon -datadir='{BITCOIN_DATADIR}'",
-        )
+        bitcoind_path = BITCOIN_CLI_PATH.replace("bitcoin-cli", "bitcoind")
+        print(f"   & '{bitcoind_path}' -daemon -datadir='{BITCOIN_DATADIR}'")
 
         # 尝试从已有的文件读取地址
         print("\n📋 尝试从已有数据文件读取地址信息...")
@@ -225,9 +224,7 @@ def print_address_table(addresses: list[dict[str, Any]]) -> None:
 
     for i, addr_info in enumerate(addresses, 1):
         balance_str = f"{addr_info['balance']:.8f}"
-        balance_display = (
-            f"{balance_str}" if addr_info["balance"] > 0 else f"{balance_str}"
-        )
+        balance_display = f"{balance_str}" if addr_info["balance"] > 0 else f"{balance_str}"
         print(
             f"{i:<6} {addr_info['address']:<45} {addr_info['type']:<10} {balance_display:<18}",
         )
@@ -256,7 +253,10 @@ def generate_markdown_table(addresses: list[dict[str, Any]]) -> str:
     md += "|:----:|-----------------------------------|:----:|:----------:|\n"
 
     for i, addr_info in enumerate(addresses, 1):
-        md += f"| {i} | `{addr_info['address']}` | {addr_info['type']} | {addr_info['balance']:.8f} |\n"
+        md += (
+            f"| {i} | `{addr_info['address']}` | "
+            f"{addr_info['type']} | {addr_info['balance']:.8f} |\n"
+        )
 
     total_balance = sum(a["balance"] for a in addresses)
     addresses_with_balance = sum(1 for a in addresses if a["balance"] > 0)

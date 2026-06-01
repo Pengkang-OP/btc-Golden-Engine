@@ -53,10 +53,7 @@ def _make_idx(total: int = 1000) -> dict[str, Any]:
             if fb < remainder:
                 start = fb * (records_per_prefix + 1)
             else:
-                start = (
-                    remainder * (records_per_prefix + 1)
-                    + (fb - remainder) * records_per_prefix
-                )
+                start = remainder * (records_per_prefix + 1) + (fb - remainder) * records_per_prefix
             end = start + count - 1
             index[f"{fb:02x}"] = [start, end, False]
 

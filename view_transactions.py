@@ -25,9 +25,7 @@ def run_cli(args: list[str]) -> tuple[object | str | None, str | None]:
     cmd.extend(args)
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=30, check=False
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
         if result.returncode == 0:
             try:
                 return json.loads(result.stdout), None
@@ -109,12 +107,8 @@ def main() -> None:
 
     print("-" * 100)
 
-    total_sent = sum(
-        abs(tx.get("amount", 0)) for tx in tx_list if tx.get("amount", 0) < 0
-    )
-    total_received = sum(
-        tx.get("amount", 0) for tx in tx_list if tx.get("amount", 0) > 0
-    )
+    total_sent = sum(abs(tx.get("amount", 0)) for tx in tx_list if tx.get("amount", 0) < 0)
+    total_received = sum(tx.get("amount", 0) for tx in tx_list if tx.get("amount", 0) > 0)
     tx_count = len(tx_list)
 
     print("\n📈 统计摘要:")
@@ -174,9 +168,7 @@ def main() -> None:
     md_content += "\n## 按类型统计\n\n"
 
     for tx_type, stats in sorted(tx_types.items()):
-        md_content += (
-            f"- **{tx_type}**: {stats['count']} 笔, 总计 {stats['total']:.8f} BTC\n"
-        )
+        md_content += f"- **{tx_type}**: {stats['count']} 笔, 总计 {stats['total']:.8f} BTC\n"
 
     output_md = Path(r"g:\Bitcoin\wallet_transactions_report.md")
     with open(output_md, "w", encoding="utf-8") as f:
