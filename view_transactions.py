@@ -7,9 +7,9 @@ displays a formatted table sorted by time, and saves JSON + Markdown reports.
     python view_transactions.py
 """
 
-import subprocess
-import json
 import datetime
+import json
+import subprocess
 from pathlib import Path
 
 BITCOIN_CLI = r"G:\Bitcoin\daemon\bitcoin-cli.exe"
@@ -44,8 +44,8 @@ def format_timestamp(ts):
         return str(ts)
 
 
-def main():
-    """CLI 入口：获取并显示钱包交易列表与统计摘要。"""
+def main() -> None:
+    """CLI 入口：获取并显示钱包交易列表与统计摘要。."""
     print("=" * 100)
     print("Bitcoin 交易数据查看工具")
     print("=" * 100)
@@ -61,7 +61,7 @@ def main():
         print(f"\n错误: {err}")
         print("\n⚠️  请先启动 bitcoind:")
         print(
-            f"& '{BITCOIN_CLI.replace('bitcoin-cli', 'bitcoind')}' -daemon -datadir='{DATADIR}'"
+            f"& '{BITCOIN_CLI.replace('bitcoin-cli', 'bitcoind')}' -daemon -datadir='{DATADIR}'",
         )
         return
 

@@ -1,4 +1,4 @@
-"""性能基准测试 — 测量 keys/s 吞吐量。
+"""性能基准测试 — 测量 keys/s 吞吐量。.
 
 注意: GPU 管道测试依赖 mock pyopencl，因此测的是 mock 速率而非真实 GPU 速率。
 """
@@ -13,17 +13,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ── 辅助函数 ──────────────────────────────────────────────────
 
 
 def _make_utxo(tmp_dir: Path, n: int = 10) -> dict[str, Any]:
-    """创建 n 条模拟 utxo_hash160 文件。"""
+    """创建 n 条模拟 utxo_hash160 文件。."""
     records = sorted([b"\x00" * 19 + bytes([i]) for i in range(n)])
     bin_p = tmp_dir / "utxo_hash160.bin"
     with open(bin_p, "wb") as f:
-        for r in records:
-            f.write(r)
+        f.writelines(records)
     pm: dict[int, list[int]] = {}
     for i, r in enumerate(records):
         pm.setdefault(r[0], []).append(i)
@@ -44,10 +42,10 @@ def _make_utxo(tmp_dir: Path, n: int = 10) -> dict[str, Any]:
 
 
 class TestBenchmarkCPU:
-    """CPU 模式性能基准测试。"""
+    """CPU 模式性能基准测试。."""
 
     def test_cpu_benchmark_keys_per_second(self, tmp_dir, monkeypatch):
-        """测量 CPU 端 check_single_key 吞吐量 (keys/s)。"""
+        """测量 CPU 端 check_single_key 吞吐量 (keys/s)。."""
         import collision_engine as ce
         import collision_target as ct
 
@@ -74,12 +72,11 @@ class TestBenchmarkCPU:
             assert kps > 0, f"零吞吐量 ({n} keys in {elapsed:.3f}s)"
 
             # 输出供手动记录
-            print(f"\n[基准] CPU keys/s: {kps:,.0f} ({n} keys in {elapsed:.3f}s)")
         finally:
             target.close()
 
     def test_cpu_benchmark_point_addition_vs_full_mul(self, tmp_dir, monkeypatch):
-        """比较 check_single_key_chain (点加法链) 与 check_single_key (全量 EC 乘) 的速率差异。"""
+        """比较 check_single_key_chain (点加法链) 与 check_single_key (全量 EC 乘) 的速率差异。."""
         import collision_engine as ce
         import collision_target as ct
 
@@ -114,13 +111,10 @@ class TestBenchmarkCPU:
             chain_elapsed = time.perf_counter() - t0
             chain_kps = 1000 / chain_elapsed
 
-            print(f"\n[基准] 全量 EC 乘:    {full_kps:,.0f} keys/s")
-            print(f"[基准] 点加法链加速: {chain_kps:,.0f} keys/s")
-            print(f"[基准] 加速比:        {chain_kps / full_kps:.1f}x")
-
             # 点加法链应比全量 EC 乘快（但 mock pyopencl 等不影响）
             # 不 assert 加速比，只做观察记录
-            assert chain_kps > 0 and full_kps > 0
+            assert chain_kps > 0
+            assert full_kps > 0
         finally:
             target.close()
             if ce._db is not None:
@@ -132,7 +126,7 @@ class TestBenchmarkCPU:
 
 @pytest.fixture
 def _mock_pyopencl(monkeypatch) -> None:
-    """Mock pyopencl 模块 — 与 test_gpu_pipeline.py 一致。"""
+    """Mock pyopencl 模块 — 与 test_gpu_pipeline.py 一致。."""
     import sys
 
     cl = MagicMock()
@@ -175,26 +169,26 @@ def _mock_pyopencl(monkeypatch) -> None:
         kfile.parent.mkdir(parents=True, exist_ok=True)
         kfile.write_text(
             "__kernel void ec_mul_hash160("
-            "__global const uchar* in, __global uchar* out) {}"
+            "__global const uchar* in, __global uchar* out) {}",
         )
 
 
 class TestBenchmarkGPU:
-    """GPU 管道基准测试 (mock pyopencl)。"""
+    """GPU 管道基准测试 (mock pyopencl)。."""
 
     def test_gpu_pipeline_mock_benchmark(self, tmp_dir, _mock_pyopencl):
-        """Mock GPU 管道基本功能验证 + 吞吐量测量。
+        """Mock GPU 管道基本功能验证 + 吞吐量测量。.
 
         pyopencl 被 mock 后，测的是 mock 层的调用速度，
         但可验证 BatchResult 输出格式。
         """
-        from gpu_engine.gpu_pipeline import GPUPipeline, BatchResult
+        from gpu_engine.gpu_pipeline import BatchResult, GPUPipeline
 
         pipe = GPUPipeline(batch_size=4096, quiet=True)
         try:
             t0 = time.perf_counter()
             result = pipe.submit_batch()
-            elapsed = time.perf_counter() - t0
+            time.perf_counter() - t0
 
             # 验证 BatchResult 类型和字段
             assert isinstance(result, BatchResult)
@@ -205,13 +199,11 @@ class TestBenchmarkGPU:
             assert result.privkey_bytes is not None
             assert isinstance(result.hit_indices, list)
 
-            print(f"\n[基准] GPU (mock): {result.keys_per_sec:,.0f} keys/s")
-            print(f"  batch={result.keys_checked}, elapsed={elapsed:.4f}s")
         finally:
             pipe.close()
 
     def test_gpu_pipeline_sequential_mode(self, tmp_dir, _mock_pyopencl):
-        """验证 GPU 顺序模式能正确推进起始值。"""
+        """验证 GPU 顺序模式能正确推进起始值。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(

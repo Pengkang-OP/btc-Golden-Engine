@@ -1,6 +1,6 @@
-"""通知发送模块 — 碰撞命中时发送邮件/Webhook/Telegram 通知。
+"""通知发送模块 - 碰撞命中时发送邮件/Webhook/Telegram 通知..
 
-使用 ThreadPoolExecutor 异步发送，不阻塞碰撞主循环。
+使用 ThreadPoolExecutor 异步发送,不阻塞碰撞主循环.
 
 用法:
     from core.notifier import Notifier
@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import smtplib
@@ -18,29 +19,34 @@ import ssl
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from email.mime.text import MIMEText
-from typing import Any
+from typing import TYPE_CHECKING, Any, Self
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from .config import EngineConfig
 from .errors import NotifierError
+
+if TYPE_CHECKING:
+    from .config import EngineConfig
 
 logger = logging.getLogger(__name__)
 
+_HTTP_BAD_REQUEST = 400
+
 
 class Notifier:
-    """碰撞命中通知发送器 — 邮件 + Webhook + Telegram。
+    """碰撞命中通知发送器 - 邮件 + Webhook + Telegram..
 
-    所有通知通过内部 ThreadPoolExecutor 异步发送。
-    发送失败仅计入日志，不阻塞主流程。
+    所有通知通过内部 ThreadPoolExecutor 异步发送.
+    发送失败仅计入日志,不阻塞主流程.
 
     Attributes:
-        config: 引擎配置（读取通知相关字段）。
-        _executor: 线程池，用于异步发送。
+        config: 引擎配置(读取通知相关字段).
+        _executor: 线程池,用于异步发送.
+
     """
 
-    def __init__(self, config: EngineConfig):
-        """初始化通知器，配置 SMTP/Webhook 参数并创建线程池。"""
+    def __init__(self, config: EngineConfig) -> None:
+        """初始化通知器,配置 SMTP/Webhook 参数并创建线程池.."""
         self.config = config
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(
@@ -49,27 +55,28 @@ class Notifier:
         )
 
     def close(self) -> None:
-        """释放线程池资源，防止线程泄漏。"""
+        """释放线程池资源,防止线程泄漏.."""
         try:
             self._executor.shutdown(wait=False)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
-    def __enter__(self) -> Notifier:
-        """上下文管理器入口，返回自身。"""
+    def __enter__(self) -> Self:
+        """上下文管理器入口,返回自身.."""
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        """上下文管理器出口，释放线程池资源。"""
+    def __exit__(self, *args: object) -> None:
+        """上下文管理器出口,释放线程池资源.."""
         self.close()
 
     # ── 公共接口 ──────────────────────────────────────────
 
     def on_hit(self, result: Any) -> None:
-        """碰撞命中时触发通知（异步发送）。
+        """碰撞命中时触发通知(异步发送)..
 
         Args:
-            result: CollisionResult dataclass 实例。
+            result: CollisionResult dataclass 实例.
+
         """
         if not self._is_configured():
             return
@@ -82,7 +89,7 @@ class Notifier:
     # ── 发送逻辑 ──────────────────────────────────────────
 
     def _send_all(self, result: Any) -> None:
-        """发送所有已配置的通知通道。"""
+        """发送所有已配置的通知通道.."""
         subject = f"🔥 碰撞命中! {getattr(result, 'address_type', '?')}"
         body = self._format_body(result)
 
@@ -103,23 +110,22 @@ class Notifier:
         bot_token = self.config.telegram_bot_token
         chat_id = self.config.telegram_chat_id
         if bot_token and chat_id:
-            try:
+            with contextlib.suppress(NotifierError):
                 self.send_telegram(bot_token, chat_id, body)
-            except NotifierError:
-                pass
 
     def send_email(self, subject: str, body: str) -> bool:
-        """通过 SMTP 发送邮件通知。
+        """通过 SMTP 发送邮件通知..
 
         Args:
-            subject: 邮件主题。
-            body: 邮件正文（纯文本）。
+            subject: 邮件主题.
+            body: 邮件正文(纯文本).
 
         Returns:
-            发送成功返回 True。
+            发送成功返回 True.
 
         Raises:
-            NotifierError: SMTP 连接或发送失败。
+            NotifierError: SMTP 连接或发送失败.
+
         """
         cfg = self.config
         try:
@@ -139,19 +145,21 @@ class Notifier:
 
         except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
             logger.warning("邮件通知发送失败: %s", exc)
-            raise NotifierError(f"邮件发送失败: {exc}", original=exc) from exc
+            msg_0 = f"邮件发送失败: {exc}"
+            raise NotifierError(msg_0, original=exc) from exc
 
     def send_webhook(self, payload: dict[str, Any]) -> bool:
-        """通过 HTTP POST 发送 Webhook 通知。
+        """通过 HTTP POST 发送 Webhook 通知..
 
         Args:
-            payload: 发送的 JSON 字典。
+            payload: 发送的 JSON 字典.
 
         Returns:
-            发送成功返回 True。
+            发送成功返回 True.
 
         Raises:
-            NotifierError: HTTP 请求失败或状态码异常。
+            NotifierError: HTTP 请求失败或状态码异常.
+
         """
         url = self._webhook_url()
         if not url:
@@ -159,17 +167,18 @@ class Notifier:
 
         try:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            req = Request(
+            req = Request(  # noqa: S310
                 url,
                 data=data,
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urlopen(req, timeout=10) as resp:
+            with urlopen(req, timeout=10) as resp:  # noqa: S310
                 status = resp.status
-                if status >= 400:
+                if status >= _HTTP_BAD_REQUEST:
+                    msg = f"Webhook 返回非正常状态码: {status}"
                     raise NotifierError(
-                        f"Webhook 返回非正常状态码: {status}",
+                        msg,
                     )
 
             logger.info("Webhook 通知发送成功 -> %s", url[:60])
@@ -177,7 +186,8 @@ class Notifier:
 
         except (URLError, OSError, TypeError) as exc:
             logger.warning("Webhook 通知发送失败: %s", exc)
-            raise NotifierError(f"Webhook 发送失败: {exc}", original=exc) from exc
+            msg = f"Webhook 发送失败: {exc}"
+            raise NotifierError(msg, original=exc) from exc
 
     def send_telegram(
         self,
@@ -185,18 +195,19 @@ class Notifier:
         chat_id: str,
         text: str,
     ) -> bool:
-        """通过 Telegram Bot API 发送消息。
+        """通过 Telegram Bot API 发送消息..
 
         Args:
-            bot_token: Bot 令牌。
-            chat_id: 目标聊天 ID。
-            text: 消息文本。
+            bot_token: Bot 令牌.
+            chat_id: 目标聊天 ID.
+            text: 消息文本.
 
         Returns:
-            发送成功返回 True。
+            发送成功返回 True.
 
         Raises:
-            NotifierError: API 请求失败。
+            NotifierError: API 请求失败.
+
         """
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {
@@ -208,16 +219,17 @@ class Notifier:
 
         try:
             data = json.dumps(payload).encode("utf-8")
-            req = Request(
+            req = Request(  # noqa: S310
                 url,
                 data=data,
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urlopen(req, timeout=10) as resp:
-                if resp.status >= 400:
+            with urlopen(req, timeout=10) as resp:  # noqa: S310
+                if resp.status >= _HTTP_BAD_REQUEST:
+                    msg = f"Telegram API 返回错误: {resp.status}"
                     raise NotifierError(
-                        f"Telegram API 返回错误: {resp.status}",
+                        msg,
                     )
 
             logger.info("Telegram 通知发送成功")
@@ -225,35 +237,36 @@ class Notifier:
 
         except (URLError, OSError, TypeError) as exc:
             logger.warning("Telegram 通知发送失败: %s", exc)
+            msg = f"Telegram 发送失败: {exc}"
             raise NotifierError(
-                f"Telegram 发送失败: {exc}",
+                msg,
                 original=exc,
             ) from exc
 
     # ── 内部帮助方法 ──────────────────────────────────────
 
     def _is_configured(self) -> bool:
-        """检查是否有至少一个通知通道已配置。"""
+        """检查是否有至少一个通知通道已配置.."""
         if not self.config.notify_on_hit:
             return False
         return bool(
             self._should_email()
             or self._webhook_url()
-            or (self.config.telegram_bot_token and self.config.telegram_chat_id)
+            or (self.config.telegram_bot_token and self.config.telegram_chat_id),
         )
 
     def _should_email(self) -> bool:
-        """检查邮件通知是否已配置。"""
+        """检查邮件通知是否已配置.."""
         cfg = self.config
         return bool(cfg.smtp_host and cfg.smtp_user and cfg.smtp_to)
 
     def _webhook_url(self) -> str:
-        """返回 Webhook URL 或空字符串。"""
+        """返回 Webhook URL 或空字符串.."""
         return self.config.webhook_url or ""
 
     @staticmethod
     def _format_body(result: Any) -> str:
-        """将碰撞结果格式化为可读文本。"""
+        """将碰撞结果格式化为可读文本.."""
         lines = [
             f"地址类型: {getattr(result, 'address_type', '?')}",
             f"私钥 (hex): {getattr(result, 'privkey_hex', '?')}",
@@ -273,7 +286,7 @@ class Notifier:
 
     @staticmethod
     def _build_payload(result: Any, subject: str) -> dict[str, Any]:
-        """构造 Webhook JSON payload。"""
+        """构造 Webhook JSON payload.."""
         return {
             "subject": subject,
             "address_type": getattr(result, "address_type", ""),
@@ -289,11 +302,12 @@ class Notifier:
 
     # ── 生命周期 ──────────────────────────────────────────
 
-    def shutdown(self, wait: bool = True) -> None:
-        """关闭线程池，等待待处理通知完成。
+    def shutdown(self, wait: bool = True) -> None:  # noqa: FBT001, FBT002
+        """关闭线程池,等待待处理通知完成..
 
         Args:
-            wait: 是否等待未完成的任务。
+            wait: 是否等待未完成的任务.
+
         """
         self._executor.shutdown(wait=wait)
         logger.debug("Notifier 已关闭")

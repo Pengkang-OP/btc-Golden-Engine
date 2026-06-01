@@ -7,8 +7,8 @@ against the current UTXO set, displaying total balance for each.
     python scan_balance.py
 """
 
-import subprocess
 import json
+import subprocess
 
 ADDRESSES = [
     "bc1q8kjxlkffnrpja09g5z3sj5pmrqtaz0f6cdx7lh",
@@ -25,8 +25,8 @@ DATADIR = r"G:\Bitcoin"
 
 def run_cli(args):
     """Run bitcoin-cli with given args and parse JSON output."""
-    cmd = [BITCOIN_CLI, f"-datadir={DATADIR}"] + args
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    cmd = [BITCOIN_CLI, f"-datadir={DATADIR}", *args]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)  # noqa: S603  # 参数来自可信配置
     if result.returncode == 0:
         try:
             return json.loads(result.stdout)

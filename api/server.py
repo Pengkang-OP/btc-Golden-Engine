@@ -1,7 +1,7 @@
-"""FastAPI 应用工厂 + uvicorn 入口。
+"""FastAPI 应用工厂 + uvicorn 入口..
 
-导出 create_app() 工厂函数，便于测试和灵活配置。
-作为独立进程运行时连接同一份 collision_results.db。
+导出 create_app() 工厂函数,便于测试和灵活配置.
+作为独立进程运行时连接同一份 collision_results.db.
 
 使用方式:
     # 直接运行
@@ -19,13 +19,12 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-# 将项目根加入 sys.path（与 collision_engine.py 一致）
+# 将项目根加入 sys.path(与 collision_engine.py 一致)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -33,19 +32,24 @@ if str(PROJECT_ROOT) not in sys.path:
 # ── 日志 ──────────────────────────────────────────────────────
 logger = logging.getLogger("api.server")
 
-# ── 共享状态（托管在 state.py 中消除交叉导入） ──────────────
-from . import state as _state  # noqa: E402
-from .metrics import get_registry  # noqa: E402
+# ── 共享状态(托管在 state.py 中消除交叉导入) ──────────────
+from typing import TYPE_CHECKING
+
+from . import state as _state
+from .metrics import get_registry
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 # ── 应用工厂 ────────────────────────────────────────────────
-def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> FastAPI:
-    """创建并配置 FastAPI 应用实例。"""
+def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> FastAPI:  # noqa: FBT001, FBT002
+    """创建并配置 FastAPI 应用实例.."""
 
     # ── 生命周期事件 ──────────────────────────────────────────
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        """应用生命周期管理（替代已弃用的 on_event）。"""
+        """应用生命周期管理(替代已弃用的 on_event).."""
         # startup
         logger.info("API 服务启动中...")
         target_info = _state.load_target_sets()
@@ -61,26 +65,30 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
         if enable_grpc_master:
             try:
                 from concurrent import futures
+
                 import grpc
+
                 from distributed.master import MasterService, WorkerRegistry
                 from distributed.protocol_pb2_grpc import (
                     add_MasterServiceServicer_to_server,
                 )
+
                 from .routes import _set_worker_registry
 
                 _state._worker_registry = WorkerRegistry()
                 _set_worker_registry(_state._worker_registry)
 
                 _state._grpc_server = grpc.server(
-                    futures.ThreadPoolExecutor(max_workers=10)
+                    futures.ThreadPoolExecutor(max_workers=10),
                 )
                 add_MasterServiceServicer_to_server(
-                    MasterService(_state._worker_registry), _state._grpc_server
+                    MasterService(_state._worker_registry),
+                    _state._grpc_server,
                 )
                 _state._grpc_server.add_insecure_port(f"[::]:{grpc_port}")
                 _state._grpc_server.start()
                 logger.info("gRPC Master 服务已启动 (port=%d)", grpc_port)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("gRPC Master 启动失败: %s", exc)
 
         yield
@@ -90,7 +98,7 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
             try:
                 _state._grpc_server.stop(grace=5)
                 logger.info("gRPC 服务已停止")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("gRPC 服务停止异常: %s", exc)
         if _state._db is not None:
             _state._db.close()
@@ -112,11 +120,11 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
 
     app.include_router(router)
 
-    # ── Prometheus /metrics 端点（可选认证）─────────────────
+    # ── Prometheus /metrics 端点(可选认证)─────────────────
     _ENGINE_API_KEY = os.environ.get("ENGINE_API_KEY", "")
 
     def _require_metrics_auth(request: Request) -> None:
-        """如果设置了 ENGINE_API_KEY，则验证 X-API-Key 请求头。"""
+        """如果设置了 ENGINE_API_KEY,则验证 X-API-Key 请求头.."""
         if _ENGINE_API_KEY:
             key = request.headers.get("X-API-Key", "")
             if key != _ENGINE_API_KEY:
@@ -126,8 +134,7 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
     async def metrics_endpoint(
         _: None = Depends(_require_metrics_auth),
     ) -> PlainTextResponse:
-        """Prometheus /metrics 端点 (text/plain 格式, 零依赖)。"""
-
+        """Prometheus /metrics 端点 (text/plain 格式, 零依赖).."""
         registry = get_registry()
         return PlainTextResponse(
             registry.render(),
@@ -144,15 +151,18 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
 
 # ── 直接运行入口 ────────────────────────────────────────────
 def main() -> None:
-    """启动 uvicorn 服务器（可选同时启动 gRPC Master）。"""
+    """启动 uvicorn 服务器(可选同时启动 gRPC Master).."""
     import argparse
+
     import uvicorn
 
     parser = argparse.ArgumentParser(description="API Dashboard 服务器")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="监听地址")
     parser.add_argument("--port", type=int, default=8080, help="HTTP 端口")
     parser.add_argument(
-        "--with-grpc", action="store_true", help="同时启动 gRPC Master 服务"
+        "--with-grpc",
+        action="store_true",
+        help="同时启动 gRPC Master 服务",
     )
     parser.add_argument("--grpc-port", type=int, default=50051, help="gRPC 端口")
     args = parser.parse_args()
@@ -166,14 +176,8 @@ def main() -> None:
     host = args.host
     port = args.port
 
-    print("╔═══════════════════════════════════════════════════╗")
-    print("║  Bitcoin Collision Engine Dashboard               ║")
-    print(f"║  监听地址: http://{host}:{port}                   ║")
-    print(f"║  REST API: http://{host}:{port}/api/              ║")
-    print(f"║  WebSocket: ws://{host}:{port}/ws                 ║")
     if args.with_grpc:
-        print(f"║  gRPC Master: :{args.grpc_port}                   ║")
-    print("╚═══════════════════════════════════════════════════╝")
+        pass
 
     uvicorn.run(
         app,

@@ -1,8 +1,9 @@
-"""Verify utxo_hash160.bin data integrity"""
+"""Verify utxo_hash160.bin data integrity."""
 
-import json
-import time
 import hashlib
+import json
+import sys
+import time
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -12,7 +13,7 @@ STATS = BASE / "utxo_hash160_stats.json"
 
 
 def check_size():
-    """验证数据文件大小是否为 20 字节对齐并返回条目数。"""
+    """验证数据文件大小是否为 20 字节对齐并返回条目数。."""
     size = BIN.stat().st_size
     n = size // 20
     if size % 20 != 0:
@@ -22,8 +23,8 @@ def check_size():
     return n
 
 
-def check_sorted(n):
-    """通过等间隔采样检查数据是否全局排序。"""
+def check_sorted(n) -> bool:
+    """通过等间隔采样检查数据是否全局排序。."""
     print("[...]  Checking sort order (sampling every 1000)...")
     t0 = time.time()
     step = 1000
@@ -41,7 +42,7 @@ def check_sorted(n):
 
 
 def check_bounds(n):
-    """读取第一个和最后一个 Hash160 值作为基准。"""
+    """读取第一个和最后一个 Hash160 值作为基准。."""
     with open(BIN, "rb") as f:
         first = f.read(20)
         f.seek((n - 1) * 20)
@@ -52,7 +53,7 @@ def check_bounds(n):
 
 
 def check_first_byte_distribution(n):
-    """统计首字节分布，用于快速检查数据平衡性。"""
+    """统计首字节分布，用于快速检查数据平衡性。."""
     print("[...]  Counting first-byte distribution...")
     t0 = time.time()
     dist = [0] * 256
@@ -71,8 +72,8 @@ def check_first_byte_distribution(n):
     return dist
 
 
-def check_stats_match(n):
-    """验证条目数与 stats.json 中的记录一致。"""
+def check_stats_match(n) -> None:
+    """验证条目数与 stats.json 中的记录一致。."""
     if not STATS.exists():
         print(f"[WARN] {STATS} not found, skipping")
         return
@@ -86,8 +87,8 @@ def check_stats_match(n):
         print(f"[FAIL] Count mismatch: file={n:,}, stats={expected:,}")
 
 
-def check_index_match(n):
-    """验证前缀索引与数据文件内容一致（首字节、边界）。"""
+def check_index_match(n) -> None:
+    """验证前缀索引与数据文件内容一致（首字节、边界）。."""
     if not IDX.exists():
         print(f"[WARN] {IDX} not found, skipping")
         return
@@ -139,7 +140,7 @@ def check_index_match(n):
                             errors += 1
                             if errors <= 3:
                                 print(
-                                    f"  [FAIL] Bucket boundary: 0x{prev_b:02x} last > 0x{fb:02x} first"
+                                    f"  [FAIL] Bucket boundary: 0x{prev_b:02x} last > 0x{fb:02x} first",
                                 )
                     break
                 prev_b -= 1
@@ -150,7 +151,7 @@ def check_index_match(n):
 
 
 def check_known_targets(n):
-    """测试几个已知地址（创世地址、假地址）的命中/未命中。"""
+    """测试几个已知地址（创世地址、假地址）的命中/未命中。."""
     from collision_target import Hash160Set
 
     s = Hash160Set()
@@ -181,8 +182,8 @@ def check_known_targets(n):
     return all_ok
 
 
-def check_no_duplicates_sampling(n):
-    """通过等间隔采样检查是否存在相邻重复条目。"""
+def check_no_duplicates_sampling(n) -> bool:
+    """通过等间隔采样检查是否存在相邻重复条目。."""
     print("[...]  Checking duplicates (sampling every 10000)...")
     t0 = time.time()
     with open(BIN, "rb") as f:
@@ -194,13 +195,13 @@ def check_no_duplicates_sampling(n):
                 print(f"  [FAIL] Duplicate: entry {i} {a.hex()}")
                 return False
     print(
-        f"[OK]   No duplicates (sampled {n // 10000:,} pairs, {time.time() - t0:.1f}s)"
+        f"[OK]   No duplicates (sampled {n // 10000:,} pairs, {time.time() - t0:.1f}s)",
     )
     return True
 
 
 def check_checksum():
-    """计算完整数据文件的 SHA256 校验和。"""
+    """计算完整数据文件的 SHA256 校验和。."""
     print("[...]  Computing SHA256 checksum...")
     t0 = time.time()
     sha = hashlib.sha256()
@@ -212,8 +213,8 @@ def check_checksum():
     return h
 
 
-def main():
-    """入口：逐项执行数据完整性检查并输出汇总结果。"""
+def main() -> int:
+    """入口：逐项执行数据完整性检查并输出汇总结果。."""
     print("=" * 60)
     print("utxo_hash160.bin Data Integrity Verification")
     print("=" * 60)
@@ -257,4 +258,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

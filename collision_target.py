@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""
-对撞匹配工具 — Hash160 目标集加载模块
+r"""对撞匹配工具 - Hash160 目标集加载模块.
 
-从 extract_utxo_hash160.py 输出的文件中加载所有带余额地址的 Hash160。
-使用 mmap + 前缀索引 + 二分查找 + Bloom Filter，无需将 3.3 GB 数据全部加载到内存。
+从 extract_utxo_hash160.py 输出的文件中加载所有带余额地址的 Hash160.
+使用 mmap + 前缀索引 + 二分查找 + Bloom Filter,无需将 3.3 GB 数据全部加载到内存.
 
 Bloom Filter:
-  - 假阳性率 ~1%，~99% 的 miss 查询在 O(1) 时间内被过滤
-  - 首次构建保存到磁盘缓存 (utxo_hash160.bloom)，后续启动即时加载
+  - 假阳性率 ~1%,~99% 的 miss 查询在 O(1) 时间内被过滤
+  - 首次构建保存到磁盘缓存 (utxo_hash160.bloom),后续启动即时加载
   - 使用 Kirsch-Mitzenmacher 优化: 2 次 SHA-256 -> 7 个哈希位置
 
 用法:
@@ -18,7 +17,7 @@ Bloom Filter:
 
     # 检查一个 Hash160 是否在目标集中
     if b'\x00\x01\x02...' in target:
-        print("命中！")
+        print("命中!")
 """
 
 import hashlib
@@ -30,7 +29,7 @@ import struct
 import threading
 import time
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Self
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +49,11 @@ _BLOOM_NUM_HASHES = 7  # k = (m/n) * ln(2) ≈ 7
 
 
 class _BaseTargetSet:
-    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的目标集查询基类。
+    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的目标集查询基类..
 
-    子类通过类级常量参数化差异项：
+    子类通过类级常量参数化差异项:
       - ``RECORD_SIZE``: 每条记录的字节数
-      - ``RECORD_NAME``: 记录的人类可读名称（用于日志）
+      - ``RECORD_NAME``: 记录的人类可读名称(用于日志)
       - ``BIN_DEFAULT``: 数据二进制文件默认路径
       - ``IDX_DEFAULT``: 前缀索引文件默认路径
       - ``BLOOM_DEFAULT``: Bloom Filter 缓存文件默认路径
@@ -69,20 +68,20 @@ class _BaseTargetSet:
     EXTRACT_SCRIPT: str = ""
 
     __slots__ = (
-        "_mmap",
-        "_idx",
-        "_empty",
-        "_total",
-        "_count",
-        "_fd",
+        "_bin_path",
         "_bloom",
         "_bloom_m",
-        "_bin_path",
+        "_count",
+        "_empty",
+        "_fd",
+        "_idx",
         "_idx_path",
+        "_mmap",
+        "_total",
     )
 
     def __init__(self) -> None:
-        """初始化查询集合（未加载）。调用 load() 加载数据。"""
+        """初始化查询集合(未加载).调用 load() 加载数据.."""
         self._bloom: bytes | None = None
         self._bloom_m = 0
         self._count: int = 0
@@ -94,14 +93,15 @@ class _BaseTargetSet:
         self,
         bin_path: str | None = None,
         idx_path: str | None = None,
-        quiet: bool = False,
+        quiet: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
-        """加载二进制文件和前缀索引到 mmap。
+        """加载二进制文件和前缀索引到 mmap..
 
         Args:
-            bin_path: .bin 文件路径。None 则使用默认路径。
-            idx_path: .idx 索引文件路径。None 则使用默认路径。
-            quiet: True 时抑制信息输出。
+            bin_path: .bin 文件路径.None 则使用默认路径.
+            idx_path: .idx 索引文件路径.None 则使用默认路径.
+            quiet: True 时抑制信息输出.
+
         """
         self._bin_path = bin_path or str(self.BIN_DEFAULT)
         self._idx_path = idx_path or str(self.IDX_DEFAULT)
@@ -109,11 +109,14 @@ class _BaseTargetSet:
         idx_path = self._idx_path
 
         if not os.path.exists(bin_path) or not os.path.exists(idx_path):
-            raise FileNotFoundError(
-                f"缺少 {self.RECORD_NAME} 数据文件。请先运行:\n"
+            msg = (
+                f"缺少 {self.RECORD_NAME} 数据文件.请先运行:\n"
                 f"  python {self.EXTRACT_SCRIPT}\n"
                 f"需要: {bin_path}\n"
                 f"      {idx_path}"
+            )
+            raise FileNotFoundError(
+                msg,
             )
 
         with open(idx_path) as f:
@@ -124,7 +127,8 @@ class _BaseTargetSet:
         self._empty = set()  # first_bytes with zero entries
         for k, v in meta["index"].items():
             fb = int(k, 16)
-            if len(v) == 3 and v[2]:  # [lo, hi, True] = empty
+            _idx_entry_len = 3
+            if len(v) == _idx_entry_len and v[2]:  # [lo, hi, True] = empty
                 self._empty.add(fb)
                 self._idx[fb] = (v[0], v[1])
             else:  # [lo, hi, False] = has data
@@ -134,7 +138,7 @@ class _BaseTargetSet:
         self._mmap = mmap.mmap(self._fd.fileno(), 0, access=mmap.ACCESS_READ)
         self._count = self._total
 
-        # Bloom Filter: 尝试加载缓存，失败则构建
+        # Bloom Filter: 尝试加载缓存,失败则构建
         bloom_loaded = self._try_load_bloom(bin_path)
         if not bloom_loaded:
             self._build_bloom(bin_path, quiet=quiet)
@@ -153,7 +157,7 @@ class _BaseTargetSet:
     # ── Bloom Filter 加载/构建 ──────────────────────────────────
 
     def _bloom_hash_positions(self, h: bytes) -> list[int]:
-        """计算 7 个 Bloom Filter 位位置（Kirsch-Mitzenmacher 优化）。"""
+        """计算 7 个 Bloom Filter 位位置(Kirsch-Mitzenmacher 优化).."""
         # 只需 2 次 SHA-256 派生所有 k 个位置
         h1 = struct.unpack_from(
             "<I",
@@ -167,7 +171,7 @@ class _BaseTargetSet:
         return [(h1 + i * h2) % m for i in range(_BLOOM_NUM_HASHES)]
 
     def _try_load_bloom(self, bin_path: str) -> bool:
-        """尝试从磁盘加载缓存的 Bloom Filter。"""
+        """尝试从磁盘加载缓存的 Bloom Filter.."""
         if not os.path.exists(self.BLOOM_DEFAULT):
             return False
 
@@ -204,8 +208,8 @@ class _BaseTargetSet:
             logger.warning("%s Bloom Filter 缓存加载失败: %s", self.RECORD_NAME, e)
             return False
 
-    def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:
-        """从 mmap 数据构建 Bloom Filter 并保存到磁盘缓存。"""
+    def _build_bloom(self, bin_path: str, quiet: bool = False) -> None:  # noqa: FBT001, FBT002
+        """从 mmap 数据构建 Bloom Filter 并保存到磁盘缓存.."""
         t0 = time.perf_counter()
         rs = self.RECORD_SIZE
 
@@ -222,7 +226,7 @@ class _BaseTargetSet:
                 f"{self._total:,}",
             )
 
-        # 批次处理：每 100K 条报告一次进度
+        # 批次处理:每 100K 条报告一次进度
         batch_size = 100_000
         total = self._total
         for batch_start in range(0, total, batch_size):
@@ -253,11 +257,14 @@ class _BaseTargetSet:
         elapsed = time.perf_counter() - t0
         if not quiet:
             logger.info(
-                "  [100%%] %s/%s (%.1fs) ✓", f"{total:,}", f"{total:,}", elapsed
+                "  [100%%] %s/%s (%.1fs) ✓",
+                f"{total:,}",
+                f"{total:,}",
+                elapsed,
             )
 
     def _save_bloom(self, bin_path: str, bloom: bytearray) -> None:
-        """保存 Bloom Filter 到磁盘缓存。"""
+        """保存 Bloom Filter 到磁盘缓存.."""
         bin_digest = _file_sha256(bin_path)
         byte_size = len(bloom)
 
@@ -275,7 +282,7 @@ class _BaseTargetSet:
                 f.write(bloom)
         except OSError as e:
             logger.warning(
-                "%s Bloom Filter 缓存写入失败（不影响运行）: %s",
+                "%s Bloom Filter 缓存写入失败(不影响运行): %s",
                 self.RECORD_NAME,
                 e,
             )
@@ -283,7 +290,7 @@ class _BaseTargetSet:
     # ── 碰撞查询 ──────────────────────────────────────────────
 
     def __contains__(self, h: bytes) -> bool:
-        """检查指定字节串是否在目标集中。"""
+        """检查指定字节串是否在目标集中.."""
         rs = self.RECORD_SIZE
         if len(h) != rs:
             return False
@@ -299,7 +306,7 @@ class _BaseTargetSet:
         if start > end:
             return False
 
-        # Bloom Filter 预筛（跳过 ~99% 的 miss）
+        # Bloom Filter 预筛(跳过 ~99% 的 miss)
         if self._bloom is not None:
             bloom_chk = self._bloom  # local ref for speed
             m = self._bloom_m
@@ -336,39 +343,39 @@ class _BaseTargetSet:
         return False
 
     def __len__(self) -> int:
-        """返回已加载的条目总数。"""
+        """返回已加载的条目总数.."""
         return self._count
 
     @property
     def bloom_data(self) -> bytes | None:
-        """返回 Bloom Filter 位数组（用于 GPU 侧碰撞检测），None 表示不可用。"""
+        """返回 Bloom Filter 位数组(用于 GPU 侧碰撞检测),None 表示不可用.."""
         return self._bloom
 
     @property
     def bloom_m(self) -> int:
-        """返回 Bloom Filter 总位数。"""
+        """返回 Bloom Filter 总位数.."""
         return self._bloom_m
 
     def close(self) -> None:
-        """关闭 mmap、文件描述符并释放 Bloom Filter 资源。"""
+        """关闭 mmap,文件描述符并释放 Bloom Filter 资源.."""
         if hasattr(self, "_mmap") and self._mmap:
             try:
                 self._mmap.close()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
             self._mmap = None  # type: ignore[assignment]
         if hasattr(self, "_fd") and self._fd:
             try:
                 self._fd.close()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
             self._fd = None  # type: ignore[assignment]
         self._bloom = None
 
-    def reload(self, quiet: bool = False) -> None:
-        """关闭当前 mmap 并从相同路径重新加载数据。
+    def reload(self, quiet: bool = False) -> None:  # noqa: FBT001, FBT002
+        """关闭当前 mmap 并从相同路径重新加载数据..
 
-        用于 UTXO 自动刷新：保持实例 ID 不变，但指向新数据。
+        用于 UTXO 自动刷新:保持实例 ID 不变,但指向新数据.
         """
         self.close()
         self.load(
@@ -377,22 +384,22 @@ class _BaseTargetSet:
             quiet=quiet,
         )
 
-    def __enter__(self) -> "_BaseTargetSet":
-        """上下文管理器入口，返回自身。"""
+    def __enter__(self) -> Self:
+        """上下文管理器入口,返回自身.."""
         return self
 
     def __exit__(self, *args: object) -> None:
-        """上下文管理器出口，关闭 mmap 和文件句柄。"""
+        """上下文管理器出口,关闭 mmap 和文件句柄.."""
         self.close()
 
 
 class Hash160Set(_BaseTargetSet):
-    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的 Hash160 查询集合。
+    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的 Hash160 查询集合..
 
-    约 1.65 亿条 × 20 字节 = 3.3 GB，mmap 只占用虚拟地址空间，
-    物理内存只加载实际访问的页面（约为扫描时的一小部分）。
+    约 1.65 亿条 × 20 字节 = 3.3 GB,mmap 只占用虚拟地址空间,
+    物理内存只加载实际访问的页面(约为扫描时的一小部分).
 
-    Bloom Filter 额外占用 ~116 MB 内存 + ~1.87 GB 磁盘缓存。
+    Bloom Filter 额外占用 ~116 MB 内存 + ~1.87 GB 磁盘缓存.
     """
 
     RECORD_SIZE = 20
@@ -404,7 +411,7 @@ class Hash160Set(_BaseTargetSet):
 
 
 def _file_sha256(path: os.PathLike[str] | str) -> bytes:
-    """快速计算文件的 SHA-256 摘要（64 KB 块读取）。"""
+    """快速计算文件的 SHA-256 摘要(64 KB 块读取).."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
         while True:
@@ -415,14 +422,14 @@ def _file_sha256(path: os.PathLike[str] | str) -> bytes:
     return h.digest()
 
 
-# ── XOnlySet（32 字节 x-only pubkey 查询，用于 P2TR 匹配） ────
+# ── XOnlySet(32 字节 x-only pubkey 查询,用于 P2TR 匹配) ────
 
 
 class XOnlySet(_BaseTargetSet):
-    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的 x-only pubkey 查询集合。
+    """基于 mmap + 前缀索引 + 二分查找 + Bloom Filter 的 x-only pubkey 查询集合..
 
-    约 5400 万条 × 32 字节 = 1.7 GB，mmap 只占用虚拟地址空间。
-    Bloom Filter 额外占用 ~68 MB 内存。
+    约 5400 万条 × 32 字节 = 1.7 GB,mmap 只占用虚拟地址空间.
+    Bloom Filter 额外占用 ~68 MB 内存.
     """
 
     RECORD_SIZE = 32
@@ -437,32 +444,32 @@ class XOnlySet(_BaseTargetSet):
 
 
 class TargetProtocol(Protocol):
-    """碰撞引擎对目标集的 duck-type 接口协议。
+    """碰撞引擎对目标集的 duck-type 接口协议..
 
-    Hash160Set / XOnlySet / SwappableTarget 均实现此协议，
-    使 collision_engine.py 中可使用静态类型而非 ``object``。
+    Hash160Set / XOnlySet / SwappableTarget 均实现此协议,
+    使 collision_engine.py 中可使用静态类型而非 ``object``.
     """
 
     @property
     def bloom_data(self) -> bytes | None:
-        """返回 Bloom Filter 位数组（Protocol stub）。"""
+        """返回 Bloom Filter 位数组(Protocol stub).."""
         ...
 
     @property
     def bloom_m(self) -> int:
-        """返回 Bloom Filter 总位数（Protocol stub）。"""
+        """返回 Bloom Filter 总位数(Protocol stub).."""
         ...
 
     def __contains__(self, item: object) -> bool:
-        """检查目标是否包含指定项（Protocol stub）。"""
+        """检查目标是否包含指定项(Protocol stub).."""
         ...
 
     def __len__(self) -> int:
-        """返回目标集的条目数（Protocol stub）。"""
+        """返回目标集的条目数(Protocol stub).."""
         ...
 
     def close(self) -> None:
-        """关闭并释放资源（Protocol stub）。"""
+        """关闭并释放资源(Protocol stub).."""
         ...
 
 
@@ -470,10 +477,10 @@ class TargetProtocol(Protocol):
 
 
 class SwappableTarget:
-    """线程安全的单目标集容器，支持原子交换底层数据集。
+    """线程安全的单目标集容器,支持原子交换底层数据集..
 
-    ``__contains__`` 和 ``__len__`` 透明代理到当前活跃的集合，
-    刷新线程可通过 ``swap()`` 原子替换为新的已加载集合。
+    ``__contains__`` 和 ``__len__`` 透明代理到当前活跃的集合,
+    刷新线程可通过 ``swap()`` 原子替换为新的已加载集合.
 
     用法::
 
@@ -482,43 +489,43 @@ class SwappableTarget:
         # 在碰撞循环中使用: ``h160 in wrapper``
         new_set = Hash160Set()
         new_set.load(...)
-        wrapper.swap(new_set)  # 原子交换，旧集自动关闭
+        wrapper.swap(new_set)  # 原子交换,旧集自动关闭
     """
 
-    def __init__(self, initial_set: object | None = None):
-        """初始化可交换目标集容器，可选设置初始集合。"""
+    def __init__(self, initial_set: object | None = None) -> None:
+        """初始化可交换目标集容器,可选设置初始集合.."""
         self._lock = threading.Lock()
         self._set: object | None = initial_set
 
     def __contains__(self, item: object) -> bool:
-        """代理到当前活跃集合的 __contains__ 查询。"""
+        """代理到当前活跃集合的 __contains__ 查询.."""
         s = self._set
         return item in s if s is not None else False  # type: ignore[operator]
 
     def __len__(self) -> int:
-        """返回当前活跃集合的条目数。"""
+        """返回当前活跃集合的条目数.."""
         s = self._set
         return len(s) if s is not None else 0  # type: ignore[arg-type]
 
     @property
     def target(self) -> object | None:
-        """当前活跃的底层集合（用于需要直接引用集合的场景）。"""
+        """当前活跃的底层集合(用于需要直接引用集合的场景).."""
         return self._set
 
     @property
     def bloom_data(self) -> bytes | None:
-        """代理到底层集合的 bloom_data，不可用时返回 None。"""
+        """代理到底层集合的 bloom_data,不可用时返回 None.."""
         s = self._set
         return getattr(s, "bloom_data", None) if s is not None else None
 
     @property
     def bloom_m(self) -> int:
-        """代理到底层集合的 bloom_m，不可用时返回 0。"""
+        """代理到底层集合的 bloom_m,不可用时返回 0.."""
         s = self._set
         return getattr(s, "bloom_m", 0) if s is not None else 0
 
     def swap(self, new_set: object | None = None) -> None:
-        """原子替换底层集合。旧集合在锁外关闭。"""
+        """原子替换底层集合.旧集合在锁外关闭.."""
         old: object | None = None
         with self._lock:
             old = self._set
@@ -528,10 +535,10 @@ class SwappableTarget:
                 if hasattr(old, "close"):
                     old.close()
             except Exception as e:
-                logger.error("关闭旧目标集时出错: %s", e)
+                logger.exception("关闭旧目标集时出错")
 
     def close(self) -> None:
-        """关闭当前活跃的底层集合并置空。"""
+        """关闭当前活跃的底层集合并置空.."""
         self.swap(new_set=None)
 
 
@@ -540,7 +547,6 @@ class SwappableTarget:
 if __name__ == "__main__":
     s = Hash160Set()
     s.load()
-    print(f"共 {len(s):,} 个 Hash160")
 
     # 测试几个已知有余额的地址
     test_addrs = [
@@ -550,7 +556,6 @@ if __name__ == "__main__":
         ),
         ("bc1q8kjxlkffnrpja09g5z3sj5pmrqtaz0f6cdx7lh", None),
     ]
-    for label, hexhash in test_addrs:
+    for _label, hexhash in test_addrs:
         if hexhash:
             h = bytes.fromhex(hexhash)
-            print(f"  {label}: {'命中！' if h in s else '未命中'}")

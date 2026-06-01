@@ -1,24 +1,26 @@
-"""测试 gpu_engine.tdr_handler 模块 — TDR 安全 sub-batch 拆分逻辑。"""
+"""测试 gpu_engine.tdr_handler 模块 — TDR 安全 sub-batch 拆分逻辑。."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
-import pytest
-
 from gpu_engine.tdr_handler import (
-    TDRConfig,
+    _TDR_DDI_DELAY_KEY,
+    _TDR_DEFAULT_TIMEOUT,
+    _TDR_DELAY_KEY,
     KernelTimer,
+    TDRConfig,
     is_tdr_error,
     warn_tdr_settings,
-    _TDR_DELAY_KEY,
-    _TDR_DEFAULT_TIMEOUT,
-    _TDR_DDI_DELAY_KEY,
 )
+
+if TYPE_CHECKING:
+    import pytest
 
 
 class TestTDRConfig:
-    """TDRConfig dataclass 默认值和边界。"""
+    """TDRConfig dataclass 默认值和边界。."""
 
     def test_defaults(self):
         cfg = TDRConfig()
@@ -29,7 +31,10 @@ class TestTDRConfig:
 
     def test_custom_values(self):
         cfg = TDRConfig(
-            enabled=False, max_kernel_time=0.5, min_sub_batch=32, calibration_keys=128
+            enabled=False,
+            max_kernel_time=0.5,
+            min_sub_batch=32,
+            calibration_keys=128,
         )
         assert cfg.enabled is False
         assert cfg.max_kernel_time == 0.5
@@ -38,7 +43,7 @@ class TestTDRConfig:
 
 
 class TestKernelTimer:
-    """KernelTimer 校准和 sub-batch 大小计算。"""
+    """KernelTimer 校准和 sub-batch 大小计算。."""
 
     def test_initial_state(self):
         timer = KernelTimer()
@@ -125,7 +130,7 @@ class TestKernelTimer:
 
 
 class TestIsTDRError:
-    """is_tdr_error 异常匹配。"""
+    """is_tdr_error 异常匹配。."""
 
     def test_tdr_keyword_match_exec_status(self):
         assert is_tdr_error(RuntimeError("exec_status_error")) is True
@@ -159,7 +164,7 @@ class TestIsTDRError:
 
 
 class TestWarnTDRSettings:
-    """warn_tdr_settings 的注册表读取和日志输出。"""
+    """warn_tdr_settings 的注册表读取和日志输出。."""
 
     @staticmethod
     def _build_winreg_mock(
@@ -167,7 +172,7 @@ class TestWarnTDRSettings:
         tdr_delay_value: object = None,  # None means key doesn't exist
         tdr_ddi_exists: bool = False,
     ) -> mock.MagicMock:
-        """创建 winreg mock 并注册到 sys.modules。"""
+        """创建 winreg mock 并注册到 sys.modules。."""
         import sys
 
         winreg_mock = mock.MagicMock()
@@ -181,8 +186,10 @@ class TestWarnTDRSettings:
             if name == _TDR_DELAY_KEY and tdr_delay_value is not None:
                 return (tdr_delay_value, 4)
             if name == _TDR_DDI_DELAY_KEY and not tdr_ddi_exists:
-                raise FileNotFoundError(f"No such value: {name}")
-            raise FileNotFoundError(f"No such value: {name}")
+                msg = f"No such value: {name}"
+                raise FileNotFoundError(msg)
+            msg = f"No such value: {name}"
+            raise FileNotFoundError(msg)
 
         winreg_mock.QueryValueEx = mock.MagicMock(side_effect=_query_value_ex)
 
@@ -190,9 +197,11 @@ class TestWarnTDRSettings:
         return winreg_mock
 
     def test_default_timeout_not_quiet(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """TdrDelay=2 (默认), not quiet → 打印诊断建议。"""
+        """TdrDelay=2 (默认), not quiet → 打印诊断建议。."""
         import logging
 
         caplog.set_level(logging.INFO)
@@ -209,9 +218,11 @@ class TestWarnTDRSettings:
         )
 
     def test_optimized_timeout_not_quiet(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """TdrDelay=8 (已优化), not quiet → 打印优化状态。"""
+        """TdrDelay=8 (已优化), not quiet → 打印优化状态。."""
         import logging
 
         caplog.set_level(logging.INFO)
@@ -223,9 +234,11 @@ class TestWarnTDRSettings:
         assert any("TDR 超时 = 8.0s (已优化)" in rec.message for rec in caplog.records)
 
     def test_tdr_delay_missing_uses_default(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """TdrDelay 注册表值不存在 → 使用默认值 2.0。"""
+        """TdrDelay 注册表值不存在 → 使用默认值 2.0。."""
         import logging
 
         caplog.set_level(logging.INFO)
@@ -239,11 +252,13 @@ class TestWarnTDRSettings:
         )
 
     def test_import_error_non_windows(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """ImportError (非 Windows) → 返回 None 并记录提示。"""
-        import sys
+        """ImportError (非 Windows) → 返回 None 并记录提示。."""
         import logging
+        import sys
 
         caplog.set_level(logging.INFO)
         # 阻止 winreg 导入
@@ -255,11 +270,13 @@ class TestWarnTDRSettings:
         assert any("非 Windows 平台" in rec.message for rec in caplog.records)
 
     def test_os_error(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """OpenKey 抛出 OSError → 返回 None。"""
-        import sys
+        """OpenKey 抛出 OSError → 返回 None。."""
         import logging
+        import sys
 
         caplog.set_level(logging.INFO)
         winreg_mock = mock.MagicMock()
@@ -274,9 +291,11 @@ class TestWarnTDRSettings:
         assert any("非 Windows 平台" in rec.message for rec in caplog.records)
 
     def test_quiet_mode_suppresses_logging(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """quiet=True → 不输出诊断日志。"""
+        """quiet=True → 不输出诊断日志。."""
         import logging
 
         caplog.set_level(logging.INFO)
@@ -289,11 +308,13 @@ class TestWarnTDRSettings:
         assert len(caplog.records) == 0
 
     def test_quiet_import_error_no_log(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """quiet=True + ImportError → 无日志, 返回 None。"""
-        import sys
+        """quiet=True + ImportError → 无日志, 返回 None。."""
         import logging
+        import sys
 
         caplog.set_level(logging.INFO)
         monkeypatch.setitem(sys.modules, "winreg", None)

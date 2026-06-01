@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GPU Kernel 验证测试向量 — 用于 Linux 实际运行验证。
+"""GPU Kernel 验证测试向量 — 用于 Linux 实际运行验证。.
 
 使用方法:
   python gpu_engine/test_vectors.py      # 打印期望输出
@@ -41,16 +41,8 @@ def main() -> None:
         sha_mid = hashlib.sha256(pub_comp).hexdigest()
         results.append((name, pub_comp.hex(), sha_mid, h160_hex))
 
-    print("=" * 70)
-    print("GPU Kernel Test Vectors")
-    print("=" * 70)
-    print()
-    for name, pub, sha, h160_hex in results:
-        print(f"[{name}]")
-        print(f"  pubkey:  {pub}")
-        print(f"  SHA256:  {sha}")
-        print(f"  HASH160: {h160_hex}")
-        print()
+    for name, _pub, _sha, h160_hex in results:
+        pass
 
     # 输出为 JSON 供自动比对
     import json
@@ -60,7 +52,6 @@ def main() -> None:
     ]
     vec_file = Path(__file__).parent / "kernel_test_vectors.json"
     vec_file.write_text(json.dumps(vec, indent=2), encoding="utf-8")
-    print(f"Test vectors saved to: {vec_file}")
 
 
 if __name__ == "__main__":

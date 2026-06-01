@@ -1,4 +1,4 @@
-"""测试 core.errors 模块 — 结构化异常体系。"""
+"""测试 core.errors 模块 — 结构化异常体系。."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from core.errors import (
 
 
 class TestCollisionEngineError:
-    """CollisionEngineError 基类。"""
+    """CollisionEngineError 基类。."""
 
     def test_message(self):
         err = CollisionEngineError("test message")
@@ -80,7 +80,7 @@ class TestCheckpointError:
         assert err.original is cause
 
     def test_raise_and_catch_base(self):
-        """验证所有异常可被 CollisionEngineError 统一捕获。"""
+        """验证所有异常可被 CollisionEngineError 统一捕获。."""
         for exc_cls in [
             ConfigError,
             DatabaseError,
@@ -89,7 +89,8 @@ class TestCheckpointError:
             CheckpointError,
         ]:
             try:
-                raise exc_cls("test")
+                msg = "test"
+                raise exc_cls(msg)
             except CollisionEngineError:
                 pass  # expected
             else:

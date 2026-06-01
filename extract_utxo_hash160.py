@@ -1,4 +1,4 @@
-"""Bitcoin UTXO snapshot -> Hash160 extractor (v28+ dumptxoutset)
+"""Bitcoin UTXO snapshot -> Hash160 extractor (v28+ dumptxoutset).
 
 Based on working v1, with ONLY these fixes:
   - Compact code 0x02 = P2WPKH (20B, was 32B as P2PK)
@@ -9,8 +9,8 @@ Based on working v1, with ONLY these fixes:
   - Don't break on large raw scripts (skip gracefully)
 """
 
-import struct
 import json
+import struct
 import time
 from pathlib import Path
 
@@ -71,18 +71,17 @@ def decompress_amount(x):
 
 def _skip_script(data, off, sc):
     """Skip script bytes based on compact code. Returns new off."""
-    if sc == 0x00 or sc == 0x01:
+    if sc in {0, 1}:
         return off + 20
-    elif sc in (0x02, 0x03, 0x04):
+    if sc in (0x02, 0x03, 0x04):
         # v1: sc=0x02 mapped as P2PK → 32B
         return off + 32
-    elif sc == 0x05:
+    if sc == 0x05:
         return off  # OP_RETURN: 0 bytes
-    else:
-        return off + (sc - 6)
+    return off + (sc - 6)
 
 
-def check_snapshot():
+def check_snapshot() -> bool:
     """Verify snapshot file exists and print file size."""
     if not SNAPSHOT.exists():
         print(f"[ERROR] Snapshot not found: {SNAPSHOT}")
@@ -144,8 +143,8 @@ def parse():
             out_cnt, off = read_compact_size(data, off)
 
             for _ in range(out_cnt):
-                vout, off = read_compact_size(data, off)
-                code, off = read_varint(data, off)
+                _vout, off = read_compact_size(data, off)
+                _code, off = read_varint(data, off)
                 amt_comp, off = read_varint(data, off)
                 amt = decompress_amount(amt_comp)
                 sc, off = read_varint(data, off)
@@ -260,7 +259,7 @@ def parse():
     rate = f"{parsed / elapsed:,.0f}" if elapsed > 0 else "N/A"
     print(f"\n  Parse done: {elapsed:.0f}s  {rate} outputs/s")
     print(
-        f"  Final offset: {off:,}/{total_len:,}  ({(total_len - off) / total_len * 100:.1f}% remaining)"
+        f"  Final offset: {off:,}/{total_len:,}  ({(total_len - off) / total_len * 100:.1f}% remaining)",
     )
     print(f"  Hash160 extracted: {total_h:,}  errors: {errs}")
 
@@ -274,7 +273,7 @@ def parse():
 # ── Sort & Write ─────────────────────────────────────────────
 
 
-def sort_and_save(buckets, stats):
+def sort_and_save(buckets, stats) -> None:
     """Sort each bucket and write sorted Hash160 array + prefix index."""
     n = sum(len(b) // 20 for b in buckets)
     print(f"  Sorting {n:,} Hash160 (256 buckets)...")
@@ -293,8 +292,7 @@ def sort_and_save(buckets, stats):
                 continue
             entries = [raw[i * 20 : (i + 1) * 20] for i in range(bn)]
             entries.sort()
-            for e in entries:
-                f.write(e)
+            f.writelines(entries)
             idx[fb] = [total, total + bn - 1, False]
             total += bn
             del entries, raw
@@ -334,7 +332,7 @@ def extract_snapshot(
     hash_idx_path: str | None = None,
     stats_path: str | None = None,
 ) -> dict:
-    """从 UTXO 快照提取 Hash160 并保存二进制文件。
+    """从 UTXO 快照提取 Hash160 并保存二进制文件。.
 
     Args:
         snapshot_path: 快照文件路径。默认使用模块级 SNAPSHOT。
@@ -347,6 +345,7 @@ def extract_snapshot(
 
     Raises:
         FileNotFoundError: 快照文件不存在。
+
     """
     # 临时覆盖模块级常量
     import extract_utxo_hash160 as _mod
@@ -361,10 +360,12 @@ def extract_snapshot(
     _mod.STATS = Path(stats_path) if stats_path else old_stats
     try:
         if not _mod.check_snapshot():
-            raise FileNotFoundError(f"快照文件不存在: {_mod.SNAPSHOT}")
+            msg = f"快照文件不存在: {_mod.SNAPSHOT}"
+            raise FileNotFoundError(msg)
         r = _mod.parse()
         if r is None:
-            raise RuntimeError("快照解析失败")
+            msg = "快照解析失败"
+            raise RuntimeError(msg)
         buckets, stats = r
         _mod.sort_and_save(buckets, stats)
         with open(_mod.STATS, "w") as f:
@@ -381,8 +382,8 @@ def extract_snapshot(
 # ── Main ─────────────────────────────────────────────────────
 
 
-def main():
-    """CLI 入口：解析命令行参数并调用 extract_snapshot。"""
+def main() -> None:
+    """CLI 入口：解析命令行参数并调用 extract_snapshot。."""
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -390,7 +391,10 @@ def main():
     )
     parser.add_argument("--snapshot", type=str, default=None, help="快照文件路径")
     parser.add_argument(
-        "--output-bin", type=str, default=None, help="输出二进制文件路径"
+        "--output-bin",
+        type=str,
+        default=None,
+        help="输出二进制文件路径",
     )
     parser.add_argument("--output-idx", type=str, default=None, help="输出索引文件路径")
     args = parser.parse_args()

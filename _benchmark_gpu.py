@@ -3,15 +3,16 @@
 
 import sys
 import time
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 import pyopencl as cl
 
 KERNEL_SRC = (Path(__file__).parent / "gpu_engine" / "gpu_kernel.h").read_text(
-    encoding="utf-8"
+    encoding="utf-8",
 )
 
 
@@ -79,7 +80,7 @@ def benchmark_device(
         rate = batch_size / elapsed
         rates.append(rate)
         print(
-            f"  {label} Run {run + 1}: {batch_size:,} keys in {elapsed:.3f}s = {rate:,.0f} keys/s"
+            f"  {label} Run {run + 1}: {batch_size:,} keys in {elapsed:.3f}s = {rate:,.0f} keys/s",
         )
 
     d_privkeys.release()
@@ -100,7 +101,7 @@ def main() -> None:
                         di,
                         d.name.strip(),
                         d.max_compute_units,
-                    )
+                    ),
                 )
 
     print(f"Found {len(devices_info)} GPU device(s):")

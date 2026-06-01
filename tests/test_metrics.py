@@ -1,13 +1,12 @@
-"""测试 api.metrics 模块 — 零依赖 Prometheus metrics 导出。"""
+"""测试 api.metrics 模块 — 零依赖 Prometheus metrics 导出。."""
 
 from __future__ import annotations
-
 
 from api.metrics import MetricsRegistry, get_registry, reset_registry
 
 
 class TestMetricsRegistry:
-    """MetricsRegistry 基础功能。"""
+    """MetricsRegistry 基础功能。."""
 
     def test_gauge_set_and_render(self):
         registry = MetricsRegistry()
@@ -46,7 +45,7 @@ class TestMetricsRegistry:
         assert "total_hits 42" in output
 
     def test_empty_registry(self):
-        """空 registry 渲染应包含 python_info 但无其他指标。"""
+        """空 registry 渲染应包含 python_info 但无其他指标。."""
         registry = MetricsRegistry()
         output = registry.render()
         lines = output.strip().split("\n")
@@ -71,14 +70,14 @@ class TestMetricsRegistry:
         assert "total 7" in output
 
     def test_labels_parameter_accepted(self):
-        """labels 参数应被接受（当前渲染未展开，至少不报错）。"""
+        """Labels 参数应被接受（当前渲染未展开，至少不报错）。."""
         registry = MetricsRegistry()
         registry.gauge("with_labels", 1.0, labels={"env": "test"})
         assert registry._gauges["with_labels"] == 1.0
 
 
 class TestGetRegistry:
-    """get_registry 全局单例。"""
+    """get_registry 全局单例。."""
 
     def test_singleton(self):
         reset_registry()

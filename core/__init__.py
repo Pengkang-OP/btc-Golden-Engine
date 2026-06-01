@@ -1,4 +1,4 @@
-"""core — 碰撞引擎基础设施包。
+"""core — 碰撞引擎基础设施包。.
 
 提供配置管理、日志系统、结构化异常、结果持久化、
 通知发送、性能统计等生产级基础设施。
@@ -13,7 +13,7 @@
 """
 
 from .config import EngineConfig, load_config, save_config
-from .logger import setup_logger, get_logger
+from .database import ResultDB
 from .errors import (
     CollisionEngineError,
     ConfigError,
@@ -21,22 +21,22 @@ from .errors import (
     GPUSetupError,
     NotifierError,
 )
-from .database import ResultDB
+from .logger import get_logger, setup_logger
 from .notifier import Notifier
 from .stats import StatsTracker
 
 __all__ = [
-    "EngineConfig",
-    "load_config",
-    "save_config",
-    "setup_logger",
-    "get_logger",
     "CollisionEngineError",
     "ConfigError",
     "DatabaseError",
+    "EngineConfig",
     "GPUSetupError",
+    "Notifier",
     "NotifierError",
     "ResultDB",
-    "Notifier",
     "StatsTracker",
+    "get_logger",
+    "load_config",
+    "save_config",
+    "setup_logger",
 ]

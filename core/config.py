@@ -1,7 +1,7 @@
-"""配置管理模块 — EngineConfig 配置类。
+"""配置管理模块 - EngineConfig 配置类..
 
-取代 collision_engine.py 顶部的硬编码常量 (第 65-74 行)。
-使用 Python dataclass + JSON 持久化。
+取代 collision_engine.py 顶部的硬编码常量 (第 65-74 行).
+使用 Python dataclass + JSON 持久化.
 
 用法:
     config = EngineConfig()
@@ -13,19 +13,22 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import os
 
 
 @dataclass
 class EngineConfig:
-    """碰撞引擎全局配置。
+    """碰撞引擎全局配置..
 
-    所有配置项均有合理默认值，可直接使用 EngineConfig() 构造。
-    通过 load() 从 JSON 文件加载，或 save() 持久化到 JSON 文件。
+    所有配置项均有合理默认值,可直接使用 EngineConfig() 构造.
+    通过 load() 从 JSON 文件加载,或 save() 持久化到 JSON 文件.
     """
 
     # ── 椭圆曲线 ──
@@ -67,39 +70,40 @@ class EngineConfig:
     stats_window_seconds: int = 3600  # 滑动窗口大小 (1 小时)
 
     # ── UTXO 自动刷新 ──
-    enable_utxo_auto_refresh: bool = False  # opt-in：默认关闭
-    utxo_refresh_interval: int = 3600  # 刷新检查间隔 (秒)，默认 1 小时
+    enable_utxo_auto_refresh: bool = False  # opt-in:默认关闭
+    utxo_refresh_interval: int = 3600  # 刷新检查间隔 (秒),默认 1 小时
     utxo_snapshot_path: str = "utxo_snapshot.dat"  # 快照文件路径
     utxo_hash160_bin: str = "utxo_hash160.bin"  # Hash160 二进制输出
     utxo_hash160_idx: str = "utxo_hash160.idx"  # Hash160 索引文件
-    bitcoin_cli_path: str = ""  # bitcoin-cli 路径，为空时自动检测
-    bitcoin_datadir: str = ""  # Bitcoin 数据目录，为空时自动检测
+    bitcoin_cli_path: str = ""  # bitcoin-cli 路径,为空时自动检测
+    bitcoin_datadir: str = ""  # Bitcoin 数据目录,为空时自动检测
 
     # ── 内部状态 ──
-    _base_dir: Path = field(default_factory=lambda: Path.cwd(), repr=False)
+    _base_dir: Path = field(default_factory=Path.cwd, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _mtime: float = 0.0  # 文件修改时间戳 (check_reload 使用)
 
     def __post_init__(self) -> None:
-        """初始化后处理：路径解析、URL 校验。"""
+        """初始化后处理:路径解析,URL 校验.."""
         self._resolve_paths()
         self._validate_urls()
 
     def __repr__(self) -> str:
-        """脱敏输出，避免凭据泄露到日志。"""
+        """脱敏输出,避免凭据泄露到日志.."""
         return (
             f"EngineConfig(mode={self.mode}, notify_on_hit={self.notify_on_hit}, "
             f"enable_utxo_auto_refresh={self.enable_utxo_auto_refresh})"
         )
 
     def _validate_urls(self) -> None:
-        """验证 webhook_url 的 scheme 必须是 https://（防止 SSRF）。"""
+        """验证 webhook_url 的 scheme 必须是 https://(防止 SSRF).."""
         url = self.webhook_url
         if url and not url.startswith("https://"):
-            raise ValueError(f"webhook_url 必须使用 HTTPS: {url}")
+            msg = f"webhook_url 必须使用 HTTPS: {url}"
+            raise ValueError(msg)
 
     def _resolve_paths(self) -> None:
-        """将所有相对路径字段转换为绝对路径。"""
+        """将所有相对路径字段转换为绝对路径.."""
         base = self._base_dir
         for field_name in ("results_db", "checkpoint_file", "config_file", "log_file"):
             val = getattr(self, field_name)
@@ -120,14 +124,15 @@ class EngineConfig:
                 setattr(self, field_name, str(base / val))
 
     def check_reload(self) -> bool:
-        """检查配置文件是否已更改，若需要则重新加载。
+        """检查配置文件是否已更改,若需要则重新加载..
 
-        通过比较文件的 mtime (修改时间) 实现。
-        仅更新允许热重载的字段 (不可变字段如 secp256k1_order 跳过)。
-        解析失败时保留旧配置。
+        通过比较文件的 mtime (修改时间) 实现.
+        仅更新允许热重载的字段 (不可变字段如 secp256k1_order 跳过).
+        解析失败时保留旧配置.
 
         Returns:
-            True 表示配置已重新加载, False 表示无变化。
+            True 表示配置已重新加载, False 表示无变化.
+
         """
         if self.config_path is None or not self.config_path.exists():
             return False
@@ -140,7 +145,7 @@ class EngineConfig:
                 self._mtime = current_mtime
 
                 new_config = EngineConfig.load(self.config_path)
-                # 选择性更新字段 (跳过不可变字段)
+                # 选择性更新字段 (跳过不可变字段)  # noqa: ERA001
                 for field_name in self.__dataclass_fields__:
                     if field_name in (
                         "secp256k1_order",
@@ -151,32 +156,31 @@ class EngineConfig:
                         continue
                     setattr(self, field_name, getattr(new_config, field_name))
                 return True
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger = logging.getLogger("config.check_reload")
                 logger.warning("配置热重载失败 (保留旧配置): %s", exc)
                 return False
 
     @classmethod
-    def load(cls, path: os.PathLike[str] | None = None) -> "EngineConfig":
-        """从 JSON 配置文件加载配置。
+    def load(cls, path: os.PathLike[str] | None = None) -> EngineConfig:
+        """从 JSON 配置文件加载配置..
 
         Args:
-            path: 配置文件路径。None 则尝试在 CWD 中查找默认文件名。
+            path: 配置文件路径.None 则尝试在 CWD 中查找默认文件名.
 
         Returns:
-            加载后的 EngineConfig 实例。
+            加载后的 EngineConfig 实例.
 
         Raises:
-            FileNotFoundError: 配置文件不存在。
-            json.JSONDecodeError: 配置文件格式错误。
+            FileNotFoundError: 配置文件不存在.
+            json.JSONDecodeError: 配置文件格式错误.
+
         """
-        if path is None:
-            path = Path.cwd() / "collision_engine.conf"
-        else:
-            path = Path(path)
+        path = Path.cwd() / "collision_engine.conf" if path is None else Path(path)
 
         if not path.exists():
-            raise FileNotFoundError(f"配置文件不存在: {path}")
+            msg = f"配置文件不存在: {path}"
+            raise FileNotFoundError(msg)
 
         raw = json.loads(path.read_text(encoding="utf-8"))
         # 过滤掉私有字段和 config_path (不在 JSON 中)
@@ -189,18 +193,16 @@ class EngineConfig:
         return config
 
     def save(self, path: os.PathLike[str] | None = None) -> None:
-        """将配置持久化到 JSON 文件。
+        """将配置持久化到 JSON 文件..
 
         Args:
-            path: 输出路径。None 则使用 config_file 字段值。
+            path: 输出路径.None 则使用 config_file 字段值.
+
         """
-        if path is None:
-            path = Path(self.config_file)
-        else:
-            path = Path(path)
+        path = Path(self.config_file) if path is None else Path(path)
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        # 手动构建字典（避免 asdict() deepcopy 线程锁等不可 pickled 对象）
+        # 手动构建字典(避免 asdict() deepcopy 线程锁等不可 pickled 对象)
         data = {}
         for f in self.__dataclass_fields__:
             if f.startswith("_"):
@@ -216,17 +218,17 @@ class EngineConfig:
 
     @property
     def results_db_path(self) -> Path:
-        """SQLite 数据库路径 (Path 对象)。"""
+        """SQLite 数据库路径 (Path 对象).."""
         return Path(self.results_db)
 
     @property
     def checkpoint_path(self) -> Path:
-        """Checkpoint 文件路径 (Path 对象)。"""
+        """Checkpoint 文件路径 (Path 对象).."""
         return Path(self.checkpoint_file)
 
     @property
     def log_path(self) -> Path:
-        """日志文件路径 (Path 对象)。"""
+        """日志文件路径 (Path 对象).."""
         return Path(self.log_file)
 
 
@@ -237,7 +239,7 @@ _config_lock: threading.Lock = threading.Lock()
 
 
 def load_config(path: os.PathLike[str] | None = None) -> EngineConfig:
-    """加载配置，失败时回退到默认配置（线程安全）。"""
+    """加载配置,失败时回退到默认配置(线程安全).."""
     global _default_config
     if path is not None:
         return EngineConfig.load(path)
@@ -251,7 +253,7 @@ def load_config(path: os.PathLike[str] | None = None) -> EngineConfig:
 
 
 def save_config(config: EngineConfig, path: os.PathLike[str] | None = None) -> None:
-    """保存配置到 JSON 文件。"""
+    """保存配置到 JSON 文件.."""
     config.save(path)
 
 
@@ -261,13 +263,13 @@ _shutdown_requested: bool = False
 
 
 def request_shutdown() -> None:
-    """请求停止配置监视器线程 (全局标志)。
+    """请求停止配置监视器线程 (全局标志)..
 
-    同时同步 collision_engine 的关闭标志，避免双标志不同步导致线程无法关闭。
+    同时同步 collision_engine 的关闭标志,避免双标志不同步导致线程无法关闭.
     """
     global _shutdown_requested
     _shutdown_requested = True
-    # 同步通知 collision_engine 的关闭标志（延迟导入避免循环依赖）
+    # 同步通知 collision_engine 的关闭标志(延迟导入避免循环依赖)
     import collision_engine as _ce
 
     _ce._shutdown_requested = True
@@ -278,30 +280,31 @@ def start_config_watcher(
     interval: float = 5.0,
     logger: logging.Logger | None = None,
 ) -> threading.Thread:
-    """启动后台线程监视配置文件变更。
+    """启动后台线程监视配置文件变更..
 
-    每 *interval* 秒调用 config.check_reload() 检测文件变更。
-    检测到变更时自动更新 EngineConfig 字段并记录日志。
+    每 *interval* 秒调用 config.check_reload() 检测文件变更.
+    检测到变更时自动更新 EngineConfig 字段并记录日志.
 
     Args:
-        config: EngineConfig 实例 (需有有效的 config_path)。
-        interval: 轮询间隔 (秒)。
-        logger: 可选的日志器实例 (用于记录重载事件)。
+        config: EngineConfig 实例 (需有有效的 config_path).
+        interval: 轮询间隔 (秒).
+        logger: 可选的日志器实例 (用于记录重载事件).
 
     Returns:
-        后台线程对象 (daemon=True)。
+        后台线程对象 (daemon=True).
+
     """
     if logger is None:
         logger = logging.getLogger("config.watcher")
 
     def _watcher_loop() -> None:
-        """轮询检查配置文件变更的后台循环。"""
+        """轮询检查配置文件变更的后台循环.."""
         while not _shutdown_requested:
             try:
                 if config.check_reload():
                     logger.info("Configuration reloaded from file")
             except Exception as exc:
-                logger.exception("配置热重载轮询异常 (interval=%ss): %s", interval, exc)
+                logger.exception("配置热重载轮询异常 (interval=%ss)", interval)
             time.sleep(interval)
 
     thread = threading.Thread(target=_watcher_loop, daemon=True, name="config-watcher")

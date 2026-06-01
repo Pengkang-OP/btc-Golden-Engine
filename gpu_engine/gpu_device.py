@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""GPU 设备发现与信息查询。
+"""GPU 设备发现与信息查询..
 
-提供列出系统中所有 OpenCL 设备以及获取设备详细信息的工具函数。
+提供列出系统中所有 OpenCL 设备以及获取设备详细信息的工具函数.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DeviceInfo:
-    """单个 GPU/OpenCL 设备的摘要信息。"""
+    """单个 GPU/OpenCL 设备的摘要信息.."""
 
     platform_name: str
     device_name: str
@@ -31,7 +31,7 @@ class DeviceInfo:
     _raw_device: Any = None  # pyopencl.Device (if available)
 
     def __repr__(self) -> str:
-        """返回设备的单行摘要字符串。"""
+        """返回设备的单行摘要字符串.."""
         return (
             f"{self.device_name} | {self.platform_name} | "
             f"{self.compute_units} CU @ {self.max_clock_frequency} MHz | "
@@ -40,18 +40,19 @@ class DeviceInfo:
 
 
 def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
-    """枚举系统中所有可用的 OpenCL 设备。
+    """枚举系统中所有可用的 OpenCL 设备..
 
     Args:
-        device_type: 设备类型筛选，'GPU', 'CPU', 'Accelerator' 或 None（全部）
+        device_type: 设备类型筛选,'GPU', 'CPU', 'Accelerator' 或 None(全部)
 
     Returns:
         设备信息列表
+
     """
     try:
         import pyopencl as cl
     except ImportError:
-        logger.warning("[GPU] pyopencl 未安装。使用 pip install pyopencl 安装。")
+        logger.warning("[GPU] pyopencl 未安装.使用 pip install pyopencl 安装.")
         return []
 
     type_map = {
@@ -59,7 +60,7 @@ def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
         "CPU": cl.device_type.CPU,
         "Accelerator": cl.device_type.ACCELERATOR,
     }
-    filter_type = type_map.get(device_type, None) if device_type else None
+    filter_type = type_map.get(device_type) if device_type else None
 
     devices: list[DeviceInfo] = []
     for platform in cl.get_platforms():
@@ -92,20 +93,21 @@ def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
                     driver_version=dev.driver_version,
                     available=bool(dev.available),
                     _raw_device=dev,
-                )
+                ),
             )
 
     return devices
 
 
 def get_device_info(device_index: int = 0) -> DeviceInfo | None:
-    """按索引获取单个设备的详细信息。
+    """按索引获取单个设备的详细信息..
 
     Args:
-        device_index: 设备索引（在所有设备的扁列表中）
+        device_index: 设备索引(在所有设备的扁列表中)
 
     Returns:
-        设备信息，或 None（索引无效）
+        设备信息,或 None(索引无效)
+
     """
     devices = list_devices()
     if 0 <= device_index < len(devices):
@@ -114,7 +116,7 @@ def get_device_info(device_index: int = 0) -> DeviceInfo | None:
 
 
 def pick_best_gpu() -> DeviceInfo | None:
-    """从可用 GPU 中选出最佳设备（按计算单元数降序）。"""
+    """从可用 GPU 中选出最佳设备(按计算单元数降序).."""
     gpus = [d for d in list_devices("GPU") if d.available]
     if not gpus:
         return None
@@ -123,22 +125,19 @@ def pick_best_gpu() -> DeviceInfo | None:
 
 
 def _demo() -> None:
-    """CLI 入口：列出所有设备并打印信息。"""
+    """CLI 入口:列出所有设备并打印信息.."""
     all_devices = list_devices()
     if not all_devices:
-        print("未找到 OpenCL 设备。")
         return
 
-    print(f"发现 {len(all_devices)} 个 OpenCL 设备:\n")
-    for i, dev in enumerate(all_devices):
-        print(f"  [{i}] {dev}")
-    print()
+    for _i, _dev in enumerate(all_devices):
+        pass
 
     best = pick_best_gpu()
     if best:
-        print(f"最佳 GPU: [{all_devices.index(best)}] {best}")
+        pass
     else:
-        print("未找到可用 GPU。")
+        pass
 
 
 if __name__ == "__main__":

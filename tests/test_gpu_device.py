@@ -1,4 +1,4 @@
-"""测试 gpu_engine.gpu_device 模块 — 设备信息与发现（mock OpenCL）。"""
+"""测试 gpu_engine.gpu_device 模块 — 设备信息与发现（mock OpenCL）。."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def _make_mock_device(
     return dev
 
 
-def _make_mock_platform(name: str = "MockPlatform", devices: list[Any] | None = None):  # noqa: E501
+def _make_mock_platform(name: str = "MockPlatform", devices: list[Any] | None = None):
     plat = MagicMock()
     plat.name = name
     plat.get_devices.return_value = devices or []
@@ -49,7 +49,7 @@ def _make_mock_platform(name: str = "MockPlatform", devices: list[Any] | None = 
 
 
 class TestDeviceInfo:
-    """DeviceInfo dataclass 格式化。"""
+    """DeviceInfo dataclass 格式化。."""
 
     def test_repr_gpu(self):
         info = DeviceInfo(
@@ -74,7 +74,7 @@ class TestDeviceInfo:
 
 
 class TestListDevices:
-    """list_devices 函数 — mock OpenCL 不可用和可用场景。"""
+    """list_devices 函数 — mock OpenCL 不可用和可用场景。."""
 
     def test_pyopencl_not_installed(self):
         with patch.dict("sys.modules", {"pyopencl": None}):
@@ -87,7 +87,8 @@ class TestListDevices:
 
         def mock_import(name, *args, **kwargs):
             if name == "pyopencl":
-                raise ImportError("No module named pyopencl")
+                msg = "No module named pyopencl"
+                raise ImportError(msg)
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
@@ -107,7 +108,7 @@ class TestListDevices:
             assert best is None
 
     def test_with_devices(self):
-        """通过直接 mock list_devices 验证设备列表处理。"""
+        """通过直接 mock list_devices 验证设备列表处理。."""
         dev1 = DeviceInfo(
             platform_name="NVIDIA",
             device_name="RTX 4090",
@@ -144,7 +145,7 @@ class TestListDevices:
 
 
 class TestGetDeviceInfo:
-    """get_device_info 索引处理。"""
+    """get_device_info 索引处理。."""
 
     def test_valid_index(self):
         dev = DeviceInfo(
@@ -189,7 +190,7 @@ class TestGetDeviceInfo:
 
 
 class TestPickBestGPU:
-    """pick_best_gpu 排序逻辑。"""
+    """pick_best_gpu 排序逻辑。."""
 
     def test_pick_best_from_multiple(self):
         slow = DeviceInfo(
@@ -256,7 +257,8 @@ class TestPickBestGPU:
             available=True,
         )
         with patch(
-            "gpu_engine.gpu_device.list_devices", return_value=[offline, available]
+            "gpu_engine.gpu_device.list_devices",
+            return_value=[offline, available],
         ):
             best = pick_best_gpu()
             assert best is not None

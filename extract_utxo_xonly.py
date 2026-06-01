@@ -1,4 +1,4 @@
-"""Bitcoin UTXO snapshot -> P2TR x-only pubkey extractor
+"""Bitcoin UTXO snapshot -> P2TR x-only pubkey extractor.
 
 从 dumptxoutset 快照中提取所有 P2TR 输出的 32 字节 x-only pubkey，
 排序后输出为紧凑二进制文件 + 前缀索引。
@@ -12,8 +12,8 @@ P2TR 格式:
   utxo_xonly.idx   - 前缀索引 JSON（首字节 → [lo, hi, is_empty]）
 """
 
-import struct
 import json
+import struct
 import sys
 import time
 from pathlib import Path
@@ -116,8 +116,8 @@ def parse():
             out_cnt, off = read_compact_size(data, off)
 
             for _ in range(out_cnt):
-                vout, off = read_compact_size(data, off)
-                code, off = read_varint(data, off)
+                _vout, off = read_compact_size(data, off)
+                _code, off = read_varint(data, off)
                 amt_comp, off = read_varint(data, off)
                 amt = decompress_amount(amt_comp)
                 sc, off = read_varint(data, off)
@@ -127,7 +127,7 @@ def parse():
                 if amt == 0:
                     zero_amount += 1
                     # skip script bytes
-                    if sc == 0x00 or sc == 0x01:
+                    if sc in {0, 1}:
                         off += 20
                     elif sc in (0x02, 0x03, 0x04):
                         off += 32
@@ -159,15 +159,14 @@ def parse():
                         buckets[xonly[0]].extend(xonly)
                         p2tr_raw += 1
                     # 其他脚本类型跳过
-                else:
-                    # P2PKH(0x00), P2SH(0x01), P2WPKH(0x02), P2WSH(0x03), OP_RETURN(0x05)
-                    # 非 P2TR 跳过
-                    if sc == 0x00 or sc == 0x01:
-                        off += 20
-                    elif sc in (0x02, 0x03, 0x04):
-                        off += 32
-                    else:  # 0x05 (OP_RETURN): 0 bytes
-                        pass
+                # P2PKH(0x00), P2SH(0x01), P2WPKH(0x02), P2WSH(0x03), OP_RETURN(0x05)
+                # 非 P2TR 跳过
+                elif sc in {0, 1}:
+                    off += 20
+                elif sc in (0x02, 0x03, 0x04):
+                    off += 32
+                else:  # 0x05 (OP_RETURN): 0 bytes
+                    pass
 
         except (IndexError, struct.error, MemoryError) as e:
             errs += 1
@@ -192,7 +191,7 @@ def parse():
     rate = f"{parsed / elapsed:,.0f}" if elapsed > 0 else "N/A"
     print(f"\n  解析完成: {elapsed:.0f}s  {rate} outputs/s")
     print(
-        f"  P2TR x-only 提取: {total_x:,}  (compact={p2tr_compact:,}  raw={p2tr_raw:,})"
+        f"  P2TR x-only 提取: {total_x:,}  (compact={p2tr_compact:,}  raw={p2tr_raw:,})",
     )
     print(f"  Zero amount: {zero_amount:,}  错误: {errs}")
 
@@ -207,7 +206,7 @@ def parse():
     return buckets, stats
 
 
-def sort_and_save(buckets, stats):
+def sort_and_save(buckets, stats) -> None:
     """Sort each bucket by x-only pubkey and write sorted array + prefix index."""
     n = sum(len(b) // 32 for b in buckets)
     if n == 0:
@@ -229,8 +228,7 @@ def sort_and_save(buckets, stats):
                 continue
             entries = [raw[i * 32 : (i + 1) * 32] for i in range(bn)]
             entries.sort()
-            for e in entries:
-                f.write(e)
+            f.writelines(entries)
             idx[fb] = [total, total + bn - 1, False]
             total += bn
             del entries, raw
@@ -265,8 +263,8 @@ def sort_and_save(buckets, stats):
     stats["sort_sec"] = round(time.time() - t0, 1)
 
 
-def main():
-    """CLI 入口：解析并提取 P2TR x-only pubkey 数据。"""
+def main() -> None:
+    """CLI 入口：解析并提取 P2TR x-only pubkey 数据。."""
     print("=" * 60)
     print("  Bitcoin UTXO -> P2TR x-only pubkey 提取器")
     print("=" * 60)

@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""
-碰撞对撞引擎 — 生成私钥 → 公钥 → HASH160 → 在 UTXO 集中查找匹配
+"""碰撞对撞引擎 - 生成私钥 → 公钥 → HASH160 → 在 UTXO 集中查找匹配.
 
-工作原理：
-1. 加载 UTXO 集所有有余额地址的 HASH160（来自 collision_target + utxo_hash160.bin）
-2. 并行生成私钥 → 推导公钥（压缩/非压缩）→ 计算 HASH160 = RIPEMD160(SHA256(pubkey))
+工作原理:
+1. 加载 UTXO 集所有有余额地址的 HASH160(来自 collision_target + utxo_hash160.bin)
+2. 并行生成私钥 → 推导公钥(压缩/非压缩)→ 计算 HASH160 = RIPEMD160(SHA256(pubkey))
 3. 在 UTXO 集中查找匹配
-4. 命中时保存私钥 (WIF)、地址信息至 collision_results.json
+4. 命中时保存私钥 (WIF),地址信息至 collision_results.json
 
-每个私钥会生成 2 种 HASH160：
+每个私钥会生成 2 种 HASH160:
   - 压缩公钥 → HASH160_comp → 可匹配 P2WPKH 或 P2PKH
   - 非压缩公钥 → HASH160_uncomp → 可匹配 P2PKH (Legacy)
 
 用法:
-  # CPU 顺序扫描（默认，从私钥 1 开始）
+  # CPU 顺序扫描(默认,从私钥 1 开始)
   python collision_engine.py --threads 4
 
   # CPU 随机扫描
@@ -22,31 +21,31 @@
   # CPU 从指定私钥开始扫描 100 万个
   python collision_engine.py --mode sequential --start 0x100000 --count 1000000
 
-  # GPU 加速扫描（需 pyopencl）
+  # GPU 加速扫描(需 pyopencl)
   python collision_engine.py --gpu
   python collision_engine.py --gpu --gpu-devices 0 --gpu-batch-size 131072
 
-  # GPU 顺序扫描（可恢复）
+  # GPU 顺序扫描(可恢复)
   python collision_engine.py --gpu --gpu-mode sequential --gpu-start 0x100000
 """
 
 __version__ = "2.3.0"
 
-import sys
-import os
-import json
-import time
-import hashlib
-import logging
-import threading
 import argparse
+import hashlib
+import json
+import logging
+import os
 import random
 import signal
 import subprocess
-from pathlib import Path
+import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, asdict
-from typing import Any, Optional
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 # ── 将项目根加入 sys.path ─────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
@@ -54,29 +53,32 @@ _local_pkg = Path(__file__).resolve().parent / ".local-packages"
 if _local_pkg.is_dir():
     sys.path.insert(0, str(_local_pkg))
 
-# ── 项目模块与第三方（依赖上述 sys.path） ─────────────────────
-from collision_target import (  # noqa: E402
+# ── 项目模块与第三方(依赖上述 sys.path) ─────────────────────
+from bech32 import CHARSET, bech32_encode, convertbits
+from coincurve import PrivateKey, PublicKey
+
+from collision_target import (
     Hash160Set,
-    XOnlySet,
     SwappableTarget,
     TargetProtocol,
+    XOnlySet,
 )
-from core import (  # noqa: E402
-    EngineConfig,
-    setup_logger,
+from core import (
     DatabaseError,
+    EngineConfig,
     Notifier,
     ResultDB,
+    setup_logger,
 )
-from coincurve import PrivateKey, PublicKey  # noqa: E402
-from bech32 import bech32_encode, convertbits, CHARSET  # noqa: E402
 
-# ── GPU 引擎（可选导入） ──────────────────────────────────────
+# ── GPU 引擎(可选导入) ──────────────────────────────────────
 _GPU_AVAILABLE = False
 try:
-    from gpu_engine import (  # noqa: E402
-        GPUBatchScheduler,
+    from gpu_engine import (
         DispatcherConfig,
+        GPUBatchScheduler,
+    )
+    from gpu_engine import (
         list_devices as gpu_list_devices,
     )
 
@@ -111,13 +113,13 @@ _refresh_last_result: str = "N/A"  # 上次刷新结果描述
 
 
 def _handle_signal(signum: int, frame: object | None = None) -> None:
-    """信号处理器：SIGTERM 设关闭标志，SIGINT 抛 KeyboardInterrupt 以触发清理。"""
+    """信号处理器:SIGTERM 设关闭标志,SIGINT 抛 KeyboardInterrupt 以触发清理.."""
     global _shutdown_requested
     _shutdown_requested = True
     if _logger:
-        _logger.warning("收到信号 %d，开始优雅关闭...", signum)
+        _logger.warning("收到信号 %d,开始优雅关闭...", signum)
     if signum == signal.SIGINT:
-        raise KeyboardInterrupt()
+        raise KeyboardInterrupt
 
 
 def _start_config_watcher(
@@ -125,17 +127,17 @@ def _start_config_watcher(
     interval: float = 5.0,
     logger: logging.Logger | None = None,
 ) -> None:
-    """后台线程：定期检查配置文件是否变更并热重载。"""
+    """后台线程:定期检查配置文件是否变更并热重载.."""
     log = logger or logging.getLogger(__name__)
 
     def _watch() -> None:
-        """轮询配置文件的 mtime 变更，检测到变化则自动重载。"""
+        """轮询配置文件的 mtime 变更,检测到变化则自动重载.."""
         global _shutdown_requested
         while not _shutdown_requested:
             try:
                 if config.check_reload():
                     log.info("配置文件已变更并自动重载")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 _logger.warning("配置热重载异常: %s", exc)
             time.sleep(interval)
 
@@ -147,16 +149,17 @@ def _start_config_watcher(
 
 
 def _find_bitcoin_cli(config: EngineConfig) -> str | None:
-    """查找 bitcoin-cli 可执行文件路径。
+    """查找 bitcoin-cli 可执行文件路径..
 
-    优先使用 config 中指定的路径，否则自动检测常见位置。
+    优先使用 config 中指定的路径,否则自动检测常见位置.
     """
     if config.bitcoin_cli_path:
         cli_path = Path(config.bitcoin_cli_path)
         if cli_path.is_file():
             return str(cli_path.resolve())
         _logger and _logger.warning(
-            "配置的 bitcoin-cli 路径不存在: %s", config.bitcoin_cli_path
+            "配置的 bitcoin-cli 路径不存在: %s",
+            config.bitcoin_cli_path,
         )
 
     # 自动检测
@@ -172,12 +175,12 @@ def _find_bitcoin_cli(config: EngineConfig) -> str | None:
 
 
 def _find_bitcoin_datadir(config: EngineConfig) -> str | None:
-    """查找 Bitcoin 数据目录。"""
+    """查找 Bitcoin 数据目录.."""
     if config.bitcoin_datadir:
         datadir = Path(config.bitcoin_datadir)
         if datadir.is_dir():
             return str(datadir.resolve())
-    # 使用 CWD 作为默认（项目目录就是 Bitcoin data dir）
+    # 使用 CWD 作为默认(项目目录就是 Bitcoin data dir)
     cwd = Path.cwd()
     if cwd.is_dir():
         return str(cwd.resolve())
@@ -185,16 +188,20 @@ def _find_bitcoin_datadir(config: EngineConfig) -> str | None:
 
 
 def _run_bitcoin_cli_dumptxoutset(
-    bitcoin_cli: str, datadir: str, snapshot_path: str, logger: logging.Logger
+    bitcoin_cli: str,
+    datadir: str,
+    snapshot_path: str,
+    logger: logging.Logger,
 ) -> bool:
-    """运行 bitcoin-cli dumptxoutset 生成快照。
+    """运行 bitcoin-cli dumptxoutset 生成快照..
 
     Returns:
-        True 表示成功，False 表示失败。
+        True 表示成功,False 表示失败.
+
     """
     try:
         logger.info("[UTXO][刷新] 运行 bitcoin-cli dumptxoutset ...")
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603  # 参数来自可信配置
             [
                 bitcoin_cli,
                 f"-datadir={datadir}",
@@ -214,23 +221,24 @@ def _run_bitcoin_cli_dumptxoutset(
         )
         return False
     except FileNotFoundError:
-        logger.error("[UTXO][刷新] bitcoin-cli 未找到: %s", bitcoin_cli)
+        logger.exception("[UTXO][刷新] bitcoin-cli 未找到: %s", bitcoin_cli)
         return False
     except subprocess.TimeoutExpired:
-        logger.error("[UTXO][刷新] dumptxoutset 超时 (2h)")
+        logger.exception("[UTXO][刷新] dumptxoutset 超时 (2h)")
         return False
     except Exception as exc:
-        logger.error("[UTXO][刷新] dumptxoutset 异常: %s", exc)
+        logger.exception("[UTXO][刷新] dumptxoutset 异常")
         return False
 
 
 def _do_utxo_refresh(logger: logging.Logger) -> bool:
-    """执行一次完整的 UTXO 数据刷新。
+    """执行一次完整的 UTXO 数据刷新..
 
     流程: dumptxoutset → 提取 Hash160 → 构建 Bloom Filter → 原子交换目标集
 
     Returns:
-        True 表示刷新成功，False 表示失败。
+        True 表示刷新成功,False 表示失败.
+
     """
     global _refresh_last_time, _refresh_last_result
     if _config is None or _swappable_target is None:
@@ -263,26 +271,26 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
     if not Path(snapshot_path).is_file():
         _refresh_last_result = "快照文件未生成"
         logger.error(
-            "[UTXO][刷新] dumptxoutset 完成后快照文件不存在: %s", snapshot_path
+            "[UTXO][刷新] dumptxoutset 完成后快照文件不存在: %s",
+            snapshot_path,
         )
         return False
 
     # 4) 提取 Hash160
     logger.info("[UTXO][刷新] 从快照提取 Hash160 ...")
 
-    def _quiet_print(*args: object, **kwargs: object) -> None:  # noqa: ANN401
-        """静默函数，临时替换 builtins.print 以抑制子流程的 stdout 输出。"""
-        pass
+    def _quiet_print(*args: object, **kwargs: object) -> None:
+        """静默函数,临时替换 builtins.print 以抑制子流程的 stdout 输出.."""
 
     try:
         # 抑制 extract_snapshot 的 stdout 输出
-        # （通过临时替换 print 为静默函数）
+        # (通过临时替换 print 为静默函数)
         import builtins as _builtins
 
         builtins_print = _builtins.print
         _builtins.print = _quiet_print
 
-        from extract_utxo_hash160 import extract_snapshot  # noqa: E402
+        from extract_utxo_hash160 import extract_snapshot
 
         stats = extract_snapshot(
             snapshot_path=str(Path(snapshot_path).resolve()),
@@ -296,7 +304,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         )
     except Exception as exc:
         _refresh_last_result = f"提取失败: {exc}"
-        logger.error("[UTXO][刷新] 提取 Hash160 失败: %s", exc, exc_info=True)
+        logger.exception("[UTXO][刷新] 提取 Hash160 失败: %s", exc)
         return False
     finally:
         _builtins.print = builtins_print
@@ -312,10 +320,10 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         )
     except Exception as exc:
         _refresh_last_result = f"新目标集加载失败: {exc}"
-        logger.error("[UTXO][刷新] 加载新目标集失败: %s", exc, exc_info=True)
+        logger.exception("[UTXO][刷新] 加载新目标集失败: %s", exc)
         return False
 
-    # 6) P2TR 支持（如果当前有两份）
+    # 6) P2TR 支持(如果当前有两份)
     new_xonly: XOnlySet | None = None
     if _swappable_xonly is not None and config.enable_utxo_auto_refresh:
         xonly_bin = str(Path.cwd() / "utxo_xonly.bin")
@@ -328,8 +336,8 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
                     idx_path=xonly_idx,
                     quiet=True,
                 )
-            except Exception as exc:
-                logger.warning("[UTXO][刷新] P2TR 目标集刷新失败（跳过）: %s", exc)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[UTXO][刷新] P2TR 目标集刷新失败(跳过): %s", exc)
 
     # 7) 原子交换
     _swappable_target.swap(new_set=new_target)
@@ -354,10 +362,10 @@ def _start_utxo_refresher(
     swappable_xonly: SwappableTarget | None,
     logger: logging.Logger | None = None,
 ) -> threading.Thread | None:
-    """启动 UTXO 自动刷新后台线程。
+    """启动 UTXO 自动刷新后台线程..
 
-    每隔 ``config.utxo_refresh_interval`` 秒检查并执行一次刷新。
-    需要 ``config.enable_utxo_auto_refresh == True`` 才启动。
+    每隔 ``config.utxo_refresh_interval`` 秒检查并执行一次刷新.
+    需要 ``config.enable_utxo_auto_refresh == True`` 才启动.
     """
     global _refresh_thread
     if not config.enable_utxo_auto_refresh:
@@ -375,22 +383,21 @@ def _start_utxo_refresher(
     )
 
     def _refresher_loop() -> None:
-        """后台循环，周期性调用 _do_utxo_refresh 执行 UTXO 刷新。"""
+        """后台循环,周期性调用 _do_utxo_refresh 执行 UTXO 刷新.."""
         global _shutdown_requested
         while not _shutdown_requested:
             try:
                 _do_utxo_refresh(log)
             except Exception as exc:
-                log.error("[UTXO][刷新] 刷新循环异常: %s", exc, exc_info=True)
-            # 等待下一个周期（分段等待以响应关闭请求）
+                log.exception("[UTXO][刷新] 刷新循环异常: %s", exc)
+            # 等待下一个周期(分段等待以响应关闭请求)
             for _ in range(int(interval / 2)):
                 if _shutdown_requested:
                     return
                 time.sleep(2)
-            else:
-                # 如果 interval 不能被 2 整除，补足剩余
-                if not _shutdown_requested:
-                    time.sleep(interval % 2)
+            # 如果 interval 不能被 2 整除,补足剩余
+            if not _shutdown_requested:
+                time.sleep(interval % 2)
 
     t = threading.Thread(
         target=_refresher_loop,
@@ -403,7 +410,7 @@ def _start_utxo_refresher(
 
 
 def _init_core(cfg_path: str | None = None) -> None:
-    """初始化全局日志和配置（惰性，在 main() 中首次调用）。"""
+    """初始化全局日志和配置(惰性,在 main() 中首次调用).."""
     global _logger, _config, _db
     # 配置
     _config = EngineConfig.load(Path(cfg_path)) if cfg_path else EngineConfig()
@@ -416,13 +423,15 @@ def _init_core(cfg_path: str | None = None) -> None:
     )
     _logger.info("核心基础设施初始化完成")
     _logger.debug(
-        "配置: results_db=%s, log_file=%s", _config.results_db, _config.log_file
+        "配置: results_db=%s, log_file=%s",
+        _config.results_db,
+        _config.log_file,
     )
     # 数据库
     _db = ResultDB(_config.results_db_path)
 
     # ── 配置热重载后台线程 ──
-    # 若 config_path 有效（从文件加载），启动监视器
+    # 若 config_path 有效(从文件加载),启动监视器
     if _config.config_path is not None:
         _start_config_watcher(_config, interval=5.0, logger=_logger)
         _logger.info("配置热重载已启动: path=%s, interval=5s", _config.config_path)
@@ -430,14 +439,15 @@ def _init_core(cfg_path: str | None = None) -> None:
 
 # ── 哈希工具 ──────────────────────────────────────────────────
 def hash160(data: bytes) -> bytes:
-    """RIPEMD160(SHA256(data))"""
+    """RIPEMD160(SHA256(data))."""
     return hashlib.new("ripemd160", hashlib.sha256(data).digest()).digest()
 
 
 # ── 地址编码 ──────────────────────────────────────────────────
 def base58check_encode(payload: bytes) -> str:
-    """Base58Check 编码（payload 已包含前缀和可选压缩标记）。
-    内部自动计算并追加双 SHA256 checksum。"""
+    """Base58Check 编码(payload 已包含前缀和可选压缩标记).
+    内部自动计算并追加双 SHA256 checksum..
+    """
     chk = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
     n = int.from_bytes(payload + chk, "big")
     result = ""
@@ -452,8 +462,8 @@ def base58check_encode(payload: bytes) -> str:
     return result
 
 
-def wif_encode(privkey: bytes, compressed: bool = True) -> str:
-    """私钥 → WIF 格式（钱包导入格式）"""
+def wif_encode(privkey: bytes, compressed: bool = True) -> str:  # noqa: FBT001, FBT002
+    """私钥 → WIF 格式(钱包导入格式)."""
     data = b"\x80" + privkey
     if compressed:
         data += b"\x01"
@@ -461,46 +471,50 @@ def wif_encode(privkey: bytes, compressed: bool = True) -> str:
 
 
 def p2pkh_address(h160: bytes) -> str:
-    """P2PKH 地址: Base58Check(0x00 + HASH160)"""
+    """P2PKH 地址: Base58Check(0x00 + HASH160)."""
     return base58check_encode(b"\x00" + h160)
 
 
 def p2wpkh_address(h160: bytes) -> str:
-    """P2WPKH 地址: bc1 + witver=0 + HASH160"""
+    """P2WPKH 地址: bc1 + witver=0 + HASH160."""
     bits = convertbits(list(h160), 8, 5)
     if bits is None:
         return ""
-    data = [0] + bits
+    data = [0, *bits]
     return bech32_encode("bc", data)
 
 
 def p2sh_address(h160: bytes) -> str:
-    """P2SH-P2WPKH 嵌套 SegWit 地址: Base58Check(0x05 + Hash160(OP_0 <hash160>))
+    """P2SH-P2WPKH 嵌套 SegWit 地址: Base58Check(0x05 + Hash160(OP_0 <hash160>)).
 
     将压缩公钥的 HASH160 包装为 witness program:
         redeem_script = 0x00 0x14 <20-byte-hash160>
         地址 = Base58Check(0x05 + RIPEMD160(SHA256(redeem_script)))
 
     Args:
-        h160: 压缩公钥的 20 字节 HASH160。
+        h160: 压缩公钥的 20 字节 HASH160.
+
     Returns:
-        P2SH 地址字符串 (以 3 开头)。
+        P2SH 地址字符串 (以 3 开头).
+
     """
     redeem_script = b"\x00\x14" + h160
     script_hash = hash160(redeem_script)
     return base58check_encode(b"\x05" + script_hash)  # 0x05 = P2SH 主网版本字节
 
 
-def privkey_to_p2sh(privkey: bytes, compressed: bool = True) -> str:
-    """从私钥直接生成 P2SH-P2WPKH 嵌套 SegWit 地址。
+def privkey_to_p2sh(privkey: bytes, compressed: bool = True) -> str:  # noqa: FBT001, FBT002
+    """从私钥直接生成 P2SH-P2WPKH 嵌套 SegWit 地址..
 
     P2SH 包装: OP_0 <20-byte-key-hash> → Hash160 → Base58Check(0x05)
 
     Args:
-        privkey: 32 字节私钥。
-        compressed: 是否使用压缩公钥 (P2SH-P2WPKH 总是用压缩公钥)。
+        privkey: 32 字节私钥.
+        compressed: 是否使用压缩公钥 (P2SH-P2WPKH 总是用压缩公钥).
+
     Returns:
-        P2SH 地址字符串。
+        P2SH 地址字符串.
+
     """
     priv = PrivateKey(privkey)
     pub = priv.public_key
@@ -514,11 +528,11 @@ _BECH32M_CONST = 0x2BC830A3
 
 
 def _bech32m_create_checksum(hrp: str, data: list[int]) -> list[int]:
-    """Bech32m 校验和（M = 0x2BC830A3 vs Bech32 的 M = 1）。"""
+    """Bech32m 校验和(M = 0x2BC830A3 vs Bech32 的 M = 1).."""
     from bech32 import bech32_hrp_expand, bech32_polymod
 
     values = bech32_hrp_expand(hrp) + data
-    polymod = bech32_polymod(values + [0, 0, 0, 0, 0, 0]) ^ _BECH32M_CONST
+    polymod = bech32_polymod([*values, 0, 0, 0, 0, 0, 0]) ^ _BECH32M_CONST
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
@@ -529,16 +543,16 @@ def bech32m_encode(hrp: str, data: list[int]) -> str:
 
 
 def p2tr_address(xonly: bytes) -> str:
-    """P2TR 地址: bc1p + bech32m(witver=1, xonly_pubkey)"""
+    """P2TR 地址: bc1p + bech32m(witver=1, xonly_pubkey)."""
     bits = convertbits(list(xonly), 8, 5)
     if bits is None:
         return ""
-    return bech32m_encode("bc", [1] + bits)
+    return bech32m_encode("bc", [1, *bits])
 
 
 # ── BIP 341 Taproot Tweak ────────────────────────────────────
 def tagged_hash(tag: str, data: bytes) -> bytes:
-    """BIP 340 TaggedHash: SHA256(SHA256(tag) || SHA256(tag) || data)"""
+    """BIP 340 TaggedHash: SHA256(SHA256(tag) || SHA256(tag) || data)."""
     tag_hash = hashlib.sha256(tag.encode()).digest()
     return hashlib.sha256(tag_hash + tag_hash + data).digest()
 
@@ -582,26 +596,26 @@ class CollisionResult:
     address_type: str  # 'P2PKH', 'P2WPKH' 或 'P2TR (Taproot)'
     found_via: str  # 'compressed', 'uncompressed' 或 'tweaked'
     timestamp: str = ""
-    p2tr_address: str = ""  # P2TR bech32m 地址（仅 P2TR 命中时）
-    xonly_hex: str = ""  # P2TR x-only pubkey（仅 P2TR 命中时）
-    p2sh_address: str = ""  # P2SH-P2WPKH 嵌套 SegWit 地址（仅压缩公钥路径命中时）
+    p2tr_address: str = ""  # P2TR bech32m 地址(仅 P2TR 命中时)
+    xonly_hex: str = ""  # P2TR x-only pubkey(仅 P2TR 命中时)
+    p2sh_address: str = ""  # P2SH-P2WPKH 嵌套 SegWit 地址(仅压缩公钥路径命中时)
 
     def __post_init__(self) -> None:
-        """dataclass 初始化后处理：空 timestamp 自动填充当前 UTC 时间。"""
+        """Dataclass 初始化后处理:空 timestamp 自动填充当前 UTC 时间.."""
         if not self.timestamp:
             self.timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def save_result(result: CollisionResult) -> None:
-    """线程安全地保存碰撞结果到 JSON 文件（及 SQLite 数据库，如已初始化）。"""
-    # SQLite 写入（O(1)，优先于 JSON）
+    """线程安全地保存碰撞结果到 JSON 文件(及 SQLite 数据库,如已初始化).."""
+    # SQLite 写入(O(1),优先于 JSON)
     if _db is not None:
         try:
             _db.save_result(result)
         except DatabaseError as exc:
-            _logger and _logger.error("数据库写入失败，回退到 JSON: %s", exc)
+            _logger and _logger.error("数据库写入失败,回退到 JSON: %s", exc)  # noqa: TRY400
 
-    # JSON 写入（向后兼容）
+    # JSON 写入(向后兼容)
     with results_lock:
         results = []
         if RESULTS_FILE.exists():
@@ -613,7 +627,8 @@ def save_result(result: CollisionResult) -> None:
                 results = []
         results.append(asdict(result))
         RESULTS_FILE.write_text(
-            json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
+            json.dumps(results, indent=2, ensure_ascii=False),
+            encoding="utf-8",
         )
 
     # 控制台突出显示
@@ -649,7 +664,7 @@ def save_result(result: CollisionResult) -> None:
         "=" * 70,
     )
 
-    # 异步通知（如已配置）
+    # 异步通知(如已配置)
     if _notifier is not None:
         _notifier.on_hit(result)
 
@@ -659,7 +674,7 @@ checkpoint_lock = threading.Lock()
 
 
 def load_checkpoint() -> dict[str, object]:
-    """从磁盘加载 checkpoint"""
+    """从磁盘加载 checkpoint."""
     if CHECKPOINT_FILE.exists():
         try:
             data: dict[str, object] = json.loads(CHECKPOINT_FILE.read_text())
@@ -670,7 +685,7 @@ def load_checkpoint() -> dict[str, object]:
 
 
 def save_checkpoint(state: dict[str, object]) -> None:
-    """线程安全地保存 checkpoint"""
+    """线程安全地保存 checkpoint."""
     with checkpoint_lock:
         state["_timestamp"] = time.time()
         CHECKPOINT_FILE.write_text(json.dumps(state, indent=2))
@@ -678,17 +693,17 @@ def save_checkpoint(state: dict[str, object]) -> None:
 
 # ── 核心碰撞逻辑 ─────────────────────────────────────────────
 class SequentialCounter:
-    """线程安全的顺序计数器"""
+    """线程安全的顺序计数器."""
 
-    def __init__(self, start: int = 1, limit: int = 0):
-        """初始化顺序计数器，设置起始值和上限。"""
+    def __init__(self, start: int = 1, limit: int = 0) -> None:
+        """初始化顺序计数器,设置起始值和上限.."""
         self._lock = threading.Lock()
         self._val = start
         self._limit = limit
         self._count = 0
 
-    def next(self) -> Optional[int]:
-        """返回下一个私钥值（线程安全），超出上限返回 None。"""
+    def next(self) -> int | None:
+        """返回下一个私钥值(线程安全),超出上限返回 None.."""
         with self._lock:
             if self._limit > 0 and self._count >= self._limit:
                 return None
@@ -699,12 +714,12 @@ class SequentialCounter:
 
     @property
     def checked(self) -> int:
-        """已分配且被检查的私钥总数。"""
+        """已分配且被检查的私钥总数.."""
         return self._count
 
     @property
     def current(self) -> int:
-        """下一个将被分配的私钥值（用于 checkpoint）。"""
+        """下一个将被分配的私钥值(用于 checkpoint).."""
         return self._val
 
 
@@ -712,8 +727,8 @@ def check_single_key(
     privkey_int: int,
     target: TargetProtocol,
     xonly_target: TargetProtocol | None = None,
-) -> Optional[CollisionResult]:
-    """检查一个私钥：推导 2 种 HASH160 + P2TR Tweaked Key → 在 UTXO 集中查询"""
+) -> CollisionResult | None:
+    """检查一个私钥:推导 2 种 HASH160 + P2TR Tweaked Key → 在 UTXO 集中查询."""
     try:
         privkey_bytes = privkey_int.to_bytes(32, "big")
         priv = PrivateKey(privkey_bytes)
@@ -726,8 +741,8 @@ def check_single_key(
         if h160_comp in target:
             return CollisionResult(
                 privkey_hex=privkey_bytes.hex(),
-                wif_compressed=wif_encode(privkey_bytes, True),
-                wif_uncompressed=wif_encode(privkey_bytes, False),
+                wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                 p2pkh_address_comp=p2pkh_address(h160_comp),
                 p2wpkh_address=p2wpkh_address(h160_comp),
                 p2pkh_address_uncomp="",
@@ -744,8 +759,8 @@ def check_single_key(
         if h160_uncomp in target:
             return CollisionResult(
                 privkey_hex=privkey_bytes.hex(),
-                wif_compressed=wif_encode(privkey_bytes, True),
-                wif_uncompressed=wif_encode(privkey_bytes, False),
+                wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                 p2pkh_address_comp="",
                 p2wpkh_address="",
                 p2pkh_address_uncomp=p2pkh_address(h160_uncomp),
@@ -761,8 +776,8 @@ def check_single_key(
             if xonly_output is not None and xonly_output in xonly_target:
                 return CollisionResult(
                     privkey_hex=privkey_bytes.hex(),
-                    wif_compressed=wif_encode(privkey_bytes, True),
-                    wif_uncompressed=wif_encode(privkey_bytes, False),
+                    wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                    wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                     p2pkh_address_comp="",
                     p2wpkh_address="",
                     p2pkh_address_uncomp="",
@@ -774,7 +789,7 @@ def check_single_key(
                     p2sh_address="",
                 )
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _logger and _logger.warning("check_single_key 异常: %s", exc, exc_info=True)
     return None
 
@@ -785,22 +800,23 @@ def check_single_key_chain(
     stride_bytes: bytes,
     prev_pubkey_point: object | None = None,
     xonly_target: TargetProtocol | None = None,
-) -> tuple[Optional[CollisionResult], object | None]:
-    """顺序链式检查：利用点加法链加速公钥推导。
+) -> tuple[CollisionResult | None, object | None]:
+    """顺序链式检查:利用点加法链加速公钥推导..
 
-    顺序模式中，每线程处理 stride = n_threads 的等差数列。
-    首 key 做完整 EC 乘法，后续 key 通过点加法
-    pub(n+stride) = pub(n) + stride*G 快速推导（~200 倍加速）。
+    顺序模式中,每线程处理 stride = n_threads 的等差数列.
+    首 key 做完整 EC 乘法,后续 key 通过点加法
+    pub(n+stride) = pub(n) + stride*G 快速推导(~200 倍加速).
 
     Args:
-        privkey_int: 当前私钥值（仅首次需要全量 EC 乘法）
+        privkey_int: 当前私钥值(仅首次需要全量 EC 乘法)
         target: HASH160 目标集
         stride_bytes: 线程步长的 32 字节大端编码
-        prev_pubkey_point: 上一公钥的 PublicKey 对象（None 则全量计算）
-        xonly_target: P2TR x-only pubkey 目标集（None 则跳过 P2TR 检查）
+        prev_pubkey_point: 上一公钥的 PublicKey 对象(None 则全量计算)
+        xonly_target: P2TR x-only pubkey 目标集(None 则跳过 P2TR 检查)
 
     Returns:
         (CollisionResult or None, 当前公钥 PublicKey or None)
+
     """
     try:
         if prev_pubkey_point is None:
@@ -820,8 +836,8 @@ def check_single_key_chain(
             return (
                 CollisionResult(
                     privkey_hex=privkey_bytes.hex(),
-                    wif_compressed=wif_encode(privkey_bytes, True),
-                    wif_uncompressed=wif_encode(privkey_bytes, False),
+                    wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                    wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                     p2pkh_address_comp=p2pkh_address(h160_comp),
                     p2wpkh_address=p2wpkh_address(h160_comp),
                     p2pkh_address_uncomp="",
@@ -842,8 +858,8 @@ def check_single_key_chain(
             return (
                 CollisionResult(
                     privkey_hex=privkey_bytes.hex(),
-                    wif_compressed=wif_encode(privkey_bytes, True),
-                    wif_uncompressed=wif_encode(privkey_bytes, False),
+                    wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                    wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                     p2pkh_address_comp="",
                     p2wpkh_address="",
                     p2pkh_address_uncomp=p2pkh_address(h160_uncomp),
@@ -857,7 +873,7 @@ def check_single_key_chain(
 
         # ── P2TR (Taproot) 路径 ──
         if xonly_target is not None:
-            # 创建 pubkey 副本（不改变链状态）
+            # 创建 pubkey 副本(不改变链状态)
             pub_copy = PublicKey(pubkey.format())
             xonly_output = tweak_taproot(pub_copy)
             if xonly_output is not None and xonly_output in xonly_target:
@@ -865,8 +881,8 @@ def check_single_key_chain(
                 return (
                     CollisionResult(
                         privkey_hex=privkey_bytes.hex(),
-                        wif_compressed=wif_encode(privkey_bytes, True),
-                        wif_uncompressed=wif_encode(privkey_bytes, False),
+                        wif_compressed=wif_encode(privkey_bytes, compressed=True),
+                        wif_uncompressed=wif_encode(privkey_bytes, compressed=False),
                         p2pkh_address_comp="",
                         p2wpkh_address="",
                         p2pkh_address_uncomp="",
@@ -882,9 +898,11 @@ def check_single_key_chain(
 
         return (None, pubkey)
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _logger and _logger.warning(
-            "check_single_key_chain 异常: %s", exc, exc_info=True
+            "check_single_key_chain 异常: %s",
+            exc,
+            exc_info=True,
         )
     return (None, None)
 
@@ -903,14 +921,15 @@ def worker_sequential(
     stride_bytes: bytes | None = None,
     xonly_target: TargetProtocol | None = None,
 ) -> int:
-    """顺序模式工作线程（点加法链加速）。
+    """顺序模式工作线程(点加法链加速)..
 
     Args:
         counter: 顺序计数器
         target: HASH160 目标集
-        thread_id: 线程 ID（用于日志）
-        stride_bytes: 线程步长的 32 字节大端编码。
-        xonly_target: P2TR x-only pubkey 目标集（可选）。
+        thread_id: 线程 ID(用于日志)
+        stride_bytes: 线程步长的 32 字节大端编码.
+        xonly_target: P2TR x-only pubkey 目标集(可选).
+
     """
     global _global_checked
     local_checked = 0
@@ -923,7 +942,7 @@ def worker_sequential(
             break
 
         if _shutdown_requested:
-            _logger.info("关闭请求，停止顺序工作线程 %d", thread_id)
+            _logger.info("关闭请求,停止顺序工作线程 %d", thread_id)
             break
 
         if stride_bytes is not None:
@@ -958,7 +977,7 @@ def worker_sequential(
                             "mode": "sequential",
                             "next_key": counter.current,
                             "checked": counter.checked,
-                        }
+                        },
                     )
 
     # 线程结束时刷新
@@ -973,17 +992,18 @@ def worker_random(
     check_limit: int = 0,
     xonly_target: TargetProtocol | None = None,
 ) -> int:
-    """随机模式工作线程"""
+    """随机模式工作线程."""
     global _global_checked
     local_checked = 0
     last_reported = 0
-    _thread_rng = random.Random()  # 每线程独立 Random 实例，避免多线程竞争全局种子
+    _thread_rng = random.Random()  # noqa: S311
+    # 每线程独立 Random 实例,避免多线程竞争全局种子
 
     while True:
         privkey_int = _thread_rng.randint(1, SECP256K1_ORDER - 1)
 
         if _shutdown_requested:
-            _logger.info("关闭请求，停止随机工作线程 %d", thread_id)
+            _logger.info("关闭请求,停止随机工作线程 %d", thread_id)
             break
 
         result = check_single_key(privkey_int, target, xonly_target)
@@ -1012,7 +1032,7 @@ def _run_gpu_mode(
     args: argparse.Namespace,
     xonly_target: TargetProtocol | None = None,
 ) -> None:
-    """GPU 加速的碰撞扫描入口。"""
+    """GPU 加速的碰撞扫描入口.."""
     # 解析设备索引
     device_indices = None
     if args.gpu_devices:
@@ -1021,18 +1041,14 @@ def _run_gpu_mode(
                 int(s.strip()) for s in args.gpu_devices.split(",") if s.strip()
             ]
         except ValueError:
-            _logger.error("[错误] --gpu-devices 格式无效: %s", args.gpu_devices)
+            _logger.exception("[错误] --gpu-devices 格式无效: %s", args.gpu_devices)
             sys.exit(1)
 
     # 顺序模式 checkpoint 恢复
     seq_start = 1
     total_checked_pre = 0
     if args.gpu_mode == "sequential":
-        seq_start = (
-            int(args.gpu_start, 16)
-            if args.gpu_start.startswith("0x")
-            else int(args.gpu_start, 16)
-        )
+        seq_start = int(args.gpu_start, 16)
         cp = load_checkpoint()
         next_key_val: object = cp.get("next_key", 0)
         if (
@@ -1054,7 +1070,7 @@ def _run_gpu_mode(
         tdr_tag = "TDR 安全" if args.gpu_tdr_safe else "TDR 未保护"
         _logger.info("        batch=%s | %s", f"{args.gpu_batch_size:,}", tdr_tag)
 
-    # TDR 诊断（Windows 平台）
+    # TDR 诊断(Windows 平台)
     if args.gpu_tdr_safe:
         from gpu_engine.tdr_handler import warn_tdr_settings
 
@@ -1062,12 +1078,12 @@ def _run_gpu_mode(
 
     # 碰撞检查回调
     def check_hit(h160: bytes) -> bool:
-        """碰撞检测回调：检查 HASH160 是否在目标集中。"""
+        """碰撞检测回调:检查 HASH160 是否在目标集中.."""
         return h160 in target
 
     # 命中保存回调: privkey_bytes(32B 小端, GPU kernel 编码) → 推导 HASH160 → 保存结果
     def on_hit(privkey_bytes: bytes) -> None:
-        """碰撞命中回调：从 GPU 返回的 32 字节私钥推导地址并保存结果。"""
+        """碰撞命中回调:从 GPU 返回的 32 字节私钥推导地址并保存结果.."""
         privkey_int = int.from_bytes(privkey_bytes, "little")
         result = check_single_key(privkey_int, target, xonly_target)
         if result is not None:
@@ -1078,9 +1094,9 @@ def _run_gpu_mode(
                 privkey_int,
             )
 
-    # P2-10: 当目标集有 Bloom 数据时启用 GPU 侧碰撞检测，
-    # 将 check_collision 设为 None 以触发 _worker_loop 的 GPU 碰撞路径。
-    # 假阳性由 on_hit 回调中的 check_single_key() 全量验证。
+    # P2-10: 当目标集有 Bloom 数据时启用 GPU 侧碰撞检测,
+    # 将 check_collision 设为 None 以触发 _worker_loop 的 GPU 碰撞路径.
+    # 假阳性由 on_hit 回调中的 check_single_key() 全量验证.
     gpu_bloom = target.bloom_data
     config = DispatcherConfig(
         batch_size=args.gpu_batch_size,
@@ -1105,13 +1121,13 @@ def _run_gpu_mode(
         workers = scheduler.run()
         hits = sum(w.hits for w in workers)
         if hits > 0:
-            _logger.info("[GPU] 发现 %d 个碰撞！保存在 %s", hits, RESULTS_FILE)
+            _logger.info("[GPU] 发现 %d 个碰撞!保存在 %s", hits, RESULTS_FILE)
     except KeyboardInterrupt:
         _logger.warning("\n[GPU] 扫描被用户中断")
         # GPU 顺序模式 checkpoint
         if args.gpu_mode == "sequential" and scheduler._pipelines:
             # 取第一个管道的当前起始值作为下一个检查点的 next_key
-            # （多 GPU 时取最小的起始值，此方案保守但安全）
+            # (多 GPU 时取最小的起始值,此方案保守但安全)
             next_k = min(p.sequential_start for p in scheduler._pipelines)
             checked = max(seq_start, total_checked_pre) + scheduler._total_checked
             save_checkpoint(
@@ -1119,7 +1135,7 @@ def _run_gpu_mode(
                     "mode": "gpu_sequential",
                     "next_key": next_k,
                     "checked": checked,
-                }
+                },
             )
             _logger.info("[GPU][检查点] 已保存 (next_key=0x%064x)", next_k)
     finally:
@@ -1127,7 +1143,7 @@ def _run_gpu_mode(
 
 
 def _report_progress(current_key: int, local_count: int, thread_id: int) -> None:
-    """记录进度（周期性进度信息）+ 写入引擎状态文件。"""
+    """记录进度(周期性进度信息)+ 写入引擎状态文件.."""
     elapsed = time.time() - _global_start_time
     with _counter_lock:
         total = _global_checked
@@ -1141,8 +1157,9 @@ def _report_progress(current_key: int, local_count: int, thread_id: int) -> None
         elapsed,
         key_str[:32],
     )
-    # 写入状态文件供 API 读取（降频：每 30 秒写一次）
-    if int(elapsed) % 30 < 5:
+    # 写入状态文件供 API 读取(降频:每 30 秒写一次)
+    _status_write_window = 5
+    if int(elapsed) % 30 < _status_write_window:
         _write_engine_status(
             running=True,
             mode=_config.mode if _config else "unknown",
@@ -1152,20 +1169,20 @@ def _report_progress(current_key: int, local_count: int, thread_id: int) -> None
         )
 
 
-# ── 引擎状态文件写入（供 API 读取）─────────────────────────────
+# ── 引擎状态文件写入(供 API 读取)─────────────────────────────
 _STATUS_FILE_PATH = Path(__file__).resolve().parent / "collision_engine_status.json"
 
 
 def _write_engine_status(
-    running: bool,
+    running: bool,  # noqa: FBT001
     mode: str,
     keys_per_second: float = 0.0,
     total_keys: int = 0,
     elapsed_seconds: float = 0.0,
 ) -> None:
-    """写入引擎运行状态 JSON 文件，供 API 读取。
+    """写入引擎运行状态 JSON 文件,供 API 读取..
 
-    包含运行状态、扫描速率、UTXO 刷新状态等信息。
+    包含运行状态,扫描速率,UTXO 刷新状态等信息.
     """
     status: dict[str, Any] = {
         "running": running,
@@ -1190,7 +1207,8 @@ def _write_engine_status(
 
     try:
         _STATUS_FILE_PATH.write_text(
-            json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8"
+            json.dumps(status, indent=2, ensure_ascii=False),
+            encoding="utf-8",
         )
     except OSError:
         pass  # 写入失败不影响引擎运行
@@ -1198,7 +1216,7 @@ def _write_engine_status(
 
 # ── 健康检查 ──────────────────────────────────────────────────
 def _health_check() -> None:
-    """执行健康检查并输出 JSON 状态到 stdout。"""
+    """执行健康检查并输出 JSON 状态到 stdout.."""
     status: dict[str, Any] = {"status": "ok", "checks": {}}
 
     # 数据库连接
@@ -1209,7 +1227,7 @@ def _health_check() -> None:
                 "status": "ok",
                 "result_count": count,
             }
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             status["checks"]["database"] = {
                 "status": "error",
                 "message": str(exc),
@@ -1227,7 +1245,8 @@ def _health_check() -> None:
     }
     if utxo_path.exists():
         status["checks"]["utxo_data"]["size_gb"] = round(
-            utxo_path.stat().st_size / (1024**3), 2
+            utxo_path.stat().st_size / (1024**3),
+            2,
         )
 
     # UTXO 自动刷新状态
@@ -1251,24 +1270,24 @@ def _health_check() -> None:
             devices = gpu_list_devices()
             status["checks"]["gpu"]["device_count"] = len(devices)
             status["checks"]["gpu"]["devices"] = [str(d) for d in devices]
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             status["checks"]["gpu"]["device_enum_error"] = str(exc)
 
     # 综合状态
     for chk in status["checks"].values():
-        if isinstance(chk, dict) and chk.get("status") in ("error",):
+        if isinstance(chk, dict) and chk.get("status") == "error":
             status["status"] = "degraded"
     if not status["checks"]["utxo_data"]["present"]:
         status["status"] = "degraded"
 
-    print(json.dumps(status, indent=2, ensure_ascii=False))
+    print(json.dumps(status, indent=2, ensure_ascii=False))  # noqa: T201
 
 
 # ── 主入口 ────────────────────────────────────────────────────
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    """构建 CLI 参数解析器。"""
+    """构建 CLI 参数解析器.."""
     parser = argparse.ArgumentParser(
         description="比特币私钥碰撞对撞引擎",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1288,7 +1307,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
   python collision_engine.py --gpu --gpu-no-tdr-safe  # 禁用 TDR 安全拆分
   python collision_engine.py --gpu --gpu-max-kernel-time 0.5  # 更短的 sub-batch
 
-  # P2TR (Taproot) 模式（需先运行 extract_utxo_xonly.py）
+  # P2TR (Taproot) 模式(需先运行 extract_utxo_xonly.py)
   python collision_engine.py --p2tr --threads 4
   python collision_engine.py --p2tr --mode random --threads 8
   python collision_engine.py --p2tr --mode sequential --start 0x100000
@@ -1304,10 +1323,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="扫描模式 (default: sequential)",
     )
     parser.add_argument(
-        "--start", type=str, default="0x1", help="起始私钥 (hex, default: 1)"
+        "--start",
+        type=str,
+        default="0x1",
+        help="起始私钥 (hex, default: 1)",
     )
     parser.add_argument(
-        "--count", type=int, default=0, help="要检查的私钥数量 (0 = 无限)"
+        "--count",
+        type=int,
+        default=0,
+        help="要检查的私钥数量 (0 = 无限)",
     )
     parser.add_argument(
         "--threads",
@@ -1367,7 +1392,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--p2tr",
         action="store_true",
-        help="启用 P2TR (Taproot) 碰撞匹配（需先运行 extract_utxo_xonly.py）",
+        help="启用 P2TR (Taproot) 碰撞匹配(需先运行 extract_utxo_xonly.py)",
     )
     parser.add_argument(
         "--xonly-file",
@@ -1391,7 +1416,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         dest="utxo_refresh",
         default=None,
-        help="启用 UTXO 自动刷新（覆盖配置）",
+        help="启用 UTXO 自动刷新(覆盖配置)",
     )
     parser.add_argument(
         "--no-utxo-refresh",
@@ -1403,13 +1428,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--utxo-refresh-interval",
         type=int,
         default=0,
-        help="UTXO 刷新间隔（秒，覆盖配置）",
+        help="UTXO 刷新间隔(秒,覆盖配置)",
     )
     # ── 分布式扫描参数 ──
     parser.add_argument(
         "--distributed",
         action="store_true",
-        help="启用分布式扫描模式（作为 Worker 节点运行）",
+        help="启用分布式扫描模式(作为 Worker 节点运行)",
     )
     parser.add_argument(
         "--master-addr",
@@ -1435,13 +1460,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 def _load_targets(
     args: argparse.Namespace,
 ) -> tuple[SwappableTarget, SwappableTarget | None]:
-    """加载 UTXO HASH160 目标集（和可选的 P2TR x-only 目标集）。
+    """加载 UTXO HASH160 目标集(和可选的 P2TR x-only 目标集)..
 
-    返回的 target / xonly_target 是 ``SwappableTarget`` 包装器，
-    支持在运行时原子替换底层数据（UTXO 自动刷新）。
+    返回的 target / xonly_target 是 ``SwappableTarget`` 包装器,
+    支持在运行时原子替换底层数据(UTXO 自动刷新).
 
     Returns:
-        (swappable_target, swappable_xonly) 元组。
+        (swappable_target, swappable_xonly) 元组.
+
     """
     global _swappable_target, _swappable_xonly
 
@@ -1455,7 +1481,7 @@ def _load_targets(
 
     swappable_xonly: SwappableTarget | None = None
     if args.p2tr:
-        xonly_path = args.xonly_file if args.xonly_file else None
+        xonly_path = args.xonly_file or None
         _logger.info("[...] 加载 P2TR x-only pubkey 目标集...")
         xonly_target_set = XOnlySet()
         xonly_target_set.load(bin_path=xonly_path, quiet=True)
@@ -1471,7 +1497,7 @@ def _display_banner(
     args: argparse.Namespace,
     xonly_target: TargetProtocol | None,
 ) -> None:
-    """打印引擎启动 banner。"""
+    """打印引擎启动 banner.."""
     _logger.info("\n%s", "#" * 70)
     _logger.info("#   Bitcoin 私钥碰撞对撞引擎 v2.3.0")
     _logger.info(
@@ -1493,7 +1519,7 @@ def _run_cpu_mode(
     args: argparse.Namespace,
     xonly_target: TargetProtocol | None,
 ) -> None:
-    """运行 CPU 扫描（顺序或随机模式）。包含 checkpoint 恢复/保存逻辑。"""
+    """运行 CPU 扫描(顺序或随机模式).包含 checkpoint 恢复/保存逻辑.."""
     global _global_start_time, _global_checked
     _global_start_time = time.time()
     _global_checked = 0
@@ -1561,24 +1587,24 @@ def _run_cpu_mode(
                     "mode": "sequential",
                     "next_key": counter.current,
                     "checked": counter.checked,
-                }
+                },
             )
             _logger.info("[检查点] 已保存")
 
-    # 信号处理器的优雅关闭（若 KeyboardInterrupt 未触发或未保存 checkpoint）
+    # 信号处理器的优雅关闭(若 KeyboardInterrupt 未触发或未保存 checkpoint)
     if _shutdown_requested and args.mode == "sequential" and counter is not None:
         save_checkpoint(
             {
                 "mode": "sequential",
                 "next_key": counter.current,
                 "checked": counter.checked,
-            }
+            },
         )
-        _logger.info("优雅关闭 — checkpoint 已保存 (next_key=0x%064x)", counter.current)
+        _logger.info("优雅关闭 - checkpoint 已保存 (next_key=0x%064x)", counter.current)
 
 
 def _print_final_report() -> None:
-    """打印扫描结束的最终报告（耗时、速率、命中数）。"""
+    """打印扫描结束的最终报告(耗时,速率,命中数).."""
     elapsed = time.time() - _global_start_time
     with _counter_lock:
         final_checked = _global_checked
@@ -1588,7 +1614,7 @@ def _print_final_report() -> None:
     if RESULTS_FILE.exists():
         try:
             hit_count = len(json.loads(RESULTS_FILE.read_text()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             _logger.warning("无法读取碰撞结果文件: %s", exc)
 
     _logger.info(
@@ -1619,7 +1645,7 @@ def _cleanup(
     target: TargetProtocol | None,
     xonly_target: TargetProtocol | None,
 ) -> None:
-    """清理资源：关闭目标集、通知器和数据库连接。"""
+    """清理资源:关闭目标集,通知器和数据库连接.."""
     if target is not None:
         target.close()
     if xonly_target is not None:
@@ -1628,19 +1654,19 @@ def _cleanup(
     if _notifier is not None:
         try:
             _notifier.shutdown(wait=True)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             _logger.warning("通知器关闭异常: %s", exc)
 
     if _db is not None:
         try:
             _db.close()
             _logger.info("数据库连接已关闭")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             _logger.warning("数据库关闭异常: %s", exc)
 
 
 def main() -> None:
-    """主入口：解析参数 → 初始化 → 分发 CPU 或 GPU 模式。"""
+    """主入口:解析参数 → 初始化 → 分发 CPU 或 GPU 模式.."""
     parser = _build_arg_parser()
     args = parser.parse_args()
 
@@ -1684,24 +1710,28 @@ def main() -> None:
             if scanner.connect():
                 scanner.run()
             else:
-                _logger.error("分布式 Worker 连接失败，退出")
+                _logger.error("分布式 Worker 连接失败,退出")
                 sys.exit(1)
             _cleanup(target=None, xonly_target=None)
             return
         except ImportError as exc:
-            _logger.error("分布式模块不可用，请安装 grpcio/protobuf: %s", exc)
+            _logger.exception("分布式模块不可用,请安装 grpcio/protobuf")
             sys.exit(1)
 
-    # ── 应用 UTXO 刷新 CLI 参数（覆盖配置） ──
+    # ── 应用 UTXO 刷新 CLI 参数(覆盖配置) ──
     if args.utxo_refresh is not None:
-        assert _config is not None
+        if _config is None:
+            msg = "配置尚未初始化"
+            raise RuntimeError(msg)
         _config.enable_utxo_auto_refresh = args.utxo_refresh
         _logger.info(
             "UTXO 自动刷新: %s (CLI 覆盖)",
             "启用" if args.utxo_refresh else "禁用",
         )
     if args.utxo_refresh_interval > 0:
-        assert _config is not None
+        if _config is None:
+            msg = "配置尚未初始化"
+            raise RuntimeError(msg)
         _config.utxo_refresh_interval = args.utxo_refresh_interval
         _logger.info("UTXO 刷新间隔覆盖为: %ds", args.utxo_refresh_interval)
 
@@ -1734,13 +1764,12 @@ def main() -> None:
         if _GPU_AVAILABLE:
             devices = gpu_list_devices()
             if devices:
-                print(f"\n发现 {len(devices)} 个 OpenCL 设备:\n")
-                for i, dev in enumerate(devices):
-                    print(f"  [{i}] {dev}")
+                for _i, _dev in enumerate(devices):
+                    pass
             else:
-                print("\n未找到 OpenCL 设备。")
+                pass
         else:
-            print("\nGPU 引擎不可用 (pyopencl 未安装)。")
+            pass
         return
 
     # ── 加载目标集 ──
@@ -1758,7 +1787,7 @@ def main() -> None:
     if args.gpu:
         if not _GPU_AVAILABLE:
             _logger.error(
-                "\n[错误] GPU 模式需要 pyopencl。请安装: pip install pyopencl>=2024.1"
+                "\n[错误] GPU 模式需要 pyopencl.请安装: pip install pyopencl>=2024.1",
             )
             sys.exit(1)
 

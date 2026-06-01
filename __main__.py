@@ -1,9 +1,9 @@
-"""入口模块，允许从项目根目录通过 `python __main__.py` 运行。"""
+"""入口模块,允许从项目根目录通过 `python __main__.py` 运行.."""
 
 import sys
 from pathlib import Path
 
-# 将 .local-packages 加入路径（Windows Store 版 Python 限制）
+# 将 .local-packages 加入路径(Windows Store 版 Python 限制)
 _local_pkg = Path(__file__).parent / ".local-packages"
 if _local_pkg.is_dir():
     sys.path.insert(0, str(_local_pkg))

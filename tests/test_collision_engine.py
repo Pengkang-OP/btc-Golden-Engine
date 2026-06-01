@@ -1,4 +1,4 @@
-"""测试 collision_engine 模块 — 核心逻辑与提取的函数。
+"""测试 collision_engine 模块 — 核心逻辑与提取的函数。.
 
 策略：纯函数直接测试；需 mock 的用 monkeypatch；避免真实 GPU/线程密集路径。
 """
@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -22,8 +22,10 @@ _engine_path = Path(__file__).resolve().parent.parent
 if str(_engine_path) not in sys.path:
     sys.path.insert(0, str(_engine_path))
 
-import collision_engine as ce  # noqa: E402
+import collision_engine as ce
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # ═══════════════════════════════════════════════════════════
 # 全局重置 fixture
@@ -45,7 +47,7 @@ def _reset_globals() -> Generator[None, None, None]:
     ce._refresh_last_time = 0.0
     ce._refresh_last_result = "N/A"
     ce._GPU_AVAILABLE = False  # 测试用默认
-    yield
+    return
 
 
 @pytest.fixture
@@ -94,7 +96,7 @@ class TestAddressEncoding:
         assert ce.p2wpkh_address(bytes(20)).startswith("bc1q")
 
     def test_p2wpkh_convertbits_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """convertbits 返回 None 时 p2wpkh_address 返回空字符串。"""
+        """Convertbits 返回 None 时 p2wpkh_address 返回空字符串。."""
         monkeypatch.setattr(ce, "convertbits", lambda *a, **kw: None)
         assert ce.p2wpkh_address(bytes(20)) == ""
 
@@ -117,14 +119,15 @@ class TestAddressEncoding:
         assert ce.privkey_to_p2sh(b"\x01" * 32).startswith("3")
 
     def test_p2tr_address_convertbits_none(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """convertbits 返回 None 时 p2tr_address 返回空字符串。"""
+        """Convertbits 返回 None 时 p2tr_address 返回空字符串。."""
         monkeypatch.setattr(ce, "convertbits", lambda *a, **kw: None)
         assert ce.p2tr_address(bytes(32)) == ""
 
     def test_tweak_taproot_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """tweak >= n 时 tweak_taproot 返回 None。"""
+        """Tweak >= n 时 tweak_taproot 返回 None。."""
         monkeypatch.setattr(ce, "tagged_hash", lambda tag, data: b"\xff" * 32)
         mock_pub = mock.MagicMock()
         mock_pub.format.return_value = b"\x02" + b"\x01" * 32
@@ -211,17 +214,17 @@ class TestSequentialCounter:
 
 
 class TestCollisionResult:
-    _BASE = dict(
-        privkey_hex="01" * 32,
-        wif_compressed="Kfc",
-        wif_uncompressed="5Hp",
-        p2pkh_address_comp="1a",
-        p2wpkh_address="bc1qa",
-        p2pkh_address_uncomp="1b",
-        h160_hex="00" * 20,
-        address_type="P2PKH",
-        found_via="compressed",
-    )
+    _BASE = {
+        "privkey_hex": "01" * 32,
+        "wif_compressed": "Kfc",
+        "wif_uncompressed": "5Hp",
+        "p2pkh_address_comp": "1a",
+        "p2wpkh_address": "bc1qa",
+        "p2pkh_address_uncomp": "1b",
+        "h160_hex": "00" * 20,
+        "address_type": "P2PKH",
+        "found_via": "compressed",
+    }
 
     def test_default_timestamp(self) -> None:
         r = ce.CollisionResult(**self._BASE)
@@ -264,7 +267,7 @@ class TestBuildArgParser:
 
     def test_gpu_parse(self) -> None:
         args = ce._build_arg_parser().parse_args(
-            ["--gpu", "--gpu-mode", "sequential", "--p2tr"]
+            ["--gpu", "--gpu-mode", "sequential", "--p2tr"],
         )
         assert args.gpu is True
         assert args.gpu_mode == "sequential"
@@ -300,7 +303,9 @@ class TestCheckpoint:
         assert ce.load_checkpoint() == {}
 
     def test_save_and_load(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_path / "ckpt.json")
         ce.save_checkpoint({"mode": "sequential", "next_key": 100})
@@ -309,7 +314,9 @@ class TestCheckpoint:
         assert loaded["next_key"] == 100
 
     def test_corrupted_file(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(ce, "CHECKPOINT_FILE", tmp_path / "ckpt.json")
         ce.CHECKPOINT_FILE.write_text("bad-json")
@@ -322,12 +329,14 @@ class TestCheckpoint:
 
 
 class TestSaveResult:
-    """save_result 的数据库/文件错误路径。"""
+    """save_result 的数据库/文件错误路径。."""
 
     def test_db_error_falls_back_to_json(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """数据库写入失败应回退到 JSON 并记录警告。"""
+        """数据库写入失败应回退到 JSON 并记录警告。."""
         from core.database import DatabaseError  # type: ignore[attr-defined]
 
         db = mock.MagicMock()
@@ -351,9 +360,11 @@ class TestSaveResult:
         mock_logger.error.assert_called_once()
 
     def test_corrupted_json_file(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """已损坏的 JSON 结果文件应被覆盖。"""
+        """已损坏的 JSON 结果文件应被覆盖。."""
         tmp_json = mock.MagicMock()
         tmp_json.exists.return_value = True
         tmp_json.read_text.return_value = "not valid json{{"
@@ -459,7 +470,7 @@ class TestCleanup:
 
 
 class TestCheckSingleKey:
-    """完整的碰撞检查路径：压缩命中 / 非压缩命中 / 无命中 / 异常。"""
+    """完整的碰撞检查路径：压缩命中 / 非压缩命中 / 无命中 / 异常。."""
 
     def _setup_mocks(self, monkeypatch: pytest.MonkeyPatch) -> mock.MagicMock:
         pub = mock.MagicMock()
@@ -467,12 +478,15 @@ class TestCheckSingleKey:
             b"\x02" + b"\x01" * 32 if compressed else b"\x04" + b"\x01" * 64
         )
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", lambda _: mock.MagicMock(public_key=pub)
+            "collision_engine.PrivateKey",
+            lambda _: mock.MagicMock(public_key=pub),
         )
         return pub
 
     def test_compressed_hit(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         self._setup_mocks(monkeypatch)
         target = mock.MagicMock()
@@ -483,7 +497,9 @@ class TestCheckSingleKey:
         assert result.found_via == "compressed"
 
     def test_uncompressed_hit(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         self._setup_mocks(monkeypatch)
         target = mock.MagicMock()
@@ -494,7 +510,9 @@ class TestCheckSingleKey:
         assert result.found_via == "uncompressed"
 
     def test_no_hit(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         self._setup_mocks(monkeypatch)
         target = mock.MagicMock()
@@ -502,22 +520,28 @@ class TestCheckSingleKey:
         assert ce.check_single_key(1, target) is None
 
     def test_exception_returns_none(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", mock.MagicMock(side_effect=ValueError("bad"))
+            "collision_engine.PrivateKey",
+            mock.MagicMock(side_effect=ValueError("bad")),
         )
         assert ce.check_single_key(1, mock.MagicMock()) is None
         mock_logger.warning.assert_called_once()
 
     def test_p2tr_hit(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
-        """P2TR (Taproot) 碰撞命中路径。"""
+        """P2TR (Taproot) 碰撞命中路径。."""
         pub = mock.MagicMock()
         pub.format.return_value = b"\x02" + b"\x01" * 32
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", lambda _: mock.MagicMock(public_key=pub)
+            "collision_engine.PrivateKey",
+            lambda _: mock.MagicMock(public_key=pub),
         )
         monkeypatch.setattr(
             ce,
@@ -535,13 +559,16 @@ class TestCheckSingleKey:
         assert result.found_via == "tweaked"
 
     def test_p2tr_miss(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
-        """P2TR 目标未命中时返回 None。"""
+        """P2TR 目标未命中时返回 None。."""
         pub = mock.MagicMock()
         pub.format.return_value = b"\x02" + b"\x01" * 32
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", lambda _: mock.MagicMock(public_key=pub)
+            "collision_engine.PrivateKey",
+            lambda _: mock.MagicMock(public_key=pub),
         )
         monkeypatch.setattr(
             ce,
@@ -550,7 +577,9 @@ class TestCheckSingleKey:
         )
         xonly_target = mock.MagicMock()
         result = ce.check_single_key(
-            1, mock.MagicMock(__contains__=lambda h: False), xonly_target
+            1,
+            mock.MagicMock(__contains__=lambda h: False),
+            xonly_target,
         )
         assert result is None
 
@@ -562,14 +591,17 @@ class TestCheckSingleKey:
 
 class TestCheckSingleKeyChain:
     def test_compressed_hit(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         pub = mock.MagicMock()
         pub.format.side_effect = lambda compressed=True: (
             b"\x02" + b"\x01" * 32 if compressed else b"\x04" + b"\x01" * 64
         )
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", lambda _: mock.MagicMock(public_key=pub)
+            "collision_engine.PrivateKey",
+            lambda _: mock.MagicMock(public_key=pub),
         )
         target = mock.MagicMock()
         comp_h160 = ce.hash160(b"\x02" + b"\x01" * 32)
@@ -580,12 +612,15 @@ class TestCheckSingleKeyChain:
         assert pubkey is not None
 
     def test_no_hit_returns_pubkey(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         pub = mock.MagicMock()
         pub.format.return_value = b"\x02" + b"\x01" * 32
         monkeypatch.setattr(
-            "collision_engine.PrivateKey", lambda _: mock.MagicMock(public_key=pub)
+            "collision_engine.PrivateKey",
+            lambda _: mock.MagicMock(public_key=pub),
         )
         target = mock.MagicMock()
         target.__contains__.return_value = False
@@ -601,7 +636,7 @@ class TestCheckSingleKeyChain:
 
 class TestMain:
     def _mock_init_core(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """mock _init_core 同时设置 _logger 和 _config（main() 在 _init_core 后立即用）。"""
+        """Mock _init_core 同时设置 _logger 和 _config（main() 在 _init_core 后立即用）。."""
         ce._logger = mock.MagicMock()
         cfg = mock.MagicMock()
         cfg.enable_utxo_auto_refresh = False
@@ -648,7 +683,9 @@ class TestMain:
         cleanup.assert_called_once()
 
     def test_gpu_mode_path(
-        self, monkeypatch: pytest.MonkeyPatch, mock_logger: mock.MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_logger: mock.MagicMock,
     ) -> None:
         monkeypatch.setattr("sys.argv", ["prog", "--gpu"])
         monkeypatch.setattr(ce, "_GPU_AVAILABLE", True)
@@ -674,7 +711,7 @@ class TestMain:
 
 
 class TestStartConfigWatcher:
-    """测试配置热重载后台线程的启动和行为。"""
+    """测试配置热重载后台线程的启动和行为。."""
 
     def test_starts_daemon_thread(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """验证启动 daemon 线程并调用 start()."""
@@ -693,9 +730,11 @@ class TestStartConfigWatcher:
         assert thread_mock.daemon is True
 
     def test_watch_loop_reloads_on_check_reload(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """验证 check_reload() 返回 True 时记录日志。"""
+        """验证 check_reload() 返回 True 时记录日志。."""
         config = mock.MagicMock()
         config.check_reload.return_value = True
         target_func: list[Any] = []
@@ -711,15 +750,19 @@ class TestStartConfigWatcher:
         # 执行一次循环后退出
         ce._shutdown_requested = False
         monkeypatch.setattr(
-            time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True)
+            time,
+            "sleep",
+            lambda _: setattr(ce, "_shutdown_requested", True),
         )
         fn()
         mock_logger.info.assert_called_with("配置文件已变更并自动重载")
 
     def test_watch_loop_swallows_exceptions(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """验证 check_reload() 抛异常时被静默吞噬。"""
+        """验证 check_reload() 抛异常时被静默吞噬。."""
         config = mock.MagicMock()
         config.check_reload.side_effect = RuntimeError("unexpected")
         target_func: list[Any] = []
@@ -734,7 +777,9 @@ class TestStartConfigWatcher:
 
         ce._shutdown_requested = False
         monkeypatch.setattr(
-            time, "sleep", lambda _: setattr(ce, "_shutdown_requested", True)
+            time,
+            "sleep",
+            lambda _: setattr(ce, "_shutdown_requested", True),
         )
         fn()  # 不应抛出异常
 
@@ -745,10 +790,10 @@ class TestStartConfigWatcher:
 
 
 class TestFindBitcoinCli:
-    """测试 bitcoin-cli 可执行文件查找逻辑。"""
+    """测试 bitcoin-cli 可执行文件查找逻辑。."""
 
     def test_uses_configured_path(self, tmp_path: Path) -> None:
-        """配置路径存在时返回该路径。"""
+        """配置路径存在时返回该路径。."""
         config = mock.MagicMock()
         cli_path = tmp_path / "custom-bitcoin-cli.exe"
         cli_path.write_text("")
@@ -757,18 +802,22 @@ class TestFindBitcoinCli:
         assert result == str(cli_path.resolve())
 
     def test_configured_path_not_found_logs_warning(
-        self, mock_logger: mock.MagicMock, tmp_path: Path
+        self,
+        mock_logger: mock.MagicMock,
+        tmp_path: Path,
     ) -> None:
-        """配置路径不存在时记录警告并回退到自动检测。"""
+        """配置路径不存在时记录警告并回退到自动检测。."""
         config = mock.MagicMock()
         config.bitcoin_cli_path = str(tmp_path / "nonexistent.exe")
         ce._find_bitcoin_cli(config)
         mock_logger.warning.assert_called_once()
 
     def test_auto_detects_in_cwd(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ) -> None:
-        """CWD 中有 bitcoin-cli.exe 时自动发现。"""
+        """CWD 中有 bitcoin-cli.exe 时自动发现。."""
         config = mock.MagicMock()
         config.bitcoin_cli_path = None
         cli_path = tmp_path / "bitcoin-cli.exe"
@@ -778,9 +827,11 @@ class TestFindBitcoinCli:
         assert result is not None
 
     def test_auto_detects_in_daemon_dir(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ) -> None:
-        """daemon/bitcoin-cli.exe 存在时自动发现。"""
+        """daemon/bitcoin-cli.exe 存在时自动发现。."""
         config = mock.MagicMock()
         config.bitcoin_cli_path = None
         daemon_dir = tmp_path / "daemon"
@@ -793,9 +844,11 @@ class TestFindBitcoinCli:
         assert "daemon" in result
 
     def test_no_candidates_returns_none(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ) -> None:
-        """无任何候选文件时返回 None。"""
+        """无任何候选文件时返回 None。."""
         config = mock.MagicMock()
         config.bitcoin_cli_path = None
         monkeypatch.setattr(Path, "cwd", lambda: tmp_path)
@@ -809,24 +862,24 @@ class TestFindBitcoinCli:
 
 
 class TestFindBitcoinDatadir:
-    """测试 Bitcoin 数据目录查找逻辑。"""
+    """测试 Bitcoin 数据目录查找逻辑。."""
 
     def test_uses_configured_path(self, tmp_path: Path) -> None:
-        """配置路径存在时返回该路径。"""
+        """配置路径存在时返回该路径。."""
         config = mock.MagicMock()
         config.bitcoin_datadir = str(tmp_path)
         result = ce._find_bitcoin_datadir(config)
         assert result == str(tmp_path.resolve())
 
     def test_configured_path_not_found_falls_back_to_cwd(self, tmp_path: Path) -> None:
-        """配置路径不存在时回退到 CWD。"""
+        """配置路径不存在时回退到 CWD。."""
         config = mock.MagicMock()
         config.bitcoin_datadir = str(tmp_path / "nonexistent")
         result = ce._find_bitcoin_datadir(config)
         assert result is not None  # CWD 总是存在
 
     def test_no_config_returns_cwd(self) -> None:
-        """未配置时返回 CWD。"""
+        """未配置时返回 CWD。."""
         config = mock.MagicMock()
         config.bitcoin_datadir = None
         result = ce._find_bitcoin_datadir(config)
@@ -834,7 +887,7 @@ class TestFindBitcoinDatadir:
         assert isinstance(result, str)
 
     def test_cwd_not_dir_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """CWD 不是目录时返回 None。"""
+        """CWD 不是目录时返回 None。."""
         monkeypatch.setattr(Path, "cwd", lambda: Path("/nonexistent/file.txt"))
         monkeypatch.setattr(Path, "is_dir", lambda _: False)
         config = mock.MagicMock()
@@ -849,10 +902,12 @@ class TestFindBitcoinDatadir:
 
 
 class TestRunBitcoinCliDumptxoutset:
-    """测试运行 bitcoin-cli dumptxoutset 子进程。"""
+    """测试运行 bitcoin-cli dumptxoutset 子进程。."""
 
     def test_success_returns_true(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
             subprocess,
@@ -861,13 +916,18 @@ class TestRunBitcoinCliDumptxoutset:
         )
         assert (
             ce._run_bitcoin_cli_dumptxoutset(
-                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+                "bitcoin-cli",
+                "/datadir",
+                "/tmp/snap.dat",
+                mock_logger,
             )
             is True
         )
 
     def test_failure_returns_false(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
             subprocess,
@@ -876,13 +936,18 @@ class TestRunBitcoinCliDumptxoutset:
         )
         assert (
             ce._run_bitcoin_cli_dumptxoutset(
-                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+                "bitcoin-cli",
+                "/datadir",
+                "/tmp/snap.dat",
+                mock_logger,
             )
             is False
         )
 
     def test_file_not_found_returns_false(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
             subprocess,
@@ -891,13 +956,18 @@ class TestRunBitcoinCliDumptxoutset:
         )
         assert (
             ce._run_bitcoin_cli_dumptxoutset(
-                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+                "bitcoin-cli",
+                "/datadir",
+                "/tmp/snap.dat",
+                mock_logger,
             )
             is False
         )
 
     def test_timeout_returns_false(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
             subprocess,
@@ -906,13 +976,18 @@ class TestRunBitcoinCliDumptxoutset:
         )
         assert (
             ce._run_bitcoin_cli_dumptxoutset(
-                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+                "bitcoin-cli",
+                "/datadir",
+                "/tmp/snap.dat",
+                mock_logger,
             )
             is False
         )
 
     def test_generic_exception_returns_false(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
             subprocess,
@@ -921,7 +996,10 @@ class TestRunBitcoinCliDumptxoutset:
         )
         assert (
             ce._run_bitcoin_cli_dumptxoutset(
-                "bitcoin-cli", "/datadir", "/tmp/snap.dat", mock_logger
+                "bitcoin-cli",
+                "/datadir",
+                "/tmp/snap.dat",
+                mock_logger,
             )
             is False
         )
@@ -933,19 +1011,20 @@ class TestRunBitcoinCliDumptxoutset:
 
 
 class TestStartUtxoRefresher:
-    """测试 UTXO 自动刷新后台线程。"""
+    """测试 UTXO 自动刷新后台线程。."""
 
     def test_disabled_returns_none(self) -> None:
-        """自动刷新未启用时返回 None。"""
+        """自动刷新未启用时返回 None。."""
         config = mock.MagicMock()
         config.enable_utxo_auto_refresh = False
         result = ce._start_utxo_refresher(config, mock.MagicMock(), mock.MagicMock())
         assert result is None
 
     def test_enabled_starts_daemon_thread(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """启用后启动 daemon 线程。"""
+        """启用后启动 daemon 线程。."""
         config = mock.MagicMock()
         config.enable_utxo_auto_refresh = True
         config.utxo_refresh_interval = 300
@@ -964,7 +1043,7 @@ class TestStartUtxoRefresher:
         assert thread_mock.daemon is True
 
     def test_enabled_stores_thread_ref(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """启动后设置 _refresh_thread 全局变量。"""
+        """启动后设置 _refresh_thread 全局变量。."""
         config = mock.MagicMock()
         config.enable_utxo_auto_refresh = True
         config.utxo_refresh_interval = 120
@@ -980,10 +1059,10 @@ class TestStartUtxoRefresher:
 
 
 class TestDoUtxoRefresh:
-    """测试 UTXO 刷新各出错路径和完整流程。"""
+    """测试 UTXO 刷新各出错路径和完整流程。."""
 
     def _setup_base_mocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """设置 _config 和 _swappable_target 基本 mock。"""
+        """设置 _config 和 _swappable_target 基本 mock。."""
         ce._config = mock.MagicMock()
         ce._config.utxo_snapshot_path = "/tmp/snap.dat"
         ce._config.utxo_hash160_bin = "/tmp/h160.bin"
@@ -997,14 +1076,17 @@ class TestDoUtxoRefresh:
         assert ce._do_utxo_refresh(mock_logger) is False
 
     def test_no_swappable_target_returns_false(
-        self, mock_logger: mock.MagicMock
+        self,
+        mock_logger: mock.MagicMock,
     ) -> None:
         ce._config = mock.MagicMock()
         ce._swappable_target = None
         assert ce._do_utxo_refresh(mock_logger) is False
 
     def test_bitcoin_cli_not_found(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: None)
@@ -1012,7 +1094,9 @@ class TestDoUtxoRefresh:
         assert "bitcoin-cli 未找到" in ce._refresh_last_result
 
     def test_datadir_not_found(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: "bitcoin-cli")
@@ -1021,7 +1105,9 @@ class TestDoUtxoRefresh:
         assert "数据目录未找到" in ce._refresh_last_result
 
     def test_dumptxoutset_fails(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: "bitcoin-cli")
@@ -1031,7 +1117,9 @@ class TestDoUtxoRefresh:
         assert "dumptxoutset 失败" in ce._refresh_last_result
 
     def test_snapshot_file_missing(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: "bitcoin-cli")
@@ -1042,9 +1130,11 @@ class TestDoUtxoRefresh:
         assert "快照文件未生成" in ce._refresh_last_result
 
     def test_extraction_failure(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """extract_snapshot 异常时返回 False。"""
+        """extract_snapshot 异常时返回 False。."""
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: "bitcoin-cli")
         monkeypatch.setattr(ce, "_find_bitcoin_datadir", lambda _: "/datadir")
@@ -1052,16 +1142,18 @@ class TestDoUtxoRefresh:
         monkeypatch.setattr(Path, "is_file", lambda _: True)
         mock_extract = mock.MagicMock()
         mock_extract.extract_snapshot = mock.MagicMock(
-            side_effect=ValueError("parse error")
+            side_effect=ValueError("parse error"),
         )
         monkeypatch.setitem(sys.modules, "extract_utxo_hash160", mock_extract)
         assert ce._do_utxo_refresh(mock_logger) is False
         assert "提取失败" in ce._refresh_last_result
 
     def test_new_target_load_failure(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Hash160Set.load 异常时返回 False。"""
+        """Hash160Set.load 异常时返回 False。."""
         self._setup_base_mocks(monkeypatch)
         monkeypatch.setattr(ce, "_find_bitcoin_cli", lambda _: "bitcoin-cli")
         monkeypatch.setattr(ce, "_find_bitcoin_datadir", lambda _: "/datadir")
@@ -1069,7 +1161,7 @@ class TestDoUtxoRefresh:
         monkeypatch.setattr(Path, "is_file", lambda _: True)
         mock_extract = mock.MagicMock()
         mock_extract.extract_snapshot = mock.MagicMock(
-            return_value={"TOTAL_HASH160": 500}
+            return_value={"TOTAL_HASH160": 500},
         )
         monkeypatch.setitem(sys.modules, "extract_utxo_hash160", mock_extract)
         mock_hash160_cls = mock.MagicMock()
@@ -1079,9 +1171,11 @@ class TestDoUtxoRefresh:
         assert "新目标集加载失败" in ce._refresh_last_result
 
     def test_p2tr_xonly_refresh_load_failure(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """P2TR xonly load 失败时仍返回 True（XOnlySet() 实例化后 load 才抛异常）。"""
+        """P2TR xonly load 失败时仍返回 True（XOnlySet() 实例化后 load 才抛异常）。."""
         self._setup_base_mocks(monkeypatch)
         ce._swappable_xonly = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = True
@@ -1091,7 +1185,7 @@ class TestDoUtxoRefresh:
         monkeypatch.setattr(Path, "is_file", lambda _: True)
         mock_extract = mock.MagicMock()
         mock_extract.extract_snapshot = mock.MagicMock(
-            return_value={"TOTAL_HASH160": 500}
+            return_value={"TOTAL_HASH160": 500},
         )
         monkeypatch.setitem(sys.modules, "extract_utxo_hash160", mock_extract)
         monkeypatch.setattr(ce, "Hash160Set", mock.MagicMock())
@@ -1106,9 +1200,11 @@ class TestDoUtxoRefresh:
         assert "成功" in ce._refresh_last_result
 
     def test_full_success_path(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """完整的成功路径：提取、加载、双 swap 均成功。"""
+        """完整的成功路径：提取、加载、双 swap 均成功。."""
         self._setup_base_mocks(monkeypatch)
         ce._swappable_xonly = mock.MagicMock()
         ce._config.enable_utxo_auto_refresh = True
@@ -1118,7 +1214,7 @@ class TestDoUtxoRefresh:
         monkeypatch.setattr(Path, "is_file", lambda _: True)
         mock_extract = mock.MagicMock()
         mock_extract.extract_snapshot = mock.MagicMock(
-            return_value={"TOTAL_HASH160": 500}
+            return_value={"TOTAL_HASH160": 500},
         )
         monkeypatch.setitem(sys.modules, "extract_utxo_hash160", mock_extract)
         monkeypatch.setattr(ce, "Hash160Set", mock.MagicMock())
@@ -1137,26 +1233,32 @@ class TestDoUtxoRefresh:
 
 
 class TestWorkerSequential:
-    """worker_sequential: shutdown / stride 等边界。"""
+    """worker_sequential: shutdown / stride 等边界。."""
 
     def test_shutdown_with_stride(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """设置 _shutdown_requested 后停止, 带 stride_bytes。"""
+        """设置 _shutdown_requested 后停止, 带 stride_bytes。."""
         ce._shutdown_requested = True
         counter = mock.MagicMock()
         counter.next.return_value = 1
         target = mock.MagicMock()
         monkeypatch.setattr(
-            ce, "check_single_key_chain", mock.MagicMock(return_value=(None, None))
+            ce,
+            "check_single_key_chain",
+            mock.MagicMock(return_value=(None, None)),
         )
         result = ce.worker_sequential(counter, target, 0, b"\x00" * 32)
         assert result >= 0
 
     def test_shutdown_without_stride(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """shutdown 时无 stride_bytes, 走 check_single_key 路径。"""
+        """Shutdown 时无 stride_bytes, 走 check_single_key 路径。."""
         ce._shutdown_requested = True
         counter = mock.MagicMock()
         counter.next.return_value = 1
@@ -1166,7 +1268,7 @@ class TestWorkerSequential:
         assert result >= 0
 
     def test_counter_exhausted(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """counter.next() 返回 None 即退出。"""
+        """counter.next() 返回 None 即退出。."""
         counter = mock.MagicMock()
         counter.next.return_value = None
         result = ce.worker_sequential(counter, mock.MagicMock(), 0)
@@ -1179,19 +1281,21 @@ class TestWorkerSequential:
 
 
 class TestWorkerRandom:
-    """worker_random: shutdown / count limit 边界。"""
+    """worker_random: shutdown / count limit 边界。."""
 
     def test_shutdown_requested(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """收到 shutdown 请求后退出。"""
+        """收到 shutdown 请求后退出。."""
         ce._shutdown_requested = True
         monkeypatch.setattr(ce, "check_single_key", mock.MagicMock(return_value=None))
         result = ce.worker_random(mock.MagicMock(), 0)
         assert result >= 0
 
     def test_count_limit_reached(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """check_limit 达到时退出。"""
+        """check_limit 达到时退出。."""
         ce._global_checked = 1000
         ce._shutdown_requested = False
         monkeypatch.setattr(ce, "_counter_lock", mock.MagicMock())
@@ -1208,12 +1312,14 @@ class TestWorkerRandom:
 
 
 class TestRunGpuMode:
-    """_run_gpu_mode 的输入验证和错误路径。"""
+    """_run_gpu_mode 的输入验证和错误路径。."""
 
     def test_bad_gpu_devices_exits(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """--gpu-devices 格式无效时 sys.exit(1)。"""
+        """--gpu-devices 格式无效时 sys.exit(1)。."""
         args = mock.MagicMock(
             gpu_devices="not-a-number",
             gpu_mode="random",
@@ -1228,9 +1334,11 @@ class TestRunGpuMode:
             ce._run_gpu_mode(mock.MagicMock(), args)
 
     def test_gpu_sequential_checkpoint_restore(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """GPU 顺序模式从 checkpoint 恢复 next_key。"""
+        """GPU 顺序模式从 checkpoint 恢复 next_key。."""
         args = mock.MagicMock(
             gpu_devices="",
             gpu_mode="sequential",
@@ -1255,9 +1363,11 @@ class TestRunGpuMode:
         scheduler_mock.run.assert_called_once()
 
     def test_gpu_keyboard_interrupt_checkpoint(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """GPU 顺序模式收到 KeyboardInterrupt 应保存 checkpoint。"""
+        """GPU 顺序模式收到 KeyboardInterrupt 应保存 checkpoint。."""
         args = mock.MagicMock(
             gpu_devices="",
             gpu_mode="sequential",
@@ -1294,27 +1404,31 @@ class TestRunGpuMode:
 
 
 class TestRunCpuMode:
-    """_run_cpu_mode 的顺序和随机模式路径。"""
+    """_run_cpu_mode 的顺序和随机模式路径。."""
 
     def test_sequential_basic(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """顺序模式基本路径（无 checkpoint 恢复）。"""
+        """顺序模式基本路径（无 checkpoint 恢复）。."""
         args = mock.MagicMock(
             mode="sequential",
             start="0x1",
             count=0,
             threads=1,
         )
-        monkeypatch.setattr(ce, "load_checkpoint", lambda: {})
+        monkeypatch.setattr(ce, "load_checkpoint", dict)
         monkeypatch.setattr(ce, "worker_sequential", mock.MagicMock(return_value=0))
         ce._run_cpu_mode(mock.MagicMock(), args, None)
         ce.worker_sequential.assert_called_once()  # type: ignore[attr-defined]
 
     def test_random_basic(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """随机模式基本路径。"""
+        """随机模式基本路径。."""
         args = mock.MagicMock(
             mode="random",
             start="0x1",
@@ -1326,9 +1440,11 @@ class TestRunCpuMode:
         ce.worker_random.assert_called_once()  # type: ignore[attr-defined]
 
     def test_sequential_with_checkpoint(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """顺序模式从 checkpoint 恢复起始值。"""
+        """顺序模式从 checkpoint 恢复起始值。."""
         args = mock.MagicMock(
             mode="sequential",
             start="0x1",
@@ -1352,10 +1468,10 @@ class TestRunCpuMode:
 
 
 class TestHealthCheck:
-    """_health_check 输出 JSON 状态。"""
+    """_health_check 输出 JSON 状态。."""
 
     def test_basic_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """基本健康检查输出 JSON（模拟 UTXO 文件存在）。"""
+        """基本健康检查输出 JSON（模拟 UTXO 文件存在）。."""
         import io
 
         ce._db = mock.MagicMock()
@@ -1374,7 +1490,7 @@ class TestHealthCheck:
         assert data["checks"]["database"]["result_count"] == 42
 
     def test_database_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """数据库异常时标记 degraded。"""
+        """数据库异常时标记 degraded。."""
         import io
 
         db = mock.MagicMock()
@@ -1389,7 +1505,7 @@ class TestHealthCheck:
         assert data["checks"]["database"]["status"] == "error"
 
     def test_no_db(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """数据库未初始化。"""
+        """数据库未初始化。."""
         import io
 
         ce._db = None
@@ -1402,7 +1518,7 @@ class TestHealthCheck:
         assert data["checks"]["database"]["status"] == "not_initialized"
 
     def test_gpu_device_enum_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """GPU 设备枚举异常应记录到状态。"""
+        """GPU 设备枚举异常应记录到状态。."""
         import io
 
         ce._db = mock.MagicMock()
@@ -1423,7 +1539,7 @@ class TestHealthCheck:
         assert "opencl err" in data["checks"]["gpu"]["device_enum_error"]
 
     def test_degraded_when_utxo_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """UTXO 数据缺失时状态为 degraded。"""
+        """UTXO 数据缺失时状态为 degraded。."""
         import io
         from pathlib import Path
 
@@ -1446,30 +1562,34 @@ class TestHealthCheck:
 
 
 class TestLoadTargets:
-    """_load_targets 的加载路径。"""
+    """_load_targets 的加载路径。."""
 
     def test_basic_load(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """基本加载路径（无 P2TR）。"""
+        """基本加载路径（无 P2TR）。."""
         args = mock.MagicMock(p2tr=False, xonly_file="")
         mock_target = mock.MagicMock()
         monkeypatch.setattr(ce, "Hash160Set", lambda: mock_target)
         monkeypatch.setattr(ce, "SwappableTarget", lambda **kw: mock.MagicMock())
-        t, x = ce._load_targets(args)
+        _t, x = ce._load_targets(args)
         assert x is None
 
     def test_p2tr_load(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """P2TR 加载路径。"""
+        """P2TR 加载路径。."""
         args = mock.MagicMock(p2tr=True, xonly_file="")
         mock_target = mock.MagicMock()
         mock_xonly = mock.MagicMock()
         monkeypatch.setattr(ce, "Hash160Set", lambda: mock_target)
         monkeypatch.setattr(ce, "XOnlySet", lambda: mock_xonly)
         monkeypatch.setattr(ce, "SwappableTarget", lambda **kw: mock.MagicMock())
-        t, x = ce._load_targets(args)
+        _t, x = ce._load_targets(args)
         assert x is not None
 
 
@@ -1479,12 +1599,14 @@ class TestLoadTargets:
 
 
 class TestReportProgress:
-    """_report_progress 进度日志。"""
+    """_report_progress 进度日志。."""
 
     def test_reports_with_elapsed(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """在 time 间隔后输出进度。"""
+        """在 time 间隔后输出进度。."""
         ce._global_checked = 5000
         ce._global_start_time = time.time() - 10
         ce._counter_lock = mock.MagicMock()
@@ -1494,9 +1616,11 @@ class TestReportProgress:
         assert "5,000" in log_str
 
     def test_reports_with_current_key(
-        self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_logger: mock.MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """顺序模式显示当前 key。"""
+        """顺序模式显示当前 key。."""
         ce._global_checked = 3000
         ce._global_start_time = time.time() - 5
         ce._counter_lock = mock.MagicMock()

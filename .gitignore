@@ -82,11 +82,34 @@ test_kernel_out.txt
 _download_logs.py
 _check_ci*.py
 _ci*.py
+_find_*.py
 _get_*.py
 _lint_diag.py
 _wait_ci.py
 _run_*.py
 _coverage_tdr.py
+
+# Temporary diagnostic scripts (root-level)
+_fix_*.py
+_ruff_*.py
+ruff_*.py
+
+# CI/Ruff diagnostic outputs
+check_runs.json
+ci_jobs*.json
+ci_runs.json
+summary.txt
+coverage.xml
+*_err.txt
+*_out.txt
+*_verify.txt
+format_errors.txt
+_ruff_*.txt
+
+# Empty/temp artifacts
+3000
+
+# CI logs and gitignored patterns
 ci_log_*.txt
 mypy_out.txt
 ruff_fmt_check.txt

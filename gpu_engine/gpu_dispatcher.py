@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
-"""多 GPU 调度器 — 管理多个 GPU 管道的并行提交与结果编排。
+"""多 GPU 调度器 - 管理多个 GPU 管道的并行提交与结果编排..
 
-支持：
+支持:
   - 多 GPU 并行执行 batch
-  - 自动负载均衡（按计算单元数）
+  - 自动负载均衡(按计算单元数)
   - 进度报告和碰撞统计
 """
 
 from __future__ import annotations
 
 import logging
-import time
 import threading
+import time
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Self
 
-from .gpu_pipeline import GPUPipeline
 from .gpu_device import DeviceInfo
+from .gpu_pipeline import GPUPipeline
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DispatcherConfig:
-    """调度器配置。"""
+    """调度器配置.."""
 
     batch_size: int = 65536
     device_indices: list[int] | None = None  # None = 所有可用 GPU
@@ -34,15 +37,15 @@ class DispatcherConfig:
     mode: str = "random"  # "random" 或 "sequential"
     sequential_start: int = 1  # 顺序扫描起始私钥
     tdr_safe: bool = True  # 启用 TDR 安全 sub-batch 拆分
-    max_kernel_time: float = 1.5  # 单个 sub-batch 最大执行时间（秒）
-    # P2-10: GPU 侧碰撞检测 bloom 参数（通过调度器透传）
+    max_kernel_time: float = 1.5  # 单个 sub-batch 最大执行时间(秒)
+    # P2-10: GPU 侧碰撞检测 bloom 参数(通过调度器透传)
     bloom_data: bytes | None = None
     bloom_m: int = 0
 
 
 @dataclass
 class WorkerResult:
-    """单个 GPU 工作线程的累计结果。"""
+    """单个 GPU 工作线程的累计结果.."""
 
     device_name: str
     keys_checked: int = 0
@@ -52,10 +55,10 @@ class WorkerResult:
 
 
 class GPUBatchScheduler:
-    """多 GPU batch 调度器。"""
+    """多 GPU batch 调度器.."""
 
-    def __init__(self, config: DispatcherConfig):
-        """初始化调度器，设置配置和内部状态。"""
+    def __init__(self, config: DispatcherConfig) -> None:
+        """初始化调度器,设置配置和内部状态.."""
         self.config = config
         self._pipelines: list[GPUPipeline] = []
         self._workers: list[WorkerResult] = []
@@ -68,14 +71,14 @@ class GPUBatchScheduler:
     def _resolve_device_indices(
         device_indices: list[int] | None,
     ) -> list[tuple[int, int, DeviceInfo]]:
-        """将全局扁平的设备索引解析为 (platform_index, local_device_index, DeviceInfo) 元组。
+        """将全局扁平的设备索引解析为 (platform_index, local_device_index, DeviceInfo) 元组..
 
-        `device_indices` 是 `list_devices()` 返回的全局扁平列表中的索引。
+        `device_indices` 是 `list_devices()` 返回的全局扁平列表中的索引.
         """
         try:
             import pyopencl as cl
         except ImportError:
-            logger.warning("[GPU] pyopencl 未安装，无法解析设备索引。")
+            logger.warning("[GPU] pyopencl 未安装,无法解析设备索引.")
             return []
 
         result: list[tuple[int, int, DeviceInfo]] = []
@@ -107,35 +110,34 @@ class GPUBatchScheduler:
                     available=bool(dev.available),
                     _raw_device=dev,
                 )
-                # 筛选：指定索引 → 精确匹配；未指定 → 可用 GPU
+                # 筛选:指定索引 → 精确匹配;未指定 → 可用 GPU
                 if device_indices is not None:
                     if global_idx in device_indices:
                         result.append((pi, di, dev_info))
-                else:
-                    if dev_info.available and dev_info.device_type == "GPU":
-                        result.append((pi, di, dev_info))
+                elif dev_info.available and dev_info.device_type == "GPU":
+                    result.append((pi, di, dev_info))
                 global_idx += 1
         return result
 
     def initialize(self) -> bool:
-        """初始化所有 GPU 管道。成功返回 True。"""
+        """初始化所有 GPU 管道.成功返回 True.."""
         selected = self._resolve_device_indices(self.config.device_indices)
         if not selected:
             logger.warning(
                 "%s",
-                "[GPU] 没有可用的 GPU 设备。"
+                "[GPU] 没有可用的 GPU 设备."
                 if self.config.device_indices is None
-                else f"[GPU] 指定的设备索引 {self.config.device_indices} 无效。",
+                else f"[GPU] 指定的设备索引 {self.config.device_indices} 无效.",
             )
             return False
 
         if not self.config.quiet:
             logger.info("[GPU] 初始化 %d 个 GPU 管道...", len(selected))
 
-        # 顺序模式下，多 GPU 需要分区起始值
+        # 顺序模式下,多 GPU 需要分区起始值
         n_gpu = len(selected)
         base_start = self.config.sequential_start
-        # stride = n_gpu * batch_size（每个 GPU 轮转一次后整体推进量）
+        # stride = n_gpu * batch_size(每个 GPU 轮转一次后整体推进量)
         gpu_stride = n_gpu * self.config.batch_size
 
         for i, (pi, di, dev_info) in enumerate(selected):
@@ -178,18 +180,18 @@ class GPUBatchScheduler:
                 if not self.config.quiet:
                     logger.info("  [%d] %s [OK]", i, dev_info.device_name)
             except Exception as e:
-                logger.error("  [%d] %s [FAIL]: %s", i, dev_info.device_name, e)
+                logger.exception("  [%d] %s [FAIL]", i, dev_info.device_name)
                 self._workers.append(WorkerResult(device_name=dev_info.device_name))
 
         return len(self._pipelines) > 0
 
-    def _worker_loop(self, pipe_index: int):
-        """单个 GPU 管道的工作循环。"""
+    def _worker_loop(self, pipe_index: int) -> None:
+        """单个 GPU 管道的工作循环.."""
         pipe = self._pipelines[pipe_index]
         worker = self._workers[pipe_index]
 
-        # P2-10: 当 bloom 数据已设置且未传入 check_collision 时，
-        # 自动启用 GPU 侧碰撞检测（submit_batch 根据 check_collision=None 触发）
+        # P2-10: 当 bloom 数据已设置且未传入 check_collision 时,
+        # 自动启用 GPU 侧碰撞检测(submit_batch 根据 check_collision=None 触发)
         use_gpu_collision = (
             self.config.bloom_data is not None and self.config.check_collision is None
         )
@@ -222,16 +224,17 @@ class GPUBatchScheduler:
                 with self._lock:
                     worker.errors += 1
                 if not self.config.quiet:
-                    logger.error("\n[GPU][%d] 错误: %s", pipe_index, e)
+                    logger.exception("\n[GPU][%d] 错误", pipe_index)
                 # 出错时短暂暂停
                 self._stop_event.wait(1.0)
                 if self._stop_event.is_set():
                     break
 
     def run(self) -> list[WorkerResult]:
-        """启动所有 GPU worker 并等待完成。"""
+        """启动所有 GPU worker 并等待完成.."""
         if not self._pipelines:
-            raise RuntimeError("调度器未初始化，请先调用 initialize()")
+            msg = "调度器未初始化,请先调用 initialize()"
+            raise RuntimeError(msg)
 
         t_start = time.perf_counter()
         threads = []
@@ -250,7 +253,7 @@ class GPUBatchScheduler:
             for t in threads:
                 t.join()
         except KeyboardInterrupt:
-            logger.warning("\n[GPU] 收到中断信号，正在停止...")
+            logger.warning("\n[GPU] 收到中断信号,正在停止...")
             self._stop_event.set()
             for t in threads:
                 t.join(timeout=5.0)
@@ -263,11 +266,11 @@ class GPUBatchScheduler:
         return self._workers
 
     def stop(self) -> None:
-        """停止所有 GPU worker。"""
+        """停止所有 GPU worker.."""
         self._stop_event.set()
 
-    def _print_summary(self, total_time: float):
-        """记录运行汇总。"""
+    def _print_summary(self, total_time: float) -> None:
+        """记录运行汇总.."""
         logger.info(
             "\n%s\n  GPU 碰撞扫描结果\n%s",
             "=" * 60,
@@ -303,19 +306,19 @@ class GPUBatchScheduler:
         )
 
     def close(self) -> None:
-        """释放所有管道。"""
+        """释放所有管道.."""
         self._stop_event.set()
         for pipe in self._pipelines:
             try:
                 pipe.close()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
         self._pipelines.clear()
 
-    def __enter__(self) -> GPUBatchScheduler:
-        """上下文管理器入口，返回自身。"""
+    def __enter__(self) -> Self:
+        """上下文管理器入口,返回自身.."""
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        """上下文管理器出口，释放所有 GPU 管道。"""
+    def __exit__(self, *args: object) -> None:
+        """上下文管理器出口,释放所有 GPU 管道.."""
         self.close()

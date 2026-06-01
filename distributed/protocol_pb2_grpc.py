@@ -13,7 +13,7 @@ try:
     from grpc._utilities import first_version_is_lower
 
     _version_not_supported = first_version_is_lower(
-        GRPC_VERSION, GRPC_GENERATED_VERSION
+        GRPC_VERSION, GRPC_GENERATED_VERSION,
     )
 except ImportError:
     _version_not_supported = True
@@ -24,21 +24,22 @@ if _version_not_supported:
         + " but the generated code in distributed/protocol_pb2_grpc.py depends on"
         + f" grpcio>={GRPC_GENERATED_VERSION}."
         + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
-        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
+        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.",
     )
 
 
-class MasterServiceStub(object):
+class MasterServiceStub:
     """─────────────────────────────────────────────────────────────
     MasterService — 分布式碰撞扫描 gRPC 协议
-    ─────────────────────────────────────────────────────────────
+    ─────────────────────────────────────────────────────────────.
     """
 
-    def __init__(self, channel):
+    def __init__(self, channel) -> None:
         """Constructor.
 
         Args:
             channel: A grpc.Channel.
+
         """
         self.Register = channel.unary_unary(
             "/distributed.MasterService/Register",
@@ -72,44 +73,49 @@ class MasterServiceStub(object):
         )
 
 
-class MasterServiceServicer(object):
+class MasterServiceServicer:
     """─────────────────────────────────────────────────────────────
     MasterService — 分布式碰撞扫描 gRPC 协议
-    ─────────────────────────────────────────────────────────────
+    ─────────────────────────────────────────────────────────────.
     """
 
     def Register(self, request, context):
-        """Worker 注册：建立身份并上报能力"""
+        """Worker 注册：建立身份并上报能力."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        msg = "Method not implemented!"
+        raise NotImplementedError(msg)
 
     def Heartbeat(self, request, context):
-        """心跳 + 进度上报"""
+        """心跳 + 进度上报."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        msg = "Method not implemented!"
+        raise NotImplementedError(msg)
 
     def GetAssignment(self, request, context):
-        """获取下一个作业范围"""
+        """获取下一个作业范围."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        msg = "Method not implemented!"
+        raise NotImplementedError(msg)
 
     def ReportHit(self, request, context):
-        """报告碰撞命中结果"""
+        """报告碰撞命中结果."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        msg = "Method not implemented!"
+        raise NotImplementedError(msg)
 
     def GetTargetInfo(self, request, context):
-        """获取目标集信息（校验和、下载地址等）"""
+        """获取目标集信息（校验和、下载地址等）."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        msg = "Method not implemented!"
+        raise NotImplementedError(msg)
 
 
-def add_MasterServiceServicer_to_server(servicer, server):
+def add_MasterServiceServicer_to_server(servicer, server) -> None:
     rpc_method_handlers = {
         "Register": grpc.unary_unary_rpc_method_handler(
             servicer.Register,
@@ -138,19 +144,19 @@ def add_MasterServiceServicer_to_server(servicer, server):
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        "distributed.MasterService", rpc_method_handlers
+        "distributed.MasterService", rpc_method_handlers,
     )
     server.add_generic_rpc_handlers((generic_handler,))
     server.add_registered_method_handlers(
-        "distributed.MasterService", rpc_method_handlers
+        "distributed.MasterService", rpc_method_handlers,
     )
 
 
 # This class is part of an EXPERIMENTAL API.
-class MasterService(object):
+class MasterService:
     """─────────────────────────────────────────────────────────────
     MasterService — 分布式碰撞扫描 gRPC 协议
-    ─────────────────────────────────────────────────────────────
+    ─────────────────────────────────────────────────────────────.
     """
 
     @staticmethod

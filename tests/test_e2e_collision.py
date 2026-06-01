@@ -1,27 +1,27 @@
-"""E2E 集成测试 — 模拟完整碰撞检测流水线。"""
+"""E2E 集成测试 — 模拟完整碰撞检测流水线。."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pytest
+if TYPE_CHECKING:
+    import pytest
 
 
 def _hash160(data: bytes) -> bytes:
-    """RIPEMD160(SHA256(data)) — 与 collision_engine.hash160() 一致。"""
+    """RIPEMD160(SHA256(data)) — 与 collision_engine.hash160() 一致。."""
     return hashlib.new("ripemd160", hashlib.sha256(data).digest()).digest()
 
 
 def _make_utxo(tmp_dir: Path, hash160s: list[bytes]) -> dict[str, Any]:
-    """创建 mock utxo_hash160.bin / .idx / .bloom 文件。"""
+    """创建 mock utxo_hash160.bin / .idx / .bloom 文件。."""
     hash160s = sorted(hash160s)
     bin_p = tmp_dir / "utxo_hash160.bin"
     with open(bin_p, "wb") as f:
-        for h in hash160s:
-            f.write(h)
+        f.writelines(hash160s)
     pm: dict[int, list[int]] = {}
     for i, h in enumerate(hash160s):
         pm.setdefault(h[0], []).append(i)
@@ -42,12 +42,11 @@ def _make_utxo(tmp_dir: Path, hash160s: list[bytes]) -> dict[str, Any]:
 
 
 def _make_xonly(tmp_dir: Path, xonlys: list[bytes]) -> dict[str, Any]:
-    """创建 mock utxo_xonly.bin / .idx 文件（32 字节）。"""
+    """创建 mock utxo_xonly.bin / .idx 文件（32 字节）。."""
     xonlys = sorted(xonlys)
     bin_p = tmp_dir / "utxo_xonly.bin"
     with open(bin_p, "wb") as f:
-        for x in xonlys:
-            f.write(x)
+        f.writelines(xonlys)
     pm: dict[int, list[int]] = {}
     for i, x in enumerate(xonlys):
         pm.setdefault(x[0], []).append(i)
@@ -68,7 +67,7 @@ def _make_xonly(tmp_dir: Path, xonlys: list[bytes]) -> dict[str, Any]:
 
 
 def _mk_cfg(tmp_dir: Path) -> Path:
-    """创建 EngineConfig JSON 文件并返回路径。"""
+    """创建 EngineConfig JSON 文件并返回路径。."""
     cfg = {
         "results_db": str(tmp_dir / "results.db"),
         "checkpoint_file": str(tmp_dir / "checkpoint.json"),
@@ -88,8 +87,8 @@ def _patch_all(
     tmp_dir: Path,
     mock: dict[str, Any],
     mock_xonly: dict[str, Any] | None = None,
-):
-    """monkeypatch collision_target 和 collision_engine 的路径常量。"""
+) -> None:
+    """Monkeypatch collision_target 和 collision_engine 的路径常量。."""
     monkeypatch.setattr(ct.Hash160Set, "BIN_DEFAULT", Path(mock["bin"]))
     monkeypatch.setattr(ct.Hash160Set, "IDX_DEFAULT", Path(mock["idx"]))
     monkeypatch.setattr(ct.Hash160Set, "BLOOM_DEFAULT", Path(mock["bloom"]))
@@ -109,7 +108,7 @@ def _init_and_scan(
     limit: int = 10,
     xonly_target: Any = None,
 ) -> list[dict[str, Any]]:
-    """初始化引擎、加载目标集、运行扫描、返回碰撞结果列表。"""
+    """初始化引擎、加载目标集、运行扫描、返回碰撞结果列表。."""
     cfg_path = _mk_cfg(tmp_dir)
     ce._init_core(str(cfg_path))
     target = ct.Hash160Set()
@@ -127,13 +126,14 @@ def _init_and_scan(
 
 
 class TestE2ECollision:
-    """端到端碰撞检测集成测试。"""
+    """端到端碰撞检测集成测试。."""
 
     def test_compressed_collision(self, tmp_dir, monkeypatch):
-        """压缩公钥 Hash160 碰撞 — 覆盖 P2PKH/P2WPKH。"""
+        """压缩公钥 Hash160 碰撞 — 覆盖 P2PKH/P2WPKH。."""
+        from coincurve import PrivateKey
+
         import collision_engine as ce
         import collision_target as ct
-        from coincurve import PrivateKey
 
         privkey_bytes = (1).to_bytes(32, "big")
         pub = PrivateKey(privkey_bytes).public_key
@@ -151,10 +151,11 @@ class TestE2ECollision:
         assert r["h160_hex"] == h160.hex()
 
     def test_uncompressed_collision(self, tmp_dir, monkeypatch):
-        """非压缩公钥 Hash160 碰撞 — P2PKH (Legacy)。"""
+        """非压缩公钥 Hash160 碰撞 — P2PKH (Legacy)。."""
+        from coincurve import PrivateKey
+
         import collision_engine as ce
         import collision_target as ct
-        from coincurve import PrivateKey
 
         privkey_bytes = (1).to_bytes(32, "big")
         pub = PrivateKey(privkey_bytes).public_key
@@ -172,19 +173,21 @@ class TestE2ECollision:
         assert r["h160_hex"] == h160.hex()
 
     def test_p2tr_collision(self, tmp_dir, monkeypatch):
-        """P2TR (Taproot) 碰撞 — tweaked x-only output key 匹配。
+        """P2TR (Taproot) 碰撞 — tweaked x-only output key 匹配。.
 
         只将 P2TR 输出 key 放入 XOnlySet，不在 Hash160Set 中放匹配项。
         """
+        from coincurve import PrivateKey, PublicKey
+
         import collision_engine as ce
         import collision_target as ct
-        from coincurve import PrivateKey, PublicKey
 
         privkey_bytes = (2).to_bytes(32, "big")
         pub = PrivateKey(privkey_bytes).public_key
         pub_copy = PublicKey(pub.format())
         xonly = ce.tweak_taproot(pub_copy)
-        assert xonly is not None and len(xonly) == 32
+        assert xonly is not None
+        assert len(xonly) == 32
 
         dummy = b"\x00" * 20
         mock_h = _make_utxo(tmp_dir, [dummy])
@@ -219,7 +222,7 @@ class TestE2ECollision:
         assert r["p2tr_address"].startswith("bc1p")
 
     def test_no_collision(self, tmp_dir, monkeypatch):
-        """目标集中无匹配时不应报告碰撞。"""
+        """目标集中无匹配时不应报告碰撞。."""
         import collision_engine as ce
         import collision_target as ct
 

@@ -1,5 +1,4 @@
-"""
-分布式扫描模块单元测试
+"""分布式扫描模块单元测试.
 
 测试覆盖：
 - WorkerRegistry 注册/心跳/过期检测
@@ -17,8 +16,7 @@ from typing import Any
 
 import pytest
 
-from distributed.models import WorkerInfo, Assignment
-
+from distributed.models import Assignment, WorkerInfo
 
 # ═══════════════════════════════════════════════════════════════
 #  Helpers
@@ -26,7 +24,7 @@ from distributed.models import WorkerInfo, Assignment
 
 
 def _find_free_port() -> int:
-    """I06: 返回 OS 分配的临时空闲端口，避免硬编码端口冲突。"""
+    """I06: 返回 OS 分配的临时空闲端口，避免硬编码端口冲突。."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -40,7 +38,11 @@ def _find_free_port() -> int:
 class TestWorkerInfo:
     def test_create_default(self) -> None:
         w = WorkerInfo(
-            worker_id="test", address="addr", cpu_cores=4, gpu_count=0, version="1.0"
+            worker_id="test",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=0,
+            version="1.0",
         )
         assert w.worker_id == "test"
         assert w.status == "idle"
@@ -49,27 +51,43 @@ class TestWorkerInfo:
 
     def test_is_alive_within_timeout(self) -> None:
         w = WorkerInfo(
-            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+            worker_id="a",
+            address="",
+            cpu_cores=2,
+            gpu_count=1,
+            version="1.0",
         )
         w.last_heartbeat = time.time()
         assert w.is_alive is True
 
     def test_is_alive_expired(self) -> None:
         w = WorkerInfo(
-            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+            worker_id="a",
+            address="",
+            cpu_cores=2,
+            gpu_count=1,
+            version="1.0",
         )
         w.last_heartbeat = time.time() - 31  # 超过 30s 超时
         assert w.is_alive is False
 
     def test_scan_rate_zero_uptime(self) -> None:
         w = WorkerInfo(
-            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+            worker_id="a",
+            address="",
+            cpu_cores=2,
+            gpu_count=1,
+            version="1.0",
         )
         assert w.scan_rate == 0.0
 
     def test_uptime_not_registered(self) -> None:
         w = WorkerInfo(
-            worker_id="a", address="", cpu_cores=2, gpu_count=1, version="1.0"
+            worker_id="a",
+            address="",
+            cpu_cores=2,
+            gpu_count=1,
+            version="1.0",
         )
         assert w.uptime_seconds == 0.0
 
@@ -99,7 +117,7 @@ class TestAssignment:
 
 
 class TestWorkerRegistry:
-    """WorkerRegistry 单元测试（mock gRPC，仅测试业务逻辑）。"""
+    """WorkerRegistry 单元测试（mock gRPC，仅测试业务逻辑）。."""
 
     @pytest.fixture
     def registry(self) -> Any:
@@ -109,7 +127,11 @@ class TestWorkerRegistry:
 
     def test_register_new(self, registry: Any) -> None:
         info = WorkerInfo(
-            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         accepted, msg = registry.register(info)
         assert accepted is True
@@ -118,7 +140,11 @@ class TestWorkerRegistry:
 
     def test_register_reconnect(self, registry: Any) -> None:
         info = WorkerInfo(
-            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         registry.register(info)
         info2 = WorkerInfo(
@@ -137,7 +163,11 @@ class TestWorkerRegistry:
 
     def test_unregister(self, registry: Any) -> None:
         info = WorkerInfo(
-            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         registry.register(info)
         assert registry.unregister("node-1") is True
@@ -145,7 +175,11 @@ class TestWorkerRegistry:
 
     def test_update_heartbeat(self, registry: Any) -> None:
         info = WorkerInfo(
-            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         registry.register(info)
         found = registry.update_heartbeat("node-1", 100, 50, "scanning")
@@ -162,7 +196,11 @@ class TestWorkerRegistry:
 
     def test_assign_range(self, registry: Any) -> None:
         info = WorkerInfo(
-            worker_id="node-1", address="addr", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            address="addr",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         registry.register(info)
         assignment = registry.assign_range("node-1")
@@ -245,7 +283,7 @@ class TestWorkerRegistry:
         assert r.global_cursor == 201
 
     def test_thread_safety(self, registry: Any) -> None:
-        """并发注册和分配测试。"""
+        """并发注册和分配测试。."""
         r = registry
         errors: list[Exception] = []
         lock = threading.Lock()
@@ -280,7 +318,7 @@ class TestWorkerRegistry:
 
 
 class FakeContext:
-    """模拟 grpc.ServicerContext"""
+    """模拟 grpc.ServicerContext."""
 
     def __init__(self) -> None:
         self.code: Any = None
@@ -294,7 +332,7 @@ class FakeContext:
 
 
 class TestMasterService:
-    """MasterService gRPC handler 单元测试（无需 gRPC 服务器）。"""
+    """MasterService gRPC handler 单元测试（无需 gRPC 服务器）。."""
 
     @pytest.fixture
     def service(self) -> Any:
@@ -306,7 +344,10 @@ class TestMasterService:
         from distributed.protocol_pb2 import RegisterRequest
 
         req = RegisterRequest(
-            worker_id="node-1", cpu_cores=4, gpu_count=1, version="1.0"
+            worker_id="node-1",
+            cpu_cores=4,
+            gpu_count=1,
+            version="1.0",
         )
         resp = service.Register(req, FakeContext())
         assert resp.accepted is True
@@ -314,7 +355,7 @@ class TestMasterService:
         assert resp.assignment_size == 100
 
     def test_heartbeat_handler(self, service: Any) -> None:
-        from distributed.protocol_pb2 import RegisterRequest, HeartbeatRequest
+        from distributed.protocol_pb2 import HeartbeatRequest, RegisterRequest
 
         # 先注册
         service.Register(
@@ -324,7 +365,10 @@ class TestMasterService:
 
         # 心跳
         req = HeartbeatRequest(
-            worker_id="n1", keys_checked=100, current_key=50, status="scanning"
+            worker_id="n1",
+            keys_checked=100,
+            current_key=50,
+            status="scanning",
         )
         resp = service.Heartbeat(req, FakeContext())
         assert resp.acknowledged is True
@@ -334,14 +378,17 @@ class TestMasterService:
         from distributed.protocol_pb2 import HeartbeatRequest
 
         req = HeartbeatRequest(
-            worker_id="unknown", keys_checked=0, current_key=0, status="idle"
+            worker_id="unknown",
+            keys_checked=0,
+            current_key=0,
+            status="idle",
         )
         resp = service.Heartbeat(req, FakeContext())
         assert resp.acknowledged is False
         assert resp.cancel_requested is True
 
     def test_get_assignment(self, service: Any) -> None:
-        from distributed.protocol_pb2 import RegisterRequest, AssignmentRequest
+        from distributed.protocol_pb2 import AssignmentRequest, RegisterRequest
 
         service.Register(
             RegisterRequest(worker_id="n1", cpu_cores=2, gpu_count=0, version="1.0"),
@@ -358,7 +405,8 @@ class TestMasterService:
         from distributed.protocol_pb2 import AssignmentRequest
 
         resp = service.GetAssignment(
-            AssignmentRequest(worker_id="unknown"), FakeContext()
+            AssignmentRequest(worker_id="unknown"),
+            FakeContext(),
         )
         assert resp.has_work is False
 
@@ -366,7 +414,9 @@ class TestMasterService:
         from distributed.protocol_pb2 import HitReport
 
         req = HitReport(
-            worker_id="n1", privkey_hex="abcdef", key_value=(123).to_bytes(32, "big")
+            worker_id="n1",
+            privkey_hex="abcdef",
+            key_value=(123).to_bytes(32, "big"),
         )
         resp = service.ReportHit(req, FakeContext())
         assert resp.accepted is True
@@ -389,7 +439,7 @@ class TestMasterService:
 
 @pytest.mark.skip(reason="需要运行中的 gRPC Master")
 class TestIntegration:
-    """集成测试：启动临时 gRPC 服务器并连接 Worker。"""
+    """集成测试：启动临时 gRPC 服务器并连接 Worker。."""
 
     def test_master_worker_flow(self) -> None:
         pass

@@ -1,20 +1,22 @@
-"""测试 core.logger 模块。"""
+"""测试 core.logger 模块。."""
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
 if TYPE_CHECKING:
-    from conftest import *  # noqa: F401, F403
+    from collections.abc import Generator
+    from pathlib import Path
+
+    from conftest import *
 
 
 @pytest.fixture(autouse=True)
 def _reset_logging() -> Generator[None, None, None]:
-    """每个测试后清理 logging handlers（确保隔离）。"""
+    """每个测试后清理 logging handlers（确保隔离）。."""
     yield
     root = logging.getLogger()
     for h in root.handlers[:]:
@@ -25,10 +27,10 @@ def _reset_logging() -> Generator[None, None, None]:
 
 
 class TestSetupLogger:
-    """setup_logger 功能测试。"""
+    """setup_logger 功能测试。."""
 
     def test_basic_setup(self):
-        """测试基本日志设置 — 返回 Logger 实例。"""
+        """测试基本日志设置 — 返回 Logger 实例。."""
         from core.logger import setup_logger
 
         logger = setup_logger(name="test_basic")
@@ -37,7 +39,7 @@ class TestSetupLogger:
         assert logger.level == logging.INFO
 
     def test_file_handler_created(self, tmp_dir: Path):
-        """测试文件日志 Handler 正确创建（测试完成后关闭 handler）。"""
+        """测试文件日志 Handler 正确创建（测试完成后关闭 handler）。."""
         from core.logger import setup_logger
 
         log_path = tmp_dir / "logs" / "test.log"
@@ -58,7 +60,7 @@ class TestSetupLogger:
             h.close()
 
     def test_console_handler_created(self):
-        """测试控制台 Handler 正确创建。"""
+        """测试控制台 Handler 正确创建。."""
         from core.logger import setup_logger
 
         logger = setup_logger(name="test_console")
@@ -73,7 +75,7 @@ class TestSetupLogger:
         assert stream_handlers[0].level == logging.WARNING
 
     def test_logger_writes_to_file(self, tmp_dir: Path):
-        """测试日志实际写入文件。"""
+        """测试日志实际写入文件。."""
         from core.logger import setup_logger
 
         log_path = tmp_dir / "write_test.log"
@@ -94,7 +96,7 @@ class TestSetupLogger:
         assert "test warning message" in content
 
     def test_log_file_rotation(self, tmp_dir: Path):
-        """测试 RotatingFileHandler 的 max_bytes 限制。"""
+        """测试 RotatingFileHandler 的 max_bytes 限制。."""
         from core.logger import setup_logger
 
         log_path = tmp_dir / "rotation.log"
@@ -107,7 +109,7 @@ class TestSetupLogger:
         )
         # 写入足够数据触发 rotation
         for i in range(200):
-            logger.warning(f"log line {i:04d} - " + "x" * 50)
+            logger.warning("log line %04d - %s", i, "x" * 50)
 
         for h in logger.handlers:
             h.close()
@@ -117,7 +119,7 @@ class TestSetupLogger:
         assert len(files) >= 2
 
     def test_custom_levels(self, tmp_dir: Path):
-        """测试自定义日志级别。"""
+        """测试自定义日志级别。."""
         from core.logger import setup_logger
 
         log_path = tmp_dir / "level.log"
@@ -140,7 +142,7 @@ class TestSetupLogger:
         assert "should appear" in content
 
     def test_get_logger_existing(self):
-        """测试 get_logger 获取已存在的日志器。"""
+        """测试 get_logger 获取已存在的日志器。."""
         from core.logger import get_logger, setup_logger
 
         original = setup_logger(name="test_get")
@@ -148,7 +150,7 @@ class TestSetupLogger:
         assert fetched is original
 
     def test_get_logger_auto_create(self):
-        """测试 get_logger 在日志器不存在时自动创建。"""
+        """测试 get_logger 在日志器不存在时自动创建。."""
         from core.logger import get_logger
 
         logger = get_logger("test_auto")

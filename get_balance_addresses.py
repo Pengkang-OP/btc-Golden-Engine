@@ -8,8 +8,8 @@ Supports fallback to cached data when the daemon is offline.
     python get_balance_addresses.py
 """
 
-import subprocess
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -19,9 +19,7 @@ WALLET_NAME = "plz"
 
 
 def run_bitcoin_cli(args):
-    """
-    Run bitcoin-cli command and return the result.
-    """
+    """Run bitcoin-cli command and return the result."""
     cmd = [BITCOIN_CLI_PATH, "-datadir=" + BITCOIN_DATADIR]
     if WALLET_NAME:
         cmd.extend(["-rpcwallet=" + WALLET_NAME])
@@ -63,8 +61,7 @@ def list_labels():
 
 
 def calculate_address_balances(utxos):
-    """
-    Calculate balance for each address from UTXOs.
+    """Calculate balance for each address from UTXOs.
     Returns a dictionary of address -> balance.
     """
     address_balances = {}
@@ -95,7 +92,7 @@ def get_address_balance(address):
 
 
 def main():
-    """CLI 入口：连接钱包、获取地址余额并输出表格。"""
+    """CLI 入口：连接钱包、获取地址余额并输出表格。."""
     print("=" * 100)
     print("Bitcoin Core - 获取有余额的地址")
     print("=" * 100)
@@ -110,7 +107,7 @@ def main():
         print(f"   {err}")
         print("\n⚠️  请先启动 bitcoind:")
         print(
-            f"   & '{BITCOIN_CLI_PATH.replace('bitcoin-cli', 'bitcoind')}' -daemon -datadir='{BITCOIN_DATADIR}'"
+            f"   & '{BITCOIN_CLI_PATH.replace('bitcoin-cli', 'bitcoind')}' -daemon -datadir='{BITCOIN_DATADIR}'",
         )
 
         # 尝试从已有的文件读取地址
@@ -118,14 +115,14 @@ def main():
 
         existing_file = Path(r"g:\Bitcoin\wallet_addresses_balances.json")
         if existing_file.exists():
-            with open(existing_file, "r", encoding="utf-8") as f:
+            with open(existing_file, encoding="utf-8") as f:
                 addresses = json.load(f)
 
             print("\n📊 已知地址（余额需要从 Bitcoin Core 查询）:")
             print_address_table(addresses)
         else:
             print("\n未找到现有的地址数据文件。")
-        return
+        return None
 
     print("\n✅ 成功连接到 Bitcoin 守护进程!")
 
@@ -134,7 +131,7 @@ def main():
         if isinstance(wallet_info, dict):
             print(f"   - 钱包余额: {wallet_info.get('balance', 0.0):.8f} BTC")
             print(
-                f"   - 未确认余额: {wallet_info.get('unconfirmed_balance', 0.0):.8f} BTC"
+                f"   - 未确认余额: {wallet_info.get('unconfirmed_balance', 0.0):.8f} BTC",
             )
             print(f"   - 已确认交易数: {wallet_info.get('txcount', 0)}")
 
@@ -144,7 +141,7 @@ def main():
 
     if err:
         print(f"❌ 获取 UTXOs 失败: {err}")
-        return
+        return None
 
     if not utxos:
         print("⚠️  未找到任何未花费的交易输出")
@@ -187,7 +184,7 @@ def main():
                 addr_type = "Legacy"
 
         addresses_with_details.append(
-            {"address": address, "type": addr_type, "balance": balance}
+            {"address": address, "type": addr_type, "balance": balance},
         )
 
     # 按余额降序排序
@@ -216,10 +213,10 @@ def main():
     return addresses_with_details
 
 
-def print_address_table(addresses):
+def print_address_table(addresses) -> None:
     """Print address table in formatted ASCII."""
     print(
-        f"{'排名':<6} {'比特币地址 (Base58Check)':<45} {'类型':<10} {'余额 (BTC)':<18}"
+        f"{'排名':<6} {'比特币地址 (Base58Check)':<45} {'类型':<10} {'余额 (BTC)':<18}",
     )
     print("-" * 100)
 
@@ -229,7 +226,7 @@ def print_address_table(addresses):
             f"{balance_str}" if addr_info["balance"] > 0 else f"{balance_str}"
         )
         print(
-            f"{i:<6} {addr_info['address']:<45} {addr_info['type']:<10} {balance_display:<18}"
+            f"{i:<6} {addr_info['address']:<45} {addr_info['type']:<10} {balance_display:<18}",
         )
 
     print("-" * 100)

@@ -1,4 +1,4 @@
-"""测试 collision_target 模块 — Hash160Set 和 XOnlySet。
+"""测试 collision_target 模块 — Hash160Set 和 XOnlySet。.
 
 策略：
   使用 monkeypatch 模拟 mmap 和文件 I/O，避免依赖真实的 3.3 GB 数据文件。
@@ -13,7 +13,6 @@ from typing import Any
 
 import pytest
 
-
 # ── 辅助函数 ──────────────────────────────────────────────
 
 
@@ -22,7 +21,7 @@ def _make_bloom_header(
     bin_path: str,
     byte_size: int,
 ) -> bytes:
-    """构造 Bloom Filter 缓存文件头（与 _save_bloom 兼容）。"""
+    """构造 Bloom Filter 缓存文件头（与 _save_bloom 兼容）。."""
     import hashlib
 
     header = bytearray()
@@ -36,7 +35,7 @@ def _make_bloom_header(
 
 
 def _make_idx(total: int = 1000) -> dict[str, Any]:
-    """构造前缀索引，与 _make_bin_data 产生的一致分布精确匹配。
+    """构造前缀索引，与 _make_bin_data 产生的一致分布精确匹配。.
 
     调用者须保证 total 和 record_size 与 _make_bin_data 的实参一致；
     此处不取 record_size 参数，因为索引只关心记录序号而非字节偏移。
@@ -46,10 +45,7 @@ def _make_idx(total: int = 1000) -> dict[str, Any]:
 
     index: dict[str, Any] = {}
     for fb in range(256):
-        if fb < remainder:
-            count = records_per_prefix + 1
-        else:
-            count = records_per_prefix
+        count = records_per_prefix + 1 if fb < remainder else records_per_prefix
 
         if count == 0:
             index[f"{fb:02x}"] = [0, -1, True]  # empty
@@ -68,7 +64,7 @@ def _make_idx(total: int = 1000) -> dict[str, Any]:
 
 
 def _make_bin_data(total: int, record_size: int = 20) -> bytes:
-    """生成排序的二进制数据，第一字节均匀分布（匹配前缀索引假设）。"""
+    """生成排序的二进制数据，第一字节均匀分布（匹配前缀索引假设）。."""
     records = []
     for i in range(total):
         # 让第一字节在 0..255 间均匀分布（与 _make_idx 的假设一致）
@@ -84,24 +80,24 @@ def _make_bin_data(total: int, record_size: int = 20) -> bytes:
 
 
 class _MockMmap:
-    """模拟 mmap.mmap 对象 — 支持 __getitem__ 切片。"""
+    """模拟 mmap.mmap 对象 — 支持 __getitem__ 切片。."""
 
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytes) -> None:
         self._data = data
 
-    def close(self):
+    def close(self) -> None:
         pass
 
     def __getitem__(self, key):
         return self._data[key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
 
 @pytest.fixture
 def mock_hash160_files(tmp_dir: Path) -> dict[str, Any]:
-    """创建模拟的 Hash160 数据文件并返回路径。
+    """创建模拟的 Hash160 数据文件并返回路径。.
 
     返回值包括:
         bin_path, idx_path, bloom_path, data_size
@@ -125,12 +121,14 @@ def mock_hash160_files(tmp_dir: Path) -> dict[str, Any]:
 
 
 class TestHash160Set:
-    """Hash160Set 功能测试 — 使用 monkeypatch 模拟 mmap。"""
+    """Hash160Set 功能测试 — 使用 monkeypatch 模拟 mmap。."""
 
     def test_empty_bloom_contains(
-        self, mock_hash160_files: dict[str, Any], monkeypatch
+        self,
+        mock_hash160_files: dict[str, Any],
+        monkeypatch,
     ):
-        """无 Bloom Filter 时，二分查找应正常工作。"""
+        """无 Bloom Filter 时，二分查找应正常工作。."""
         import collision_target as ct
 
         # 移除 Bloom Filter 文件路径，避免自动加载
@@ -158,7 +156,7 @@ class TestHash160Set:
         hs.close()
 
     def test_contains_invalid_length(self, mock_hash160_files, monkeypatch):
-        """__contains__ 对非 20 字节输入应返回 False。"""
+        """__contains__ 对非 20 字节输入应返回 False。."""
         import collision_target as ct
 
         monkeypatch.setattr(ct, "BLOOM_FILE", Path("/nonexistent_bloom.bloom"))
@@ -174,7 +172,7 @@ class TestHash160Set:
         hs.close()
 
     def test_len_matches_total(self, mock_hash160_files, monkeypatch):
-        """__len__ 应返回 total 条数。"""
+        """__len__ 应返回 total 条数。."""
         import collision_target as ct
 
         monkeypatch.setattr(ct, "BLOOM_FILE", Path("/nonexistent_bloom.bloom"))
@@ -189,7 +187,7 @@ class TestHash160Set:
         hs.close()
 
     def test_close_cleans_up(self, mock_hash160_files, monkeypatch):
-        """close() 应清理 _mmap 和 _bloom。"""
+        """close() 应清理 _mmap 和 _bloom。."""
         import collision_target as ct
 
         monkeypatch.setattr(ct, "BLOOM_FILE", Path("/nonexistent_bloom.bloom"))
@@ -204,7 +202,7 @@ class TestHash160Set:
         assert hs._bloom is None
 
     def test_load_missing_file_raises(self, tmp_dir):
-        """缺少数据文件应抛出 FileNotFoundError。"""
+        """缺少数据文件应抛出 FileNotFoundError。."""
         from collision_target import Hash160Set
 
         hs = Hash160Set()
@@ -215,7 +213,7 @@ class TestHash160Set:
             )
 
     def test_bloom_filter_caching(self, mock_hash160_files, monkeypatch):
-        """Bloom Filter 缓存文件被加载时不应重建。"""
+        """Bloom Filter 缓存文件被加载时不应重建。."""
         import collision_target as ct
 
         bloom_path = Path(mock_hash160_files["bin_path"]).with_suffix(".bloom")
@@ -242,10 +240,10 @@ class TestHash160Set:
 
 
 class TestXOnlySet:
-    """XOnlySet 功能测试。"""
+    """XOnlySet 功能测试。."""
 
     def test_xonly_contains(self, tmp_dir, monkeypatch):
-        """XOnlySet 的基本二分查找查询。"""
+        """XOnlySet 的基本二分查找查询。."""
         import collision_target as ct
 
         total = 128
@@ -274,7 +272,7 @@ class TestXOnlySet:
         xs.close()
 
     def test_xonly_invalid_length(self, tmp_dir, monkeypatch):
-        """__contains__ 对非 32 字节输入返回 False。"""
+        """__contains__ 对非 32 字节输入返回 False。."""
         import collision_target as ct
 
         total = 16

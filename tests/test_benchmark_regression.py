@@ -1,4 +1,4 @@
-"""性能基准回归测试 — 使用 pytest-benchmark 自动对比基线。
+"""性能基准回归测试 — 使用 pytest-benchmark 自动对比基线。.
 
 设计文档: docs/benchmark_regression.md
 
@@ -15,17 +15,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ── 辅助函数 ──────────────────────────────────────────────────
 
 
 def _make_utxo(tmp_dir: Path, n: int = 10) -> dict[str, Any]:
-    """创建 n 条模拟 utxo_hash160 文件，与 test_benchmark.py 一致。"""
+    """创建 n 条模拟 utxo_hash160 文件，与 test_benchmark.py 一致。."""
     records = sorted([b"\x00" * 19 + bytes([i]) for i in range(n)])
     bin_p = tmp_dir / "utxo_hash160.bin"
     with open(bin_p, "wb") as f:
-        for r in records:
-            f.write(r)
+        f.writelines(records)
     pm: dict[int, list[int]] = {}
     for i, r in enumerate(records):
         pm.setdefault(r[0], []).append(i)
@@ -54,15 +52,18 @@ def _make_utxo(tmp_dir: Path, n: int = 10) -> dict[str, Any]:
     calibration_precision=100,
 )
 class TestBenchmarkRegression:
-    """自动回归基准测试类。
+    """自动回归基准测试类。.
 
     测得的吞吐量将自动与 tests/benchmark_baseline.json 中的基线对比。
     """
 
     def test_cpu_single_key(
-        self, benchmark: Any, tmp_dir: Path, monkeypatch: Any
+        self,
+        benchmark: Any,
+        tmp_dir: Path,
+        monkeypatch: Any,
     ) -> None:
-        """基准: CPU single_key 吞吐量。"""
+        """基准: CPU single_key 吞吐量。."""
         import collision_engine as ce
         import collision_target as ct
 
@@ -82,9 +83,12 @@ class TestBenchmarkRegression:
         return result  # type: ignore[no-any-return]
 
     def test_cpu_chain_sequential(
-        self, benchmark: Any, tmp_dir: Path, monkeypatch: Any
+        self,
+        benchmark: Any,
+        tmp_dir: Path,
+        monkeypatch: Any,
     ) -> None:
-        """基准: CPU 点加法链吞吐量。"""
+        """基准: CPU 点加法链吞吐量。."""
         import collision_engine as ce
         import collision_target as ct
 
@@ -118,9 +122,12 @@ class TestBenchmarkRegression:
         return result  # type: ignore[no-any-return]
 
     def test_gpu_pipeline_mock(
-        self, benchmark: Any, tmp_dir: Path, monkeypatch: Any
+        self,
+        benchmark: Any,
+        tmp_dir: Path,
+        monkeypatch: Any,
     ) -> None:
-        """基准: mock GPU 管道吞吐量。"""
+        """基准: mock GPU 管道吞吐量。."""
         import sys
 
         # Mock pyopencl (与 test_benchmark.py 一致)

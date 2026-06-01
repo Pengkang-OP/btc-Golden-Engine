@@ -1,4 +1,4 @@
-"""测试 gpu_engine/gpu_pipeline 模块 — mock pyopencl。
+"""测试 gpu_engine/gpu_pipeline 模块 — mock pyopencl。.
 
 策略：
   使用 unittest.mock patch 模拟 pyopencl 调用，不依赖真实 GPU。
@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # 保存真实 pyopencl 的引用，避免 _remove_mock 中 pop+mock 后重新导入时
 # 触发 pyopencl 内部的循环引用（pyopencl/__init__.py 在初始化过程中访问
@@ -22,7 +24,7 @@ _real_pyopencl: object | None = None
 
 @pytest.fixture(autouse=True)
 def _mock_pyopencl() -> Generator[None, None, None]:
-    """自动 mock pyopencl 模块及其所有依赖。"""
+    """自动 mock pyopencl 模块及其所有依赖。."""
     import sys
 
     global _real_pyopencl
@@ -75,14 +77,14 @@ def _mock_pyopencl() -> Generator[None, None, None]:
             encoding="utf-8",
         )
 
-    yield
+    return
 
 
 class TestGPUPipeline:
-    """GPUPipeline 创建与初始化测试 (mock PyOpenCL)。"""
+    """GPUPipeline 创建与初始化测试 (mock PyOpenCL)。."""
 
     def test_create_pipeline(self):
-        """测试 GPUPipeline 可以创建。"""
+        """测试 GPUPipeline 可以创建。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(
@@ -94,7 +96,7 @@ class TestGPUPipeline:
         pipe.close()
 
     def test_pipeline_default_batch_size(self):
-        """测试默认 batch_size 为 65536。"""
+        """测试默认 batch_size 为 65536。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(quiet=True)
@@ -104,7 +106,7 @@ class TestGPUPipeline:
     # ── P2-10: GPU 碰撞检测（Mock） ──────────────────────────
 
     def test_collision_kernel_available_with_bloom(self):
-        """提供 bloom_data 时 _kernel_collision 应可用。"""
+        """提供 bloom_data 时 _kernel_collision 应可用。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(
@@ -121,7 +123,7 @@ class TestGPUPipeline:
             pipe.close()
 
     def test_no_bloom_falls_back_to_standard_kernel(self):
-        """未提供 bloom 时 _run_sub_batch 应使用 _kernel_hash160。"""
+        """未提供 bloom 时 _run_sub_batch 应使用 _kernel_hash160。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -134,7 +136,7 @@ class TestGPUPipeline:
             pipe.close()
 
     def test_gpu_collision_readback_path(self):
-        """GPU 碰撞检测路径应能完成回读。"""
+        """GPU 碰撞检测路径应能完成回读。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(
@@ -155,7 +157,7 @@ class TestGPUPipeline:
     # ── P2-10: Mock Dispatcher 碰撞集成 ──────────────────────────
 
     def test_dispatcher_bloom_initialization(self):
-        """Dispatcher 使用 bloom 参数初始化应正确传递到 GPUPipeline。"""
+        """Dispatcher 使用 bloom 参数初始化应正确传递到 GPUPipeline。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -182,7 +184,7 @@ class TestGPUPipeline:
             scheduler.close()
 
     def test_dispatcher_worker_loop_bloom_collision(self):
-        """bloom 可用时 _worker_loop 应传递 check_collision=None 到 submit_batch。"""
+        """Bloom 可用时 _worker_loop 应传递 check_collision=None 到 submit_batch。."""
         from unittest.mock import patch
 
         from gpu_engine.gpu_dispatcher import (
@@ -230,9 +232,9 @@ class TestGPUPipeline:
 
 
 def _has_gpu() -> bool:
-    """检查系统是否有可用的 OpenCL GPU 设备。"""
+    """检查系统是否有可用的 OpenCL GPU 设备。."""
     try:
-        import pyopencl as cl  # noqa: F811
+        import pyopencl as cl
 
         for plat in cl.get_platforms():
             try:
@@ -256,7 +258,7 @@ _HAS_GPU = _has_gpu()
 
 
 class TestGPUE2E:
-    """GPU 端到端集成测试 — 使用 mock pyopencl 模拟完整 --gpu 流程。
+    """GPU 端到端集成测试 — 使用 mock pyopencl 模拟完整 --gpu 流程。.
 
     依赖 _mock_pyopencl autouse fixture（mock 整个 pyopencl 模块），
     无需真实 GPU 硬件即可验证调度初始化、batch 提交、命中回调全链路。
@@ -267,7 +269,7 @@ class TestGPUE2E:
     """
 
     def test_e2e_scheduler_initializes_with_mock(self):
-        """mock pyopencl 下调度器初始化应成功。"""
+        """Mock pyopencl 下调度器初始化应成功。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -289,7 +291,7 @@ class TestGPUE2E:
             scheduler.close()
 
     def test_e2e_full_flow_with_mock_hits(self):
-        """端到端流程：调度器初始化和 run() 应返回带命中数的 WorkerResult。"""
+        """端到端流程：调度器初始化和 run() 应返回带命中数的 WorkerResult。."""
         from unittest.mock import MagicMock
 
         from gpu_engine.gpu_dispatcher import (
@@ -333,7 +335,7 @@ class TestGPUE2E:
             scheduler.close()
 
     def test_e2e_sequential_mode_key_range(self):
-        """顺序模式端到端测试：验证 key 范围无重叠。"""
+        """顺序模式端到端测试：验证 key 范围无重叠。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -362,7 +364,7 @@ class TestGPUE2E:
             scheduler.close()
 
     def test_e2e_hit_callback_with_gpu_mode_flag(self):
-        """模拟 collision_engine.py --gpu 流程中的完整回调链。"""
+        """模拟 collision_engine.py --gpu 流程中的完整回调链。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -396,7 +398,7 @@ class TestGPUE2E:
             scheduler.close()
 
     def test_e2e_graceful_shutdown(self):
-        """调度器 close() 应能优雅关闭且无异常。"""
+        """调度器 close() 应能优雅关闭且无异常。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -417,7 +419,7 @@ class TestGPUE2E:
         assert len(scheduler._pipelines) == 0
 
     def test_e2e_bloom_mode_initialization(self):
-        """bloom 模式端到端初始化应正确传递 bloom 参数。"""
+        """Bloom 模式端到端初始化应正确传递 bloom 参数。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -443,7 +445,7 @@ class TestGPUE2E:
 
 
 class TestGPUPipelineHardware:
-    """GPU 管道真实硬件测试 — 需要 pyopencl + 至少一个 OpenCL GPU。
+    """GPU 管道真实硬件测试 — 需要 pyopencl + 至少一个 OpenCL GPU。.
 
     使用 pytest -m gpu 可单独运行：
         pytest tests/test_gpu_pipeline.py -m gpu -v
@@ -451,7 +453,7 @@ class TestGPUPipelineHardware:
 
     @pytest.fixture(autouse=True)
     def _remove_mock(self) -> Generator[None, None, None]:
-        """恢复真实 pyopencl，确保硬件测试使用真实模块。
+        """恢复真实 pyopencl，确保硬件测试使用真实模块。.
 
         不再从 sys.modules 中 pop 并触发重新导入，因为 pyopencl 自身在
         重新初始化时存在内部循环引用（_monkeypatch 在 __init__.py 完成前
@@ -463,13 +465,13 @@ class TestGPUPipelineHardware:
             sys.modules["pyopencl"] = _real_pyopencl
         else:
             sys.modules.pop("pyopencl", None)
-        yield
+        return
 
     # ── 设备发现 ──────────────────────────────────────────────
 
     @pytest.mark.gpu
     def test_device_discovery_returns_gpu(self) -> None:
-        """设备发现应返回至少一个 GPU。"""
+        """设备发现应返回至少一个 GPU。."""
         from gpu_engine.gpu_device import DeviceInfo, list_devices
 
         devices = list_devices(device_type="GPU")
@@ -482,7 +484,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_pick_best_gpu_returns_valid(self) -> None:
-        """pick_best_gpu 应返回最佳 GPU 的 DeviceInfo。"""
+        """pick_best_gpu 应返回最佳 GPU 的 DeviceInfo。."""
         from gpu_engine.gpu_device import DeviceInfo, pick_best_gpu
 
         best = pick_best_gpu()
@@ -495,7 +497,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_pipeline_initializes_on_real_gpu(self) -> None:
-        """在真实 GPU 上创建 Pipeline 应成功。"""
+        """在真实 GPU 上创建 Pipeline 应成功。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -511,7 +513,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_kernel_compiles_successfully(self) -> None:
-        """OpenCL kernel 编译应无错误。"""
+        """OpenCL kernel 编译应无错误。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -527,7 +529,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_random_batch_submission(self) -> None:
-        """随机模式 batch 提交应返回 BatchResult。"""
+        """随机模式 batch 提交应返回 BatchResult。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -548,7 +550,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_multiple_batches_consistent(self) -> None:
-        """连续多次 batch 提交应保持稳定。"""
+        """连续多次 batch 提交应保持稳定。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -567,7 +569,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_sequential_mode_stride(self) -> None:
-        """顺序模式第二次 batch 的起始值应正确推进。"""
+        """顺序模式第二次 batch 的起始值应正确推进。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(
@@ -589,7 +591,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_sequential_batches_non_overlap(self) -> None:
-        """连续顺序 batch 的私钥区间不应重叠。"""
+        """连续顺序 batch 的私钥区间不应重叠。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(
@@ -631,7 +633,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_tdr_safe_mode_active(self) -> None:
-        """TDR 安全模式应默认启用。"""
+        """TDR 安全模式应默认启用。."""
         from gpu_engine.gpu_pipeline import GPUPipeline
 
         pipe = GPUPipeline(batch_size=256, quiet=True)
@@ -645,7 +647,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_single_gpu_dispatcher_runs(self) -> None:
-        """GPU 调度器在单设备模式下应能完成一轮扫描。"""
+        """GPU 调度器在单设备模式下应能完成一轮扫描。."""
         from gpu_engine.gpu_dispatcher import (
             DispatcherConfig,
             GPUBatchScheduler,
@@ -673,7 +675,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_gpu_dispatcher_collision_callback(self) -> None:
-        """Dispatcher 碰撞命中回调应被正确调用。"""
+        """Dispatcher 碰撞命中回调应被正确调用。."""
         from unittest.mock import MagicMock
 
         from gpu_engine.gpu_dispatcher import (
@@ -711,7 +713,7 @@ class TestGPUPipelineHardware:
 
     @pytest.mark.gpu
     def test_collision_detection_with_utxo(self, tmp_dir) -> None:
-        """GPU 输出格式验证（shape / dtype / 碰撞检测 API）。"""
+        """GPU 输出格式验证（shape / dtype / 碰撞检测 API）。."""
         import json
 
         from gpu_engine.gpu_pipeline import GPUPipeline
@@ -745,7 +747,7 @@ class TestGPUPipelineHardware:
             # 验证 HASH160 输出格式正确（1D 连续数组, batch * 20 字节）
             assert len(result.hash160s.shape) == 1
             assert result.hash160s.shape[0] == 256 * 20
-            assert result.hash160s.dtype == np.uint8  # noqa: E501
+            assert result.hash160s.dtype == np.uint8
             # 验证私钥输出格式正确（1D 连续数组, batch * 32 字节）
             assert len(result.privkey_bytes.shape) == 1
             assert result.privkey_bytes.shape[0] == 256 * 32
