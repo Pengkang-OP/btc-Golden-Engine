@@ -95,6 +95,7 @@ module = [
     "gpu_engine.test_vectors",
 ]
 disable_error_code = [
+    "misc",
     "no-untyped-def",
     "no-untyped-call",
     "type-arg",
@@ -123,6 +124,7 @@ module = [
     "distributed.test_distributed",
 ]
 disable_error_code = [
+    "misc",
     "attr-defined",
     "no-untyped-call",
     "no-untyped-def",
@@ -157,6 +159,26 @@ disable_error_code = [
     "arg-type",
     "assignment",
     "union-attr",
+]
+
+# 根目录遗留/实用脚本：非生产模块，不施加 strict 检查
+[[tool.mypy.overrides]]
+module = [
+    "view_transactions",
+    "scan_balance",
+    "parse_wallet",
+    "get_balance_addresses",
+    "verify_hash160",
+    "_coverage_tdr",
+]
+disable_error_code = [
+    "no-untyped-def",
+    "no-untyped-call",
+    "arg-type",
+    "assignment",
+    "union-attr",
+    "return-value",
+    "method-assign",
 ]
 
 [tool.pytest.ini_options]

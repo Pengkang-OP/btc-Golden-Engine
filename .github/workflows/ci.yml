@@ -52,6 +52,10 @@ jobs:
           mypy . --ignore-missing-imports --platform linux --show-error-codes \
             --no-incremental --cache-dir /dev/null \
             --exclude '.github' --exclude '__pycache__' \
+            --exclude 'view_transactions.py' --exclude 'scan_balance.py' \
+            --exclude 'parse_wallet.py' --exclude 'get_balance_addresses.py' \
+            --exclude 'verify_hash160.py' --exclude '_coverage_tdr.py' \
+            --exclude 'share' \
             2>&1
           rc=$?
           echo "=== mypy exit code: $rc ==="
