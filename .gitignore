@@ -82,8 +82,11 @@ test_kernel_out.txt
 _download_logs.py
 _check_ci*.py
 _ci*.py
+_run_*.py
 _coverage_tdr.py
 ci_log_*.txt
+mypy_out.txt
+ruff_fmt_check.txt
 
 # Trunk (platform-specific tooling cache)
 .trunk/plugins/

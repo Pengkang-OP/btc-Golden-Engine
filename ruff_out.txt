@@ -1,8 +1,0 @@
-﻿
-  - 'ignore' -> 'lint.ignore'
-  - 'select' -> 'lint.select'
-Would reformat: gpu_engine\gpu_dispatcher.py
-Would reformat: gpu_engine\gpu_pipeline.py
-2 files would be reformatted, 54 files already formatted
-
-
