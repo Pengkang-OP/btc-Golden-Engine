@@ -205,18 +205,20 @@ class TestWorkerRegistry:
         w1.last_heartbeat = time.time() - 60
         w1.status = "scanning"
 
-        # I03: 需要连续 3 次 steal_range 触发超时回收
-        for _ in range(2):
-            assert r.steal_range("w2") is None  # 前 2 次暂不回收
+        # I03: _cleanup_dead_workers 累加超时计数器 (0→1→2) 并管理 cleanup；steal_range 只读取
+        r._cleanup_dead_workers()  # cnt: 0→1
+        assert r.steal_range("w2") is None  # cnt=1 < 3, 暂不回收
 
-        # 第 3 次才真正回收
-        stolen = r.steal_range("w2")
-        assert stolen is not None
-        assert stolen.start_key >= 1
+        r._cleanup_dead_workers()  # cnt: 1→2
+        assert r.steal_range("w2") is None  # cnt=2 < 3, 暂不回收
 
-        # w1 被标记为 error
+        # 第 3 次 cleanup → cnt: 2→3 → _cleanup_dead_workers 清理 w1
+        assert r._cleanup_dead_workers() == 1  # 清理了 1 个 worker
+        assert r.steal_range("w2") is None  # w1 已被 cleanup, 无超时 worker 可 steal
         assert w1.status == "error"
         assert "timeout" in w1.error_message
+        assert w1.current_start == 0
+        assert w1.current_end == 0
 
     def test_list_workers(self, registry: Any) -> None:
         r = registry
@@ -349,8 +351,8 @@ class TestMasterService:
         req = AssignmentRequest(worker_id="n1")
         resp = service.GetAssignment(req, FakeContext())
         assert resp.has_work is True
-        assert resp.start_key == 1
-        assert resp.end_key == 101
+        assert resp.start_key == (1).to_bytes(32, "big")
+        assert resp.end_key == (101).to_bytes(32, "big")
 
     def test_get_assignment_no_worker(self, service: Any) -> None:
         from distributed.protocol_pb2 import AssignmentRequest
@@ -363,7 +365,9 @@ class TestMasterService:
     def test_report_hit(self, service: Any) -> None:
         from distributed.protocol_pb2 import HitReport
 
-        req = HitReport(worker_id="n1", privkey_hex="abcdef", key_value=123)
+        req = HitReport(
+            worker_id="n1", privkey_hex="abcdef", key_value=(123).to_bytes(32, "big")
+        )
         resp = service.ReportHit(req, FakeContext())
         assert resp.accepted is True
         assert "hit-1" in resp.collision_id

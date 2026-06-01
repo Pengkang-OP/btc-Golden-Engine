@@ -4,53 +4,52 @@
 # source: distributed/protocol.proto
 # Protobuf Python Version: 6.31.1
 """Generated protocol buffer code."""
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
+
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    6,
-    31,
-    1,
-    '',
-    'distributed/protocol.proto'
+    _runtime_version.Domain.PUBLIC, 6, 31, 1, "", "distributed/protocol.proto"
 )
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
 
-
-
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1a\x64istributed/protocol.proto\x12\x0b\x64istributed\"l\n\x0fRegisterRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x11\n\tcpu_cores\x18\x02 \x01(\x05\x12\x11\n\tgpu_count\x18\x03 \x01(\x05\x12\x0f\n\x07\x61\x64\x64ress\x18\x04 \x01(\t\x12\x0f\n\x07version\x18\x05 \x01(\t\"\x81\x01\n\x10RegisterResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x11\n\tmaster_id\x18\x02 \x01(\t\x12\x1e\n\x16heartbeat_interval_sec\x18\x03 \x01(\x05\x12\x17\n\x0f\x61ssignment_size\x18\x04 \x01(\x03\x12\x0f\n\x07message\x18\x05 \x01(\t\"w\n\x10HeartbeatRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x14\n\x0ckeys_checked\x18\x02 \x01(\x03\x12\x13\n\x0b\x63urrent_key\x18\x03 \x01(\x03\x12\x0e\n\x06status\x18\x04 \x01(\t\x12\x15\n\rerror_message\x18\x05 \x01(\t\"T\n\x11HeartbeatResponse\x12\x14\n\x0c\x61\x63knowledged\x18\x01 \x01(\x08\x12\x18\n\x10\x63\x61ncel_requested\x18\x02 \x01(\x08\x12\x0f\n\x07message\x18\x03 \x01(\t\"&\n\x11\x41ssignmentRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\"Z\n\x12\x41ssignmentResponse\x12\x10\n\x08has_work\x18\x01 \x01(\x08\x12\x11\n\tstart_key\x18\x02 \x01(\x0c\x12\x0f\n\x07\x65nd_key\x18\x03 \x01(\x0c\x12\x0e\n\x06\x63ursor\x18\x04 \x01(\x0c\"F\n\tHitReport\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x13\n\x0bprivkey_hex\x18\x02 \x01(\t\x12\x11\n\tkey_value\x18\x03 \x01(\x0c\"[\n\x0eReportResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x10\n\x08verified\x18\x02 \x01(\x08\x12\x14\n\x0c\x63ollision_id\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\"&\n\x11TargetInfoRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\"\xec\x01\n\x12TargetInfoResponse\x12\x19\n\x11hash160_available\x18\x01 \x01(\x08\x12\x15\n\rhash160_count\x18\x02 \x01(\x03\x12\x1a\n\x12hash160_size_bytes\x18\x03 \x01(\x03\x12\x17\n\x0fxonly_available\x18\x04 \x01(\x08\x12\x13\n\x0bxonly_count\x18\x05 \x01(\x03\x12\x18\n\x10xonly_size_bytes\x18\x06 \x01(\x03\x12\x14\n\x0c\x64ownload_url\x18\x07 \x01(\t\x12\x17\n\x0f\x63hecksum_sha256\x18\x08 \x01(\t\x12\x11\n\tbloom_url\x18\t \x01(\t2\x8a\x03\n\rMasterService\x12G\n\x08Register\x12\x1c.distributed.RegisterRequest\x1a\x1d.distributed.RegisterResponse\x12J\n\tHeartbeat\x12\x1d.distributed.HeartbeatRequest\x1a\x1e.distributed.HeartbeatResponse\x12P\n\rGetAssignment\x12\x1e.distributed.AssignmentRequest\x1a\x1f.distributed.AssignmentResponse\x12@\n\tReportHit\x12\x16.distributed.HitReport\x1a\x1b.distributed.ReportResponse\x12P\n\rGetTargetInfo\x12\x1e.distributed.TargetInfoRequest\x1a\x1f.distributed.TargetInfoResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+    b'\n\x1a\x64istributed/protocol.proto\x12\x0b\x64istributed"l\n\x0fRegisterRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x11\n\tcpu_cores\x18\x02 \x01(\x05\x12\x11\n\tgpu_count\x18\x03 \x01(\x05\x12\x0f\n\x07\x61\x64\x64ress\x18\x04 \x01(\t\x12\x0f\n\x07version\x18\x05 \x01(\t"\x81\x01\n\x10RegisterResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x11\n\tmaster_id\x18\x02 \x01(\t\x12\x1e\n\x16heartbeat_interval_sec\x18\x03 \x01(\x05\x12\x17\n\x0f\x61ssignment_size\x18\x04 \x01(\x03\x12\x0f\n\x07message\x18\x05 \x01(\t"w\n\x10HeartbeatRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x14\n\x0ckeys_checked\x18\x02 \x01(\x03\x12\x13\n\x0b\x63urrent_key\x18\x03 \x01(\x03\x12\x0e\n\x06status\x18\x04 \x01(\t\x12\x15\n\rerror_message\x18\x05 \x01(\t"T\n\x11HeartbeatResponse\x12\x14\n\x0c\x61\x63knowledged\x18\x01 \x01(\x08\x12\x18\n\x10\x63\x61ncel_requested\x18\x02 \x01(\x08\x12\x0f\n\x07message\x18\x03 \x01(\t"&\n\x11\x41ssignmentRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t"Z\n\x12\x41ssignmentResponse\x12\x10\n\x08has_work\x18\x01 \x01(\x08\x12\x11\n\tstart_key\x18\x02 \x01(\x0c\x12\x0f\n\x07\x65nd_key\x18\x03 \x01(\x0c\x12\x0e\n\x06\x63ursor\x18\x04 \x01(\x0c"F\n\tHitReport\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\x13\n\x0bprivkey_hex\x18\x02 \x01(\t\x12\x11\n\tkey_value\x18\x03 \x01(\x0c"[\n\x0eReportResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x10\n\x08verified\x18\x02 \x01(\x08\x12\x14\n\x0c\x63ollision_id\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t"&\n\x11TargetInfoRequest\x12\x11\n\tworker_id\x18\x01 \x01(\t"\xec\x01\n\x12TargetInfoResponse\x12\x19\n\x11hash160_available\x18\x01 \x01(\x08\x12\x15\n\rhash160_count\x18\x02 \x01(\x03\x12\x1a\n\x12hash160_size_bytes\x18\x03 \x01(\x03\x12\x17\n\x0fxonly_available\x18\x04 \x01(\x08\x12\x13\n\x0bxonly_count\x18\x05 \x01(\x03\x12\x18\n\x10xonly_size_bytes\x18\x06 \x01(\x03\x12\x14\n\x0c\x64ownload_url\x18\x07 \x01(\t\x12\x17\n\x0f\x63hecksum_sha256\x18\x08 \x01(\t\x12\x11\n\tbloom_url\x18\t \x01(\t2\x8a\x03\n\rMasterService\x12G\n\x08Register\x12\x1c.distributed.RegisterRequest\x1a\x1d.distributed.RegisterResponse\x12J\n\tHeartbeat\x12\x1d.distributed.HeartbeatRequest\x1a\x1e.distributed.HeartbeatResponse\x12P\n\rGetAssignment\x12\x1e.distributed.AssignmentRequest\x1a\x1f.distributed.AssignmentResponse\x12@\n\tReportHit\x12\x16.distributed.HitReport\x1a\x1b.distributed.ReportResponse\x12P\n\rGetTargetInfo\x12\x1e.distributed.TargetInfoRequest\x1a\x1f.distributed.TargetInfoResponseb\x06proto3'
+)
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'distributed.protocol_pb2', _globals)
+_builder.BuildTopDescriptorsAndMessages(
+    DESCRIPTOR, "distributed.protocol_pb2", _globals
+)
 if not _descriptor._USE_C_DESCRIPTORS:
-  DESCRIPTOR._loaded_options = None
-  _globals['_REGISTERREQUEST']._serialized_start=43
-  _globals['_REGISTERREQUEST']._serialized_end=151
-  _globals['_REGISTERRESPONSE']._serialized_start=154
-  _globals['_REGISTERRESPONSE']._serialized_end=283
-  _globals['_HEARTBEATREQUEST']._serialized_start=285
-  _globals['_HEARTBEATREQUEST']._serialized_end=404
-  _globals['_HEARTBEATRESPONSE']._serialized_start=406
-  _globals['_HEARTBEATRESPONSE']._serialized_end=490
-  _globals['_ASSIGNMENTREQUEST']._serialized_start=492
-  _globals['_ASSIGNMENTREQUEST']._serialized_end=530
-  _globals['_ASSIGNMENTRESPONSE']._serialized_start=532
-  _globals['_ASSIGNMENTRESPONSE']._serialized_end=622
-  _globals['_HITREPORT']._serialized_start=624
-  _globals['_HITREPORT']._serialized_end=694
-  _globals['_REPORTRESPONSE']._serialized_start=696
-  _globals['_REPORTRESPONSE']._serialized_end=787
-  _globals['_TARGETINFOREQUEST']._serialized_start=789
-  _globals['_TARGETINFOREQUEST']._serialized_end=827
-  _globals['_TARGETINFORESPONSE']._serialized_start=830
-  _globals['_TARGETINFORESPONSE']._serialized_end=1066
-  _globals['_MASTERSERVICE']._serialized_start=1069
-  _globals['_MASTERSERVICE']._serialized_end=1463
+    DESCRIPTOR._loaded_options = None
+    _globals["_REGISTERREQUEST"]._serialized_start = 43
+    _globals["_REGISTERREQUEST"]._serialized_end = 151
+    _globals["_REGISTERRESPONSE"]._serialized_start = 154
+    _globals["_REGISTERRESPONSE"]._serialized_end = 283
+    _globals["_HEARTBEATREQUEST"]._serialized_start = 285
+    _globals["_HEARTBEATREQUEST"]._serialized_end = 404
+    _globals["_HEARTBEATRESPONSE"]._serialized_start = 406
+    _globals["_HEARTBEATRESPONSE"]._serialized_end = 490
+    _globals["_ASSIGNMENTREQUEST"]._serialized_start = 492
+    _globals["_ASSIGNMENTREQUEST"]._serialized_end = 530
+    _globals["_ASSIGNMENTRESPONSE"]._serialized_start = 532
+    _globals["_ASSIGNMENTRESPONSE"]._serialized_end = 622
+    _globals["_HITREPORT"]._serialized_start = 624
+    _globals["_HITREPORT"]._serialized_end = 694
+    _globals["_REPORTRESPONSE"]._serialized_start = 696
+    _globals["_REPORTRESPONSE"]._serialized_end = 787
+    _globals["_TARGETINFOREQUEST"]._serialized_start = 789
+    _globals["_TARGETINFOREQUEST"]._serialized_end = 827
+    _globals["_TARGETINFORESPONSE"]._serialized_start = 830
+    _globals["_TARGETINFORESPONSE"]._serialized_end = 1066
+    _globals["_MASTERSERVICE"]._serialized_start = 1069
+    _globals["_MASTERSERVICE"]._serialized_end = 1463
 # @@protoc_insertion_point(module_scope)
