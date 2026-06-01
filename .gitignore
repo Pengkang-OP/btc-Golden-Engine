@@ -94,7 +94,7 @@ _fix_*.py
 _ruff_*.py
 ruff_*.py
 
-# CI/Ruff diagnostic outputs
+# CI/Ruff diagnostic outputs (root-level)
 check_runs.json
 ci_jobs*.json
 ci_runs.json
@@ -105,6 +105,22 @@ coverage.xml
 *_verify.txt
 format_errors.txt
 _ruff_*.txt
+
+# General temporary diagnostic/check outputs
+ce*.txt
+chk_*.txt
+format_check*.txt
+format_chk*.txt
+inline_test*.txt
+mypy_check*.txt
+mypy_dist*.txt
+ruff_chk*.txt
+ruff_full.txt
+ruff_output.txt
+r[0-9].txt
+v[0-9].txt
+*.bak
+.ruff_test.toml
 
 # Empty/temp artifacts
 3000
