@@ -21,7 +21,7 @@ from starlette.responses import HTMLResponse, Response
 from .state import (
     get_hash160_set,
     get_xonly_set,
-    _jinja_env,
+    jinja_env,
     _websocket_clients,
     _ws_lock,
     get_db,
@@ -88,7 +88,7 @@ def _build_stats() -> dict[str, Any]:
 async def dashboard() -> str:
     """渲染 Dashboard 页面。"""
     try:
-        template = _jinja_env.get_template("dashboard.html")
+        template = jinja_env.get_template("dashboard.html")
         stats = _build_stats()
         return template.render(stats=stats)
     except Exception as exc:

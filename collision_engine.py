@@ -1461,7 +1461,7 @@ def _load_targets(
         xonly_target_set.load(bin_path=xonly_path, quiet=True)
         swappable_xonly = SwappableTarget(initial_set=xonly_target_set)
         _swappable_xonly = swappable_xonly
-        _logger.info(" [OK] 已加载 %s 个 x-only pubkey", f"{len(xonly_target_set):,}")
+        _logger.info("[OK] 已加载 %s 个 x-only pubkey", f"{len(xonly_target_set):,}")
 
     return swappable_target, swappable_xonly
 

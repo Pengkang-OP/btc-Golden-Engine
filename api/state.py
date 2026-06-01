@@ -166,7 +166,7 @@ async def broadcast_stats(stats: dict[str, Any]) -> None:
 
 # ── Jinja2 模板 ─────────────────────────────────────────────
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
-_jinja_env = jinja2.Environment(
+jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(_TEMPLATES_DIR)),
     autoescape=True,
 )

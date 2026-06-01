@@ -634,7 +634,7 @@ class TestRoutesErrorPaths:
 
         bad_env = mock.MagicMock()
         bad_env.get_template.side_effect = Exception("template not found")
-        monkeypatch.setattr(routes, "_jinja_env", bad_env)
+        monkeypatch.setattr(routes, "jinja_env", bad_env)
 
         resp = client.get("/")
         assert resp.status_code == 500
