@@ -230,7 +230,6 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
 "api/routes.py" = [
     "ANN401",
     "E501",
-    "ASYNC240",
     "PLC0415",
     "PLW0603",
 ]
