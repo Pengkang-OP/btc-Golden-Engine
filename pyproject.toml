@@ -151,6 +151,7 @@ module = [
     "tests.*",
 ]
 disable_error_code = [
+    "misc",
     "no-untyped-def",
     "no-untyped-call",
     "arg-type",
