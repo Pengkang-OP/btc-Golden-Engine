@@ -157,10 +157,10 @@ class DistributedScanner:
                     continue
 
                 self._retry_delay = 1.0  # 成功获取作业，重置退避
-                start_key = assignment.start_key
-                end_key = assignment.end_key
+                start_key = int.from_bytes(assignment.start_key, "big")
+                end_key = int.from_bytes(assignment.end_key, "big")
                 self._current_key = start_key
-                self._assignment_cursor = assignment.cursor
+                self._assignment_cursor = int.from_bytes(assignment.cursor, "big")
 
                 _logger.info(
                     "[Worker %s] 获取作业范围: [%d, %d) (cursor=%d)",
@@ -201,6 +201,15 @@ class DistributedScanner:
                 self._send_heartbeat(status="error", error_message=str(exc))
                 time.sleep(self._retry_delay)
                 self._retry_delay = min(self._retry_delay * 2, self._max_retry_delay)
+                # gRPC 断线重连
+                if self._channel is not None:
+                    _logger.info("[Worker %s] 尝试重新连接...", self._worker_id)
+                    self._channel.close()
+                    self._channel = None
+                    self._stub = None
+                    if self.connect():
+                        _logger.info("[Worker %s] 重新连接成功", self._worker_id)
+                        self._retry_delay = 1.0
 
         self._save_local_checkpoint()
         _logger.info(
@@ -220,19 +229,20 @@ class DistributedScanner:
     ) -> None:
         """扫描指定 key 范围。尝试 GPU 模式，回退到 CPU 模式。
 
-        若指定了 gpu_start（非零），CPU 回退从此值而非 start_key 开始，
-        避免重复扫描 GPU 已处理的部分。
+        若指定了 gpu_start 且 GPU 可用，CPU 回退从此值而非 start_key 开始，
+        避免重复扫描 GPU 已处理的部分。若 GPU 不可用，忽略 gpu_start。
         """
         from collision_engine import _GPU_AVAILABLE as gpu_available
 
         use_gpu = self._gpu_enabled and gpu_available
 
-        actual_start = max(start_key, self._gpu_start) if self._gpu_start else start_key
-
         if use_gpu:
+            actual_start = (
+                max(start_key, self._gpu_start) if self._gpu_start else start_key
+            )
             self._scan_gpu(actual_start, end_key, target, xonly_target)
         else:
-            self._scan_cpu(actual_start, end_key, target, xonly_target)
+            self._scan_cpu(start_key, end_key, target, xonly_target)
 
     def _scan_cpu(self, start_key: int, end_key: int, target, xonly_target) -> None:
         """CPU 模式扫描：多线程 + 点加法链加速。
@@ -482,12 +492,17 @@ class DistributedScanner:
         if self._stub is None:
             return
         try:
+            priv_hex = getattr(result, "privkey_hex", "")
+            if not priv_hex:
+                _logger.warning(
+                    "[Worker %s] 碰撞结果缺少 privkey_hex，跳过上报", self._worker_id
+                )
+                return
             resp = self._stub.ReportHit(
                 HitReport(
                     worker_id=self._worker_id,
-                    privkey_hex=getattr(result, "privkey_hex", ""),
-                    key_value=int(result.privkey_hex, 16)
-                    & 0x7FFFFFFFFFFFFFFF,  # protobuf int64 有符号
+                    privkey_hex=priv_hex,
+                    key_value=bytes.fromhex(priv_hex),
                 )
             )
             _logger.info(

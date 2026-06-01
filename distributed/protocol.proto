@@ -60,16 +60,16 @@ message AssignmentRequest {
 
 message AssignmentResponse {
   bool has_work = 1;
-  uint64 start_key = 2;       // 起始私钥（包含）
-  uint64 end_key = 3;         // 结束私钥（不包含，0=无限）
-  uint64 cursor = 4;          // 全局 cursor（日志/统计用途）
+  bytes start_key = 2;       // 起始私钥（大端 32 字节）
+  bytes end_key = 3;         // 结束私钥（大端 32 字节，空=无限）
+  bytes cursor = 4;          // 全局 cursor（大端 32 字节，日志/统计用途）
 }
 
 // ── ReportHit ───────────────────────────────────────────────
 message HitReport {
   string worker_id = 1;
   string privkey_hex = 2;     // 碰撞私钥（64 hex）
-  int64 key_value = 3;        // 私钥数值
+  bytes key_value = 3;        // 私钥数值（大端 32 字节）
 }
 
 message ReportResponse {

@@ -21,6 +21,7 @@ import json
 import sqlite3
 import threading
 import time
+import types
 from pathlib import Path
 from typing import Any, Optional
 
@@ -46,6 +47,7 @@ class ResultDB:
         self._lock = threading.RLock()
         self._conn: sqlite3.Connection
         self._closed = False
+        self._last_error: Exception | None = None  # 供主线程查询的线程异常
         self._initialize()
 
     def _initialize(self) -> None:
@@ -263,12 +265,8 @@ class ResultDB:
             data = json.loads(Path(json_path).read_text(encoding="utf-8"))
             count = 0
 
-            # 从字典创建 dataclass 兼容对象
-            class _ResultProxy:
-                pass
-
             for item in data:
-                proxy = _ResultProxy()
+                proxy = types.SimpleNamespace()
                 for k, v in item.items():
                     setattr(proxy, k, v)
                 self.save_result(proxy)
@@ -276,6 +274,12 @@ class ResultDB:
             return count
         except (json.JSONDecodeError, OSError, sqlite3.Error) as exc:
             raise DatabaseError(f"导入 JSON 失败: {exc}", original=exc) from exc
+
+    def check_error(self) -> Exception | None:
+        """返回并清除上次线程内记录的异常（供主线程查询）。"""
+        err = self._last_error
+        self._last_error = None
+        return err
 
     def close(self) -> None:
         """关闭数据库连接。"""

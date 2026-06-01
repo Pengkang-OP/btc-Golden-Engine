@@ -76,6 +76,8 @@ def _skip_script(data, off, sc):
     elif sc in (0x02, 0x03, 0x04):
         # v1: sc=0x02 mapped as P2PK → 32B
         return off + 32
+    elif sc == 0x05:
+        return off  # OP_RETURN: 0 bytes
     else:
         return off + (sc - 6)
 
@@ -185,7 +187,7 @@ def parse():
 
                 elif sc == 0x05:
                     # v1: mapped as P2PK → 32B (over-read shifts past corruption)
-                    off += 32
+                    # OP_RETURN: 0 bytes
                     types["OP_RETURN"] += 1
 
                 else:

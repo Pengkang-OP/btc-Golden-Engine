@@ -50,9 +50,17 @@ class Notifier:
 
     def close(self) -> None:
         """释放线程池资源，防止线程泄漏。"""
-        self._executor.shutdown(wait=False)
+        try:
+            self._executor.shutdown(wait=False)
+        except Exception:
+            pass
 
-    def __del__(self) -> None:
+    def __enter__(self) -> Notifier:
+        """上下文管理器入口，返回自身。"""
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        """上下文管理器出口，释放线程池资源。"""
         self.close()
 
     # ── 公共接口 ──────────────────────────────────────────

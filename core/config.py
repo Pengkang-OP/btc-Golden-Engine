@@ -81,8 +81,22 @@ class EngineConfig:
     _mtime: float = 0.0  # 文件修改时间戳 (check_reload 使用)
 
     def __post_init__(self) -> None:
-        """将相对路径转换为基于 _base_dir 的绝对路径。"""
+        """初始化后处理：路径解析、URL 校验。"""
         self._resolve_paths()
+        self._validate_urls()
+
+    def __repr__(self) -> str:
+        """脱敏输出，避免凭据泄露到日志。"""
+        return (
+            f"EngineConfig(mode={self.mode}, notify_on_hit={self.notify_on_hit}, "
+            f"enable_utxo_auto_refresh={self.enable_utxo_auto_refresh})"
+        )
+
+    def _validate_urls(self) -> None:
+        """验证 webhook_url 的 scheme 必须是 https://（防止 SSRF）。"""
+        url = self.webhook_url
+        if url and not url.startswith("https://"):
+            raise ValueError(f"webhook_url 必须使用 HTTPS: {url}")
 
     def _resolve_paths(self) -> None:
         """将所有相对路径字段转换为绝对路径。"""
@@ -247,9 +261,16 @@ _shutdown_requested: bool = False
 
 
 def request_shutdown() -> None:
-    """请求停止配置监视器线程 (全局标志)。"""
+    """请求停止配置监视器线程 (全局标志)。
+
+    同时同步 collision_engine 的关闭标志，避免双标志不同步导致线程无法关闭。
+    """
     global _shutdown_requested
     _shutdown_requested = True
+    # 同步通知 collision_engine 的关闭标志（延迟导入避免循环依赖）
+    import collision_engine as _ce
+
+    _ce._shutdown_requested = True
 
 
 def start_config_watcher(

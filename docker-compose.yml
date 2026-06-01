@@ -6,7 +6,8 @@ services:
     image: bitcoin-collision-finder:latest
     stdin_open: true
     tty: true
-    network_mode: host  # 注意: Docker Desktop (Windows/macOS) 不支持 host 网络模式
+    ports:
+      - "50051:50051"
     volumes:
       - ./utxo_hash160.bin:/app/utxo_hash160.bin:ro
       - ./utxo_hash160.idx:/app/utxo_hash160.idx:ro
@@ -17,16 +18,15 @@ services:
     environment:
       - LOG_LEVEL=INFO
       - RESULTS_DIR=/app/results
-    command: ["--help"]
+    command: ["--gpu", "--gpu-mode", "sequential"]
 
   web-ui:
     build:
       context: .
       dockerfile: Dockerfile
     image: bitcoin-collision-finder:latest
-    # engine 容器启动即退出（仅展示 --help），故 depends_on 无实际意义
-    # depends_on:
-    #   - engine
+    depends_on:
+      - engine
     ports:
       - "8080:8080"
     volumes:

@@ -669,25 +669,66 @@
 
     function renderResults(data) {
         const tbody = document.getElementById('resultsBody');
+        // 清空 tbody
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
         if (!data.items || data.items.length === 0) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无碰撞结果</td></tr>';
+            const tr = document.createElement('tr');
+            tr.className = 'empty-row';
+            const td = document.createElement('td');
+            td.colSpan = 6;
+            td.appendChild(document.createTextNode('暂无碰撞结果'));
+            tr.appendChild(td);
+            tbody.appendChild(tr);
             updatePagination(data.total || 0);
             return;
         }
-        let html = '';
+
         for (const item of data.items) {
+            const tr = document.createElement('tr');
             const ts = (item.timestamp || '').substring(0, 19).replace('T', ' ');
             const addr = item.p2pkh_address_comp || item.p2wpkh_address || item.p2tr_address || '-';
-            html += '<tr>' +
-                '<td>' + item.id + '</td>' +
-                '<td style="white-space:nowrap;">' + ts + '</td>' +
-                '<td>' + renderResultType(item.address_type) + '</td>' +
-                '<td style="font-family:monospace;font-size:12px;">' + (item.privkey_hex_short || '-') + '</td>' +
-                '<td style="font-family:monospace;font-size:12px;">' + (item.wif_short || '-') + '</td>' +
-                '<td style="font-family:monospace;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="' + addr + '">' + addr + '</td>' +
-                '</tr>';
+            const pkShort = item.privkey_hex_short || '-';
+            const wifShort = item.wif_short || '-';
+            const typeLabel = renderResultType(item.address_type);
+
+            // id
+            const td1 = document.createElement('td');
+            td1.appendChild(document.createTextNode(String(item.id)));
+            tr.appendChild(td1);
+
+            // timestamp
+            const td2 = document.createElement('td');
+            td2.style.whiteSpace = 'nowrap';
+            td2.appendChild(document.createTextNode(ts));
+            tr.appendChild(td2);
+
+            // address type
+            const td3 = document.createElement('td');
+            td3.appendChild(document.createTextNode(typeLabel));
+            tr.appendChild(td3);
+
+            // privkey hex
+            const td4 = document.createElement('td');
+            td4.style.cssText = 'font-family:monospace;font-size:12px;';
+            td4.appendChild(document.createTextNode(pkShort));
+            tr.appendChild(td4);
+
+            // WIF
+            const td5 = document.createElement('td');
+            td5.style.cssText = 'font-family:monospace;font-size:12px;';
+            td5.appendChild(document.createTextNode(wifShort));
+            tr.appendChild(td5);
+
+            // address
+            const td6 = document.createElement('td');
+            td6.style.cssText = 'font-family:monospace;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;';
+            td6.setAttribute('title', addr);
+            td6.appendChild(document.createTextNode(addr));
+            tr.appendChild(td6);
+
+            tbody.appendChild(tr);
         }
-        tbody.innerHTML = html;
         updatePagination(data.total || 0);
     }
 

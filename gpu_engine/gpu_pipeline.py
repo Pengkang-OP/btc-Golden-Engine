@@ -100,7 +100,7 @@ class GPUPipeline:
         self._h_hit_count = np.zeros(1, dtype=np.int32)
         self._h_hit_buffer: np.ndarray | None = None
 
-        self._h_privkeys = np.zeros(batch_size * 32, dtype=np.uint8)
+        self._h_privkeys = np.empty(batch_size * 32, dtype=np.uint8)
         self._h_hash160s = np.zeros(batch_size * 20, dtype=np.uint8)
         # 按 vendor 优化（_init_opencl 中设置）
         self._local_ws: int | None = None
@@ -198,7 +198,7 @@ class GPUPipeline:
             )
             self.batch_size = int(max_safe_batch)
             # 重新分配 host 缓冲区
-            self._h_privkeys = np.zeros(self.batch_size * 32, dtype=np.uint8)
+            self._h_privkeys = np.empty(self.batch_size * 32, dtype=np.uint8)
             self._h_hash160s = np.zeros(self.batch_size * 20, dtype=np.uint8)
 
         # 创建 context 和 queue
@@ -230,19 +230,18 @@ class GPUPipeline:
         except Exception:
             self._kernel_collision = None  # 旧 kernel 文件不含碰撞检测
 
-        # 分配设备端缓冲区（USE_HOST_PTR 减少 PCIe 拷贝）
+        # 分配设备端缓冲区（ALLOC_HOST_PTR 减少 PCIe 拷贝，不能与 USE_HOST_PTR 混用）
         mf = cl.mem_flags
         self._d_privkeys = cl.Buffer(
             self._ctx,
-            mf.READ_ONLY | mf.USE_HOST_PTR | mf.ALLOC_HOST_PTR,
+            mf.READ_ONLY | mf.ALLOC_HOST_PTR,
             size=self.batch_size * 32,
             hostbuf=self._h_privkeys,
         )
         self._d_hash160s = cl.Buffer(
             self._ctx,
-            mf.WRITE_ONLY | mf.USE_HOST_PTR | mf.ALLOC_HOST_PTR,
+            mf.WRITE_ONLY | mf.ALLOC_HOST_PTR,
             size=self.batch_size * 20,
-            hostbuf=self._h_hash160s,
         )
 
         self._d_pubkeys = cl.Buffer(
@@ -574,7 +573,6 @@ class GPUPipeline:
 
     def close(self) -> None:
         """释放 GPU 资源（显式调用 release() 确保底层 OpenCL 资源释放）。"""
-        import pyopencl as cl  # noqa: F811
 
         for buf_name in (
             "_d_privkeys",
@@ -588,7 +586,7 @@ class GPUPipeline:
             if buf is not None:
                 try:
                     buf.release()
-                except cl.MemoryError:
+                except Exception:
                     pass
                 setattr(self, buf_name, None)
         if self._queue is not None:

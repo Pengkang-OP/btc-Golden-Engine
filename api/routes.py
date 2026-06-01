@@ -23,6 +23,7 @@ from .state import (
     get_xonly_set,
     _jinja_env,
     _websocket_clients,
+    _ws_lock,
     get_db,
     get_engine_status,
     logger,
@@ -92,7 +93,12 @@ async def dashboard() -> str:
         return template.render(stats=stats)
     except Exception as exc:
         logger.error("渲染 Dashboard 失败: %s", exc)
-        return f"<h1>Dashboard 渲染错误</h1><pre>{exc}</pre>"
+        from starlette.responses import HTMLResponse
+
+        return HTMLResponse(
+            content=f"<h1>Dashboard 渲染错误</h1><pre>{exc}</pre>",
+            status_code=500,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -124,6 +130,17 @@ async def get_stats() -> dict[str, Any]:
     return _build_stats()
 
 
+_VALID_ADDRESS_TYPES = frozenset(
+    {
+        "P2PKH (Legacy)",
+        "P2WPKH/P2PKH",
+        "P2TR (Taproot)",
+        "P2PKH",
+        "P2WPKH",
+    }
+)
+
+
 @router.get("/api/results")
 async def get_results(
     limit: int = Query(50, ge=1, le=500, description="每页条数"),
@@ -131,13 +148,29 @@ async def get_results(
     address_type: Optional[str] = Query(None, description="地址类型过滤"),
 ) -> dict[str, Any]:
     """分页查询碰撞结果。"""
+    if address_type is not None and address_type not in _VALID_ADDRESS_TYPES:
+        from starlette.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": f"无效的地址类型: {address_type!r}。有效值: {sorted(_VALID_ADDRESS_TYPES)}",
+                "total": 0,
+                "items": [],
+            },
+        )
     db = get_db()
     try:
         total = db.count_results(address_type=address_type)
         items = db.list_results(limit=limit, offset=offset, address_type=address_type)
     except Exception as exc:
         logger.error("查询碰撞结果失败: %s", exc)
-        return {"error": "内部查询错误", "total": 0, "items": []}
+        from starlette.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=500,
+            content={"error": "内部查询错误", "total": 0, "items": []},
+        )
 
     # 截断私钥显示
     for item in items:
@@ -284,11 +317,12 @@ MAX_WS_CLIENTS = 50
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """WebSocket 端点 — 实时推送统计信息（最多 50 个连接）。"""
     await websocket.accept()
-    if len(_websocket_clients) >= MAX_WS_CLIENTS:
-        await websocket.send_json({"error": "连接数已达上限"})
-        await websocket.close()
-        return
-    _websocket_clients.add(websocket)
+    async with _ws_lock:
+        if len(_websocket_clients) >= MAX_WS_CLIENTS:
+            await websocket.send_json({"error": "连接数已达上限"})
+            await websocket.close()
+            return
+        _websocket_clients.add(websocket)
     logger.info("WebSocket 客户端已连接 (共 %d 个)", len(_websocket_clients))
 
     try:
@@ -302,5 +336,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     except Exception as exc:
         logger.debug("WebSocket 连接异常: %s", exc)
     finally:
-        _websocket_clients.discard(websocket)
-        logger.info("WebSocket 客户端断开 (剩余 %d 个)", len(_websocket_clients))
+        async with _ws_lock:
+            _websocket_clients.discard(websocket)
+            logger.info("WebSocket 客户端断开 (剩余 %d 个)", len(_websocket_clients))

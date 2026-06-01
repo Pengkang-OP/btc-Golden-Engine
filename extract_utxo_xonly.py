@@ -131,6 +131,8 @@ def parse():
                         off += 20
                     elif sc in (0x02, 0x03, 0x04):
                         off += 32
+                    elif sc == 0x05:
+                        pass  # OP_RETURN: 0 bytes
                     else:
                         off += sc - 6
                     continue
@@ -162,8 +164,10 @@ def parse():
                     # 非 P2TR 跳过
                     if sc == 0x00 or sc == 0x01:
                         off += 20
-                    else:  # 0x02, 0x03, 0x05
+                    elif sc in (0x02, 0x03, 0x04):
                         off += 32
+                    else:  # 0x05 (OP_RETURN): 0 bytes
+                        pass
 
         except (IndexError, struct.error, MemoryError) as e:
             errs += 1

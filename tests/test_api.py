@@ -454,36 +454,6 @@ class TestEngineStatusReadWrite:
         assert result["running"] is False
         assert "error" in result
 
-    # ── write() 路径 ───────────────────────────────────────────
-
-    def test_write_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """写入状态文件成功。"""
-        import api.state as api_state
-
-        es = api_state.EngineStatus()
-        mock_file = self._mock_status_file(es)
-        data = {"running": True, "mode": "cpu"}
-        es.write(data)
-
-        mock_file.write_text.assert_called_once()
-        written = json.loads(mock_file.write_text.call_args[0][0])
-        assert written == data
-
-    def test_write_os_error(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """写入状态文件失败 → 记录警告日志。"""
-        import logging
-        import api.state as api_state
-
-        caplog.set_level(logging.WARNING)
-        es = api_state.EngineStatus()
-        mock_file = self._mock_status_file(es)
-        mock_file.write_text.side_effect = OSError("disk full")
-
-        es.write({"running": True})
-        assert any("写入状态文件失败" in rec.message for rec in caplog.records)
-
 
 # ═══════════════════════════════════════════════════════════════
 #  load_target_sets 路径覆盖（通过 sys.modules mock）
@@ -667,7 +637,7 @@ class TestRoutesErrorPaths:
         monkeypatch.setattr(routes, "_jinja_env", bad_env)
 
         resp = client.get("/")
-        assert resp.status_code == 200
+        assert resp.status_code == 500
         assert "Dashboard 渲染错误" in resp.text
 
     def test_health_db_error(

@@ -9,10 +9,12 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
 
+import asyncio
 import jinja2
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -35,44 +37,37 @@ class EngineStatus:
     STATUS_FILE = PROJECT_ROOT / "collision_engine_status.json"
 
     def __init__(self) -> None:
-        """初始化引擎状态缓存，设置缓存超时时间。"""
+        """初始化引擎状态缓存，设置缓存超时时间和线程锁。"""
+        self._lock = threading.Lock()
         self._last_read: float = 0.0
         self._cache_timeout: float = 1.0  # 缓存 1 秒
         self._cached: dict[str, Any] = {}
         self._cached_ok: bool = False
 
     def read(self) -> dict[str, Any]:
-        """从状态文件读取引擎当前运行状态。"""
+        """从状态文件读取引擎当前运行状态 (线程安全)。"""
         now = time.monotonic()
         if self._cached_ok and (now - self._last_read) < self._cache_timeout:
-            return self._cached
+            with self._lock:
+                return dict(self._cached)
 
-        self._last_read = now
-        try:
-            data = json.loads(self.STATUS_FILE.read_text(encoding="utf-8"))
-            self._cached = data
-            self._cached_ok = True
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            self._cached = {
-                "running": False,
-                "mode": "unknown",
-                "keys_per_second": 0.0,
-                "total_keys": 0,
-                "elapsed_seconds": 0.0,
-                "error": "引擎未运行或状态文件不可用",
-            }
-            self._cached_ok = True
-        return self._cached
-
-    def write(self, data: dict[str, Any]) -> None:  # pragma: no cover
-        """写入引擎状态（由引擎进程调用）。"""
-        try:
-            self.STATUS_FILE.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            logger.warning("写入状态文件失败: %s", exc)
+        with self._lock:
+            self._last_read = now
+            try:
+                data = json.loads(self.STATUS_FILE.read_text(encoding="utf-8"))
+                self._cached = data
+                self._cached_ok = True
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
+                self._cached = {
+                    "running": False,
+                    "mode": "unknown",
+                    "keys_per_second": 0.0,
+                    "total_keys": 0,
+                    "elapsed_seconds": 0.0,
+                    "error": "引擎未运行或状态文件不可用",
+                }
+                self._cached_ok = True
+            return dict(self._cached)
 
 
 # 单例
@@ -137,6 +132,7 @@ def load_target_sets() -> dict[str, Any]:
 
 # ── WebSocket 连接管理 ───────────────────────────────────────
 _websocket_clients: set[WebSocket] = set()
+_ws_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def broadcast_stats(stats: dict[str, Any]) -> None:
@@ -144,15 +140,20 @@ async def broadcast_stats(stats: dict[str, Any]) -> None:
     from api.metrics import get_registry
 
     dead: list[WebSocket] = []
-    for ws in list(_websocket_clients):
+    async with _ws_lock:
+        clients_snapshot = list(_websocket_clients)
+    for ws in clients_snapshot:
         try:
-            await ws.send_json(stats)
-        except WebSocketDisconnect:
+            # 添加 5 秒超时防止慢客户端无限阻塞广播
+            await asyncio.wait_for(ws.send_json(stats), timeout=5.0)
+        except (WebSocketDisconnect, asyncio.TimeoutError):
             dead.append(ws)
         except Exception:
             dead.append(ws)
-    for ws in dead:
-        _websocket_clients.discard(ws)
+    if dead:
+        async with _ws_lock:
+            for ws in dead:
+                _websocket_clients.discard(ws)
 
     # ── 更新 Prometheus 指标 ──
     registry = get_registry()

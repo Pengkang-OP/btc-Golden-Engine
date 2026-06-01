@@ -170,9 +170,8 @@ class WorkerRegistry:
                     continue
                 elapsed = now - w.last_heartbeat
                 if elapsed > HEARTBEAT_TIMEOUT:
-                    # 累计超时计数
-                    cnt = self._consecutive_timeout.get(wid, 0) + 1
-                    self._consecutive_timeout[wid] = cnt
+                    # 仅读取计数器（由 _cleanup_dead_workers 统一管理累计，避免双递增）
+                    cnt = self._consecutive_timeout.get(wid, 0)
                     if cnt < MAX_CONSECUTIVE_TIMEOUT:
                         _logger.warning(
                             "[Master] Worker %s 心跳超时 %ds (第 %d/%d 次，暂不回收)",
@@ -317,6 +316,7 @@ class MasterService(MasterServiceServicer):
         """
         self._registry = registry
         self._hit_count = 0
+        self._db = None  # 延迟初始化 ResultDB
 
     def Register(
         self, request: RegisterRequest, context: grpc.ServicerContext
@@ -384,27 +384,59 @@ class MasterService(MasterServiceServicer):
         )
         return AssignmentResponse(
             has_work=True,
-            start_key=assignment.start_key,
-            end_key=assignment.end_key,
-            cursor=assignment.cursor,
+            start_key=assignment.start_key.to_bytes(32, "big"),
+            end_key=assignment.end_key.to_bytes(32, "big"),
+            cursor=assignment.cursor.to_bytes(32, "big"),
         )
 
     def ReportHit(
         self, request: HitReport, context: grpc.ServicerContext
     ) -> ReportResponse:
-        """处理碰撞上报。记录日志并返回碰撞 ID。"""
+        """处理碰撞上报。持久化到 SQLite 并返回数据库主键 ID。"""
+        from types import SimpleNamespace
+
         self._hit_count += 1
+        kv_hex = request.key_value.hex() if request.key_value else request.privkey_hex
         _logger.info(
-            "[Master] HIT(%s): privkey=%s, key_value=%d (total hits=%d)",
+            "[Master] HIT(%s): privkey=%s, key_value=%s (total hits=%d)",
             request.worker_id,
             request.privkey_hex,
-            request.key_value,
+            kv_hex,
             self._hit_count,
         )
+
+        # 持久化到 SQLite
+        try:
+            if self._db is None:
+                from pathlib import Path
+                from core.database import ResultDB
+
+                root = Path(__file__).resolve().parent.parent
+                self._db = ResultDB(str(root / "collision_results.db"))
+            collision_id = self._db.save_result(
+                SimpleNamespace(
+                    privkey_hex=request.privkey_hex,
+                    wif_compressed="",
+                    wif_uncompressed="",
+                    p2pkh_address_comp="",
+                    p2wpkh_address="",
+                    p2pkh_address_uncomp="",
+                    h160_hex="",
+                    address_type="distributed",
+                    found_via="master",
+                    p2tr_address="",
+                    xonly_hex="",
+                    p2sh_address="",
+                )
+            )
+        except Exception as exc:
+            _logger.error("[Master] 持久化碰撞结果失败: %s", exc, exc_info=True)
+            collision_id = f"hit-{self._hit_count}"
+
         return ReportResponse(
             accepted=True,
             verified=False,
-            collision_id=f"hit-{self._hit_count}",
+            collision_id=str(collision_id),
             message=f"碰撞 #{self._hit_count} 已记录",
         )
 

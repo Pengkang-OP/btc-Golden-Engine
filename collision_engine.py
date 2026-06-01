@@ -560,9 +560,10 @@ def tweak_taproot(pubkey: "PublicKey") -> bytes | None:
 
     # Q = P + t*G
     t_bytes = t_int.to_bytes(32, "big")
-    pubkey.add(t_bytes, update=True)
+    pubkey_copy = PublicKey(pubkey.format())  # 复制避免 side-effect 修改调用方对象
+    pubkey_copy.add(t_bytes, update=True)
 
-    return pubkey.format(compressed=True)[1:]  # 32-byte x-only output key
+    return pubkey_copy.format(compressed=True)[1:]  # 32-byte x-only output key
 
 
 # ── 碰撞结果 ──────────────────────────────────────────────────
@@ -976,9 +977,10 @@ def worker_random(
     global _global_checked
     local_checked = 0
     last_reported = 0
+    _thread_rng = random.Random()  # 每线程独立 Random 实例，避免多线程竞争全局种子
 
     while True:
-        privkey_int = random.randint(1, SECP256K1_ORDER - 1)
+        privkey_int = _thread_rng.randint(1, SECP256K1_ORDER - 1)
 
         if _shutdown_requested:
             _logger.info("关闭请求，停止随机工作线程 %d", thread_id)
@@ -1614,11 +1616,12 @@ def _print_final_report() -> None:
 
 
 def _cleanup(
-    target: TargetProtocol,
+    target: TargetProtocol | None,
     xonly_target: TargetProtocol | None,
 ) -> None:
     """清理资源：关闭目标集、通知器和数据库连接。"""
-    target.close()
+    if target is not None:
+        target.close()
     if xonly_target is not None:
         xonly_target.close()
 
@@ -1683,7 +1686,7 @@ def main() -> None:
             else:
                 _logger.error("分布式 Worker 连接失败，退出")
                 sys.exit(1)
-            _cleanup(target=None, xonly_target=None)  # type: ignore[arg-type]
+            _cleanup(target=None, xonly_target=None)
             return
         except ImportError as exc:
             _logger.error("分布式模块不可用，请安装 grpcio/protobuf: %s", exc)
