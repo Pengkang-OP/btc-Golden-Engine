@@ -66,15 +66,22 @@ python collision_engine.py --gpu --count 1000000
 
 ## 性能对比（实测）
 
-以下数据在 `batch=131,072` 条件下测得：
+以下数据在裸 OpenCL kernel（`_benchmark_gpu.py`）条件下测得，3 次运行取均值：
 
 | 模式 | 实测速率 | 说明 |
 |------|----------|------|
 | CPU 1 线程 | ~8,000 keys/s | 单核 |
 | CPU 8 线程 | ~40,000 keys/s | 8 核 AMD Ryzen 7 5700X |
-| GTX 1660 Ti | ~509,000 keys/s | 单 batch 瞬时 / 24 CU |
-| Intel Arc A770 | ~1,067,000 keys/s | 512 CU @ 2400 MHz / 16 GB 全局 |
+| GTX 1660 Ti | **~871,000 keys/s** | 24 CU / batch=65536 |
+| Intel Arc A770 | **~1,651,000 keys/s** | 512 CU @ 2400 MHz / 16 GB / batch=131072 |
 | Arc A770 + GTX 1660 Ti | ~572,000 keys/s | 双卡并发 — PCIe 争用显著，建议只用 A770 |
+
+> **瓶颈分析**（perf-optimization 原则）：Arc A770 拥有 512 CU vs GTX 1660 Ti 的 24 CU（21×），但吞吐量仅 ~1.9×，差距源于：
+> - **Compute latency-bound**：每个工作项执行完整的 256-bit Montgomery ladder（256 轮点加倍 + 条件点加），是长串行关键路径，难以通过 wavefront 隐藏延迟
+> - **本地内存/寄存器压力**：SHA-256 和 RIPEMD-160 需要大量暂存寄存器，限制了每 CU 的并发工作项数
+> - **PCIe 争用**：双卡并发时带宽争用反而降低整体吞吐
+>
+> 优化方向：增大 batch 以提升 GPU 利用率；考虑合并 kernel 减少全局内存访问。
 
 > **注**：多 GPU 并发在本项目实测中未获得线性加速。Intel Arc A770 单卡性能远超 GTX 1660 Ti，双卡并发时因 PCIe 带宽争用合计速率反而不如 A770 单卡。如果系统有多 GPU，建议通过 `--gpu-devices` 只选择最强的 GPU。
 

@@ -250,6 +250,198 @@ _HAS_GPU = _has_gpu()
 
 
 @pytest.mark.skipif(not _HAS_GPU, reason="无可用 OpenCL GPU 设备")
+# ═══════════════════════════════════════════════════════════════
+#  GPU 端到端集成测试（Mock PyOpenCL）
+#  ═══════════════════════════════════════════════════════════════
+
+
+class TestGPUE2E:
+    """GPU 端到端集成测试 — 使用 mock pyopencl 模拟完整 --gpu 流程。
+
+    依赖 _mock_pyopencl autouse fixture（mock 整个 pyopencl 模块），
+    无需真实 GPU 硬件即可验证调度初始化、batch 提交、命中回调全链路。
+
+    注意:
+        - 此 mock 版本验证代码集成而非 GPU 运算正确性
+        - 真实 GPU 硬件测试见 TestGPUPipelineHardware
+    """
+
+    def test_e2e_scheduler_initializes_with_mock(self):
+        """mock pyopencl 下调度器初始化应成功。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        cfg = DispatcherConfig(
+            batch_size=1024,
+            total_keys=2048,
+            quiet=True,
+            device_indices=[0],
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+            assert len(scheduler._pipelines) == 1
+            assert scheduler._pipelines[0]._ctx is not None
+        finally:
+            scheduler.close()
+
+    def test_e2e_full_flow_with_mock_hits(self):
+        """端到端流程：调度器初始化和 run() 应返回带命中数的 WorkerResult。"""
+        from unittest.mock import MagicMock
+
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        hit_keys: list[bytes] = []
+
+        def on_hit(privkey_bytes: bytes) -> None:
+            hit_keys.append(privkey_bytes)
+
+        mock_check = MagicMock(return_value=True)  # 所有私钥标记为碰撞
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=256,
+            quiet=True,
+            device_indices=[0],
+            check_collision=mock_check,
+            on_hit=on_hit,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+
+            workers = scheduler.run()
+            total_hits = sum(w.hits for w in workers)
+            # batch_size 被 clamp 到 16384
+            assert total_hits == 16384, f"预期 16384 个命中，实际 {total_hits}"
+            assert len(hit_keys) == total_hits
+
+            # 每个回调应收到 32 字节私钥
+            for pk in hit_keys:
+                assert isinstance(pk, bytes)
+                assert len(pk) == 32
+                pk_int = int.from_bytes(pk, "little")
+                assert 1 <= pk_int < 2**256
+        finally:
+            scheduler.close()
+
+    def test_e2e_sequential_mode_key_range(self):
+        """顺序模式端到端测试：验证 key 范围无重叠。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=2048,
+            quiet=True,
+            device_indices=[0],
+            mode="sequential",
+            sequential_start=1,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+            # 单 GPU 时 stride = batch_size
+            assert scheduler._pipelines[0]._seq_stride == 256
+
+            workers = scheduler.run()
+            total_checked = sum(w.keys_checked for w in workers)
+            assert total_checked >= 2048
+            assert all(w.errors == 0 for w in workers)
+        finally:
+            scheduler.close()
+
+    def test_e2e_hit_callback_with_gpu_mode_flag(self):
+        """模拟 collision_engine.py --gpu 流程中的完整回调链。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        hit_keys: list[bytes] = []
+
+        def on_hit(privkey_bytes: bytes) -> None:
+            hit_keys.append(privkey_bytes)
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=256,
+            quiet=True,
+            device_indices=[0],
+            check_collision=lambda pk: True,
+            on_hit=on_hit,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+            workers = scheduler.run()
+            total_hits = sum(w.hits for w in workers)
+            assert total_hits > 0
+            assert len(hit_keys) == total_hits
+            # 验证回调私钥为有效 32 字节
+            for pk in hit_keys:
+                assert len(pk) == 32
+        finally:
+            scheduler.close()
+
+    def test_e2e_graceful_shutdown(self):
+        """调度器 close() 应能优雅关闭且无异常。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        cfg = DispatcherConfig(
+            batch_size=512,
+            total_keys=65536,
+            quiet=True,
+            device_indices=[0],
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        ok = scheduler.initialize()
+        assert ok is True
+        # 直接 close 不应抛异常
+        scheduler.close()
+        # 验证管道已清理
+        assert len(scheduler._pipelines) == 0
+
+    def test_e2e_bloom_mode_initialization(self):
+        """bloom 模式端到端初始化应正确传递 bloom 参数。"""
+        from gpu_engine.gpu_dispatcher import (
+            DispatcherConfig,
+            GPUBatchScheduler,
+        )
+
+        cfg = DispatcherConfig(
+            batch_size=256,
+            total_keys=512,
+            quiet=True,
+            device_indices=[0],
+            bloom_data=b"\xaa" * 1024,
+            bloom_m=8192,
+        )
+        scheduler = GPUBatchScheduler(cfg)
+        try:
+            ok = scheduler.initialize()
+            assert ok is True
+            pipe = scheduler._pipelines[0]
+            assert pipe._bloom_data == b"\xaa" * 1024
+            assert pipe._bloom_m == 8192
+        finally:
+            scheduler.close()
+
+
 class TestGPUPipelineHardware:
     """GPU 管道真实硬件测试 — 需要 pyopencl + 至少一个 OpenCL GPU。
 

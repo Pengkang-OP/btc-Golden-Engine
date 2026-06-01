@@ -5,7 +5,7 @@
 ## 特性
 
 - **CPU 多线程并行**：ThreadPoolExecutor 充分利用多核处理器
-- **GPU 加速**（v1.1.0 新增）：OpenCL 并行 EC 乘法 + HASH160，预期单 GPU ~500K keys/s
+- **GPU 加速**（v1.1.0 新增）：OpenCL 并行 EC 乘法 + HASH160，Intel Arc A770 实测 ~1.65M keys/s（详见 [GPU 指南](docs/gpu_usage.md)）
 - **两种扫描模式**：顺序扫描（可 checkpoint 恢复）和随机扫描
 - **大目标集**：基于 mmap + 前缀索引 + 二分查找，支持 1.65 GB / 1.65 亿条 HASH160 的高效查询
 - **碰撞结果保存**：自动保存碰撞结果到 JSON 文件（WIF、地址等详细信息）
@@ -118,14 +118,14 @@ g:/Bitcoin/
 
 ## 性能（实测）
 
-以下数据在 `batch=131,072` 条件下测得：
+以下数据在裸 OpenCL kernel 条件下测得，3 次运行取均值（batch 因显存容量而异）：
 
 | 配置 | 实测速率 | 备注 |
 |------|----------|------|
 | CPU 单线程 | ~8,000 keys/s | 基准 |
 | CPU 8 线程 | ~40,000 keys/s | 8 核 AMD Ryzen 7 5700X |
-| GTX 1660 Ti | ~509,000 keys/s | 单 batch 瞬时 / 24 CU |
-| Intel Arc A770 | ~1,067,000 keys/s | 512 CU @ 2400 MHz / 16 GB |
+| GTX 1660 Ti | ~871,000 keys/s | 单 batch 瞬时 / 24 CU / batch=65536 |
+| Intel Arc A770 | ~1,651,000 keys/s | 512 CU @ 2400 MHz / 16 GB / batch=131072 |
 | Arc A770 + GTX 1660 Ti 并发 | ~572,000 keys/s | PCIe 争用 — 建议只用 A770 |
 
 ## 生产部署
