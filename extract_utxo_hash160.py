@@ -25,7 +25,7 @@ SNAPSHOT_MAGIC = b"utxo\xff"
 NETWORK_MAGIC = bytes.fromhex("f9beb4d9")
 
 
-def read_compact_size(data, off):
+def read_compact_size(data: bytes, off: int) -> tuple[int, int]:
     """Read Bitcoin variable-length integer (compact size)."""
     b = data[off]
     off += 1
@@ -38,7 +38,7 @@ def read_compact_size(data, off):
     return struct.unpack_from("<Q", data, off)[0], off + 8
 
 
-def read_varint(data, off):
+def read_varint(data: bytes, off: int) -> tuple[int, int]:
     """MSB base-128 VarInt (Bitcoin Core internal / big-endian from v1)."""
     n = 0
     while True:
@@ -50,7 +50,7 @@ def read_varint(data, off):
         n += 1
 
 
-def decompress_amount(x):
+def decompress_amount(x: int) -> int:
     """Decompress Bitcoin Core compact amount representation."""
     if x == 0:
         return 0
@@ -69,7 +69,7 @@ def decompress_amount(x):
     return n
 
 
-def _skip_script(data, off, sc):
+def _skip_script(data: bytes, off: int, sc: int) -> int:
     """Skip script bytes based on compact code. Returns new off."""
     if sc in {0, 1}:
         return off + 20
@@ -90,7 +90,7 @@ def check_snapshot() -> bool:
     return True
 
 
-def parse():
+def parse() -> tuple[list[bytearray], dict] | None:
     """Parse UTXO snapshot and extract Hash160 values into 256 first-byte buckets."""
     print(f"  Reading {SNAPSHOT} ...")
     with open(SNAPSHOT, "rb") as f:
@@ -273,7 +273,7 @@ def parse():
 # ── Sort & Write ─────────────────────────────────────────────
 
 
-def sort_and_save(buckets, stats) -> None:
+def sort_and_save(buckets: list[bytearray], stats: dict) -> None:
     """Sort each bucket and write sorted Hash160 array + prefix index."""
     n = sum(len(b) // 20 for b in buckets)
     print(f"  Sorting {n:,} Hash160 (256 buckets)...")
@@ -288,7 +288,7 @@ def sort_and_save(buckets, stats) -> None:
             bn = len(raw) // 20
             if bn == 0:
                 idx[fb] = [total, total - 1, True]
-                buckets[fb] = None
+                buckets[fb] = None  # type: ignore[call-overload]
                 continue
             entries = [raw[i * 20 : (i + 1) * 20] for i in range(bn)]
             entries.sort()
@@ -296,7 +296,7 @@ def sort_and_save(buckets, stats) -> None:
             idx[fb] = [total, total + bn - 1, False]
             total += bn
             del entries, raw
-            buckets[fb] = None
+            buckets[fb] = None  # type: ignore[call-overload]
 
     for fb in range(256):
         if fb not in idx:

@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 import grpc
 
@@ -144,7 +145,7 @@ class DistributedScanner:
         while not self._stop_event.is_set():
             try:
                 # 1. 获取下一个作业范围
-                assignment = self._get_assignment()  # type: ignore[no-untyped-call]
+                assignment = self._get_assignment()
                 if assignment is None or not assignment.has_work:
                     _logger.info(
                         "[Worker %s] 无可用作业,等待 %.1fs 后重试...",
@@ -174,7 +175,7 @@ class DistributedScanner:
                 )
 
                 # 2. 加载目标集(支持本地预部署或从 Master 下载)
-                target, xonly_target = self._load_targets()  # type: ignore[no-untyped-call]
+                target, xonly_target = self._load_targets()
                 if target is None:
                     _logger.error(
                         "[Worker %s] 目标集加载失败,跳过作业",
@@ -232,8 +233,8 @@ class DistributedScanner:
         self,
         start_key: int,
         end_key: int,
-        target,
-        xonly_target,
+        target: Any,
+        xonly_target: Any,
     ) -> None:
         """扫描指定 key 范围.尝试 GPU 模式,回退到 CPU 模式..
 
@@ -252,7 +253,9 @@ class DistributedScanner:
         else:
             self._scan_cpu(start_key, end_key, target, xonly_target)
 
-    def _scan_cpu(self, start_key: int, end_key: int, target, xonly_target) -> None:
+    def _scan_cpu(
+        self, start_key: int, end_key: int, target: Any, xonly_target: Any
+    ) -> None:
         """CPU 模式扫描:多线程 + 点加法链加速..
 
         每个线程管理自己的 stride 序列(等差数列),线程 i 扫描
@@ -328,7 +331,9 @@ class DistributedScanner:
                         exc,
                     )
 
-    def _scan_gpu(self, start_key: int, end_key: int, target, xonly_target) -> None:
+    def _scan_gpu(
+        self, start_key: int, end_key: int, target: Any, xonly_target: Any
+    ) -> None:
         """GPU 模式扫描.."""
         try:
             from gpu_engine import DispatcherConfig, GPUBatchScheduler
@@ -379,7 +384,7 @@ class DistributedScanner:
 
     # ── 目标集 ──────────────────────────────────────────
 
-    def _load_targets(self):
+    def _load_targets(self) -> tuple[Any, Any]:
         """加载目标集.支持本地预部署或从 Master 下载.."""
         try:
             from collision_target import Hash160Set, SwappableTarget, XOnlySet
@@ -476,7 +481,7 @@ class DistributedScanner:
 
     # ── gRPC 通信 ──────────────────────────────────────────
 
-    def _get_assignment(self):
+    def _get_assignment(self) -> Any:
         """获取下一个作业范围.."""
         if self._stub is None:
             return None
@@ -508,7 +513,7 @@ class DistributedScanner:
             _logger.warning("[Worker %s] 心跳失败: %s", self._worker_id, exc)
             return False
 
-    def _report_hit(self, result) -> None:
+    def _report_hit(self, result: object) -> None:
         """上报碰撞结果到 Master.."""
         if self._stub is None:
             return

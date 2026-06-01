@@ -115,7 +115,7 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "D107",
 ]
 "distributed/worker.py" = [
-    "ANN001", "ANN202",
+    "ANN401",
     "D107",
     "FBT001", "FBT002",
     "G201",
@@ -131,7 +131,7 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "PLR2004", "PLC0415",
 ]
 "extract_utxo_*.py" = [
-    "T201", "ANN001", "ANN201", "ANN202",
+    "T201",
     "DTZ005",
     "PLR2004",
     "ARG001",
@@ -284,12 +284,9 @@ module = [
     "extract_utxo_xonly",
 ]
 disable_error_code = [
-    "no-untyped-def",
-    "no-untyped-call",
     "str-bytes-safe",
     "assignment",
     "type-arg",
-    "no-any-return",
 ]
 
 # 测试文件：类型注解完整度低于生产代码
@@ -318,7 +315,6 @@ module = [
 disable_error_code = [
     "misc",
     "attr-defined",
-    "no-untyped-def",
     "union-attr",
 ]
 
