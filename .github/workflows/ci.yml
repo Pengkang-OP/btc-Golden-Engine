@@ -44,25 +44,24 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check . --exclude .github --exclude __pycache__
 
-      - name: Type check (mypy) — 全项目
+      - name: Type check (mypy) — 逐步诊断
         run: |
+          set +e
           python --version
           mypy --version
+          echo "=== Step 1: mypy on __main__.py ==="
+          mypy __main__.py --ignore-missing-imports --platform linux --show-error-codes --no-incremental --cache-dir /dev/null 2>&1
+          echo "exit: $?"
+          echo "=== Step 2: full project ==="
           mypy __main__.py collision_engine.py collision_target.py \
             extract_utxo_hash160.py extract_utxo_xonly.py \
             core/ api/ gpu_engine/ distributed/ tests/ \
             --ignore-missing-imports --platform linux --show-error-codes \
-            > mypy_output.txt 2>&1; rc=$?
-          cat mypy_output.txt
+            --no-incremental --cache-dir /dev/null \
+            2>&1
+          rc=$?
+          echo "=== Final exit code: $rc ==="
           exit $rc
-
-      - name: Upload mypy output on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mypy-output
-          path: mypy_output.txt
-          retention-days: 7
 
   # ── 多平台测试 ──────────────────────────────────────────────
   python-test:
