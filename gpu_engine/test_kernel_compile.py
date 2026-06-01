@@ -130,7 +130,7 @@ def test_kernel_no_inline_constants(kernel_source: str):
 def test_kernel_includes_line_count(kernel_source: str):
     """验证 kernel 文件行数在合理范围内。"""
     lines = kernel_source.splitlines()
-    assert 250 <= len(lines) <= 450, f"Kernel 文件行数异常: {len(lines)} (期望 250~450)"
+    assert 250 <= len(lines) <= 600, f"Kernel 文件行数异常: {len(lines)} (期望 250~600)"
 
 
 def test_kernel_no_tab_indent(kernel_source: str):

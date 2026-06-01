@@ -55,7 +55,7 @@ class GPUPipeline:
         tdr_safe: bool = True,
         max_kernel_time: float = 1.5,
         bloom_data: bytes | None = None,  # P2-10: GPU 侧碰撞检测 bloom 位数组
-        bloom_m: int = 0,                 # P2-10: bloom 总位数
+        bloom_m: int = 0,  # P2-10: bloom 总位数
     ):
         """初始化 GPU 管道：配置参数、创建 OpenCL 上下文、编译内核。
 
@@ -171,12 +171,16 @@ class GPUPipeline:
         if "nvidia" in vendor:
             self._local_ws = 128
             self._kernel_build_options = [
-                "-cl-std=CL1.2", "-cl-mad-enable", "-cl-fast-relaxed-math",
+                "-cl-std=CL1.2",
+                "-cl-mad-enable",
+                "-cl-fast-relaxed-math",
             ]
         elif "intel" in vendor:
             self._local_ws = 64
             self._kernel_build_options = [
-                "-cl-std=CL3.0", "-cl-mad-enable", "-DARC_OPT",
+                "-cl-std=CL3.0",
+                "-cl-mad-enable",
+                "-DARC_OPT",
             ]
         else:
             self._local_ws = 64
@@ -188,7 +192,9 @@ class GPUPipeline:
         if self.batch_size > max_safe_batch:
             logger.warning(
                 "[GPU] batch_size %s 超过设备最大分配 %s，降为 %s",
-                f"{self.batch_size:,}", f"{max_alloc/1e9:.1f}GB", f"{max_safe_batch:,}"
+                f"{self.batch_size:,}",
+                f"{max_alloc / 1e9:.1f}GB",
+                f"{max_safe_batch:,}",
             )
             self.batch_size = int(max_safe_batch)
             # 重新分配 host 缓冲区
@@ -388,9 +394,7 @@ class GPUPipeline:
         )
 
         # 将全部私钥写入设备
-        write_evt = cl.enqueue_copy(
-            self._queue, self._d_privkeys, self._h_privkeys
-        )
+        write_evt = cl.enqueue_copy(self._queue, self._d_privkeys, self._h_privkeys)
         write_evt.wait()
 
         # --- P2-10: GPU 碰撞检测时初始化命中计数器 ---
@@ -476,24 +480,18 @@ class GPUPipeline:
         # 回读结果
         if use_gpu_collision:
             # P2-10: 读回命中计数和索引
-            self._queue.enqueue_read_buffer(
-                self._d_hit_count, self._h_hit_count
-            ).wait()
+            self._queue.enqueue_read_buffer(self._d_hit_count, self._h_hit_count).wait()
             n_hits = int(self._h_hit_count[0])
             n_hits = min(n_hits, self.batch_size)
             if n_hits > 0:
                 hit_buf = self._h_hit_buffer[:n_hits]
-                self._queue.enqueue_read_buffer(
-                    self._d_hit_buffer, hit_buf
-                ).wait()
+                self._queue.enqueue_read_buffer(self._d_hit_buffer, hit_buf).wait()
                 hit_indices_on_gpu = hit_buf.tolist()
             else:
                 hit_indices_on_gpu = []
 
         # 回读 HASH160（GPU 碰撞模式也要回读用于验证）
-        cl.enqueue_copy(
-            self._queue, self._h_hash160s, self._d_hash160s
-        ).wait()
+        cl.enqueue_copy(self._queue, self._h_hash160s, self._d_hash160s).wait()
 
         t1 = time.perf_counter()
         elapsed = t1 - t0
@@ -577,8 +575,14 @@ class GPUPipeline:
         """释放 GPU 资源（显式调用 release() 确保底层 OpenCL 资源释放）。"""
         import pyopencl as cl  # noqa: F811
 
-        for buf_name in ("_d_privkeys", "_d_hash160s", "_d_pubkeys",
-                         "_d_bloom", "_d_hit_count", "_d_hit_buffer"):
+        for buf_name in (
+            "_d_privkeys",
+            "_d_hash160s",
+            "_d_pubkeys",
+            "_d_bloom",
+            "_d_hit_count",
+            "_d_hit_buffer",
+        ):
             buf = getattr(self, buf_name, None)
             if buf is not None:
                 try:

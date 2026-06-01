@@ -143,6 +143,7 @@ class TestBenchmarkRegression:
         dev.type = 4
         dev.available = True
         dev.driver_version = "Mock 1.0"
+        dev.max_mem_alloc_size = 2 * 1024 * 1024 * 1024  # 2 GB
 
         plat = MagicMock()
         plat.name = "Mock Platform"

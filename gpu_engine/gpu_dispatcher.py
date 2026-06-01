@@ -191,17 +191,12 @@ class GPUBatchScheduler:
         # P2-10: 当 bloom 数据已设置且未传入 check_collision 时，
         # 自动启用 GPU 侧碰撞检测（submit_batch 根据 check_collision=None 触发）
         use_gpu_collision = (
-            self.config.bloom_data is not None
-            and self.config.check_collision is None
+            self.config.bloom_data is not None and self.config.check_collision is None
         )
 
         while not self._stop_event.is_set():
             try:
-                check_fn = (
-                    None
-                    if use_gpu_collision
-                    else self.config.check_collision
-                )
+                check_fn = None if use_gpu_collision else self.config.check_collision
                 result = pipe.submit_batch(check_collision=check_fn)
 
                 # 保存碰撞命中

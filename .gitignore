@@ -73,6 +73,10 @@ out.txt
 _test_out.txt
 ruff_ci_check.txt
 pytest_ci_out.txt
+ruff_out.txt
+fmt_out.txt
+bench_out.txt
+test_kernel_out.txt
 
 # CI diagnostic scripts and logs (PAT tokens, CI logs)
 _download_logs.py

@@ -475,7 +475,7 @@ __kernel void ec_mul_hash160_collision(
             pkb[1 + i*4 + j] = (uchar)(aff_x[7-i] >> ((3-j)*8));
 
     /* HASH160 */
-    uchar *h160_out = hash160s + gid * 20;
+    __global uchar *h160_out = hash160s + gid * 20;
     KERNEL_HASH160(pkb, h160_out);
 
     /* --- P2-10: GPU 侧 Bloom Filter 碰撞检测 --- */
