@@ -45,14 +45,14 @@ jobs:
         run: ruff format --check . --exclude .github --exclude __pycache__
 
       - name: Type check (mypy) — 全项目
-        shell: bash
         run: |
-          set -o pipefail
           mypy __main__.py collision_engine.py collision_target.py \
             extract_utxo_hash160.py extract_utxo_xonly.py \
             core/ api/ gpu_engine/ distributed/ tests/ \
             --ignore-missing-imports --platform linux --show-error-codes \
-            2>&1 | tee mypy_output.txt
+            > mypy_output.txt 2>&1; rc=$?
+          cat mypy_output.txt
+          exit $rc
 
       - name: Upload mypy output on failure
         if: failure()
