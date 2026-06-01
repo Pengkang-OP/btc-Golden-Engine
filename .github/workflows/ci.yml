@@ -10,7 +10,7 @@ on:
     branches: [main]
 
 env:
-  PYTHON_VERSION: "3.12"
+  PYTHON_VERSION: "3.12.10"
 
 jobs:
   lint:
@@ -46,6 +46,8 @@ jobs:
 
       - name: Type check (mypy) — 全项目
         run: |
+          python --version
+          mypy --version
           mypy __main__.py collision_engine.py collision_target.py \
             extract_utxo_hash160.py extract_utxo_xonly.py \
             core/ api/ gpu_engine/ distributed/ tests/ \
