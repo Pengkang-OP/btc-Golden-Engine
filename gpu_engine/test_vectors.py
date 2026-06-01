@@ -32,24 +32,24 @@ def hash160(data: bytes) -> bytes:
     return hashlib.new("ripemd160", hashlib.sha256(data).digest()).digest()
 
 
-def main():
+def main() -> None:
     results = []
     for name, keyval in TEST_CASES:
         pk = PrivateKey.from_int(keyval if isinstance(keyval, int) else int(keyval, 16))
         pub_comp = pk.public_key.format(compressed=True)
-        h160 = hash160(pub_comp)
+        h160_hex = hash160(pub_comp).hex()
         sha_mid = hashlib.sha256(pub_comp).hexdigest()
-        results.append((name, pub_comp.hex(), sha_mid, h160.hex()))
+        results.append((name, pub_comp.hex(), sha_mid, h160_hex))
 
     print("=" * 70)
     print("GPU Kernel Test Vectors")
     print("=" * 70)
     print()
-    for name, pub, sha, h160 in results:
+    for name, pub, sha, h160_hex in results:
         print(f"[{name}]")
         print(f"  pubkey:  {pub}")
         print(f"  SHA256:  {sha}")
-        print(f"  HASH160: {h160}")
+        print(f"  HASH160: {h160_hex}")
         print()
 
     # 输出为 JSON 供自动比对

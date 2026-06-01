@@ -100,7 +100,7 @@ disable_error_code = [
     "type-arg",
     "assignment",
     "str-bytes-safe",
-    "untyped-decorator",
+
 ]
 
 # protobuf 生成代码：动态属性、无类型注解

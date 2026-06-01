@@ -17,6 +17,7 @@ import json
 import hashlib
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,7 +72,7 @@ def kernel_source() -> str:
     return _KERNEL_FILE.read_text(encoding="utf-8")
 
 
-def test_kernel_file_exists():
+def test_kernel_file_exists() -> None:
     """Kernel 源文件必须存在且非空。"""
     assert _KERNEL_FILE.exists(), f"缺少 GPU kernel 文件: {_KERNEL_FILE}"
     size = _KERNEL_FILE.stat().st_size
@@ -79,19 +80,19 @@ def test_kernel_file_exists():
     assert size < 100_000, f"Kernel 文件过大 ({size} bytes), 可能包含冗余内容"
 
 
-def test_kernel_source_encoding(kernel_source: str):
+def test_kernel_source_encoding(kernel_source: str) -> None:
     """确保 kernel 源码为有效 UTF-8 编码、无 BOM。"""
     assert not kernel_source.startswith("\ufeff"), "Kernel 文件包含 BOM"
     # 项目注释使用中文 UTF-8，不要求纯 ASCII
 
 
-def test_kernel_entry_points(kernel_source: str):
+def test_kernel_entry_points(kernel_source: str) -> None:
     """必须包含预期的 __kernel 入口函数。"""
     for entry in _EXPECTED_KERNEL_ENTRIES:
         assert f"__kernel void {entry}" in kernel_source, f"缺少 __kernel 入口: {entry}"
 
 
-def test_kernel_critical_functions(kernel_source: str):
+def test_kernel_critical_functions(kernel_source: str) -> None:
     """必须包含所有关键内部函数。"""
     for func in _EXPECTED_FUNCTIONS:
         # 支持 static return_type func( 和 static void func( 两种模式
@@ -99,19 +100,19 @@ def test_kernel_critical_functions(kernel_source: str):
         assert pattern.search(kernel_source), f"缺少关键函数: {func}"
 
 
-def test_kernel_macros(kernel_source: str):
+def test_kernel_macros(kernel_source: str) -> None:
     """必须包含所有关键宏定义。"""
     for macro in _EXPECTED_DEFINES:
         assert f"#define {macro}" in kernel_source, f"缺少宏定义: {macro}"
 
 
-def test_kernel_constants(kernel_source: str):
+def test_kernel_constants(kernel_source: str) -> None:
     """必须包含所有 static const 查表常量。"""
     for const in _EXPECTED_CONSTANTS:
         assert const in kernel_source, f"缺少常量定义: {const}"
 
 
-def test_kernel_no_inline_constants(kernel_source: str):
+def test_kernel_no_inline_constants(kernel_source: str) -> None:
     """所有大查表应位于 static const 而非函数内栈上。
 
     检查函数体内是否残留栈上定义的 K/R/S 等大数组。
@@ -127,20 +128,20 @@ def test_kernel_no_inline_constants(kernel_source: str):
     )
 
 
-def test_kernel_includes_line_count(kernel_source: str):
+def test_kernel_includes_line_count(kernel_source: str) -> None:
     """验证 kernel 文件行数在合理范围内。"""
     lines = kernel_source.splitlines()
     assert 250 <= len(lines) <= 600, f"Kernel 文件行数异常: {len(lines)} (期望 250~600)"
 
 
-def test_kernel_no_tab_indent(kernel_source: str):
+def test_kernel_no_tab_indent(kernel_source: str) -> None:
     """Kernel 源文件应使用空格缩进（与项目规范一致）。"""
     for i, line in enumerate(kernel_source.splitlines(), 1):
         if line.startswith("\t"):
             pytest.fail(f"第 {i} 行使用了 Tab 缩进: {line[:40]!r}")
 
 
-def test_kernel_no_missing_semicolons(kernel_source: str):
+def test_kernel_no_missing_semicolons(kernel_source: str) -> None:
     """检查明显的语法问题：函数定义后缺少分号的常见错误。"""
     # fe_mul 末尾应有 }
     assert "fe_reduce(r, r, cr);" in kernel_source, (
@@ -154,7 +155,7 @@ def test_kernel_no_missing_semicolons(kernel_source: str):
 
 
 @pytest.fixture(scope="session")
-def test_vectors() -> list[dict]:
+def test_vectors() -> list[dict[str, Any]]:
     """从 JSON 加载测试向量。"""
     if not _VECTORS_FILE.exists():
         pytest.fail(f"测试向量文件不存在: {_VECTORS_FILE}")
@@ -165,7 +166,7 @@ def test_vectors() -> list[dict]:
     return data
 
 
-def test_vectors_file_exists():
+def test_vectors_file_exists() -> None:
     """测试向量 JSON 文件必须存在且有效。"""
     assert _VECTORS_FILE.exists(), f"缺少测试向量文件: {_VECTORS_FILE}"
     with open(_VECTORS_FILE, "r", encoding="utf-8") as f:
@@ -178,7 +179,7 @@ def test_vectors_file_exists():
         assert "hash160" in vec, f"向量[{i}] 缺少 hash160"
 
 
-def test_vectors_correctness(test_vectors: list[dict]):
+def test_vectors_correctness(test_vectors: list[dict[str, Any]]) -> None:
     """验证测试向量中的 HASH160 与 CPU 参考实现一致。"""
     from coincurve import PrivateKey
 
@@ -261,7 +262,7 @@ def _kernel_compile_via_opencl(kernel_source: str) -> str | None:
         return f"OpenCL 错误: {e}"
 
 
-def test_gpu_compile_kernel():
+def test_gpu_compile_kernel() -> None:
     """通过 pyopencl 实际编译 GPU kernel (需要 GPU/CPU OpenCL 设备)。"""
     if not _pyopencl_available():
         pytest.skip("pyopencl 不可用或未检测到 OpenCL 平台")
@@ -281,7 +282,7 @@ def test_gpu_compile_kernel():
         )
 
 
-def test_gpu_device_discovery():
+def test_gpu_device_discovery() -> None:
     """GPU 设备发现应返回可用设备列表 (需要 OpenCL)。"""
     if not _pyopencl_available():
         pytest.skip("pyopencl 不可用")
@@ -302,7 +303,7 @@ def test_gpu_device_discovery():
 # ═══════════════════════════════════════════════════════════════
 
 
-def test_kernel_constant_time_properties(kernel_source: str):
+def test_kernel_constant_time_properties(kernel_source: str) -> None:
     """验证 Kernel 的恒定时间属性。
 
     检查:
@@ -322,7 +323,7 @@ def test_kernel_constant_time_properties(kernel_source: str):
         assert func not in kernel_source, f"Kernel 中包含定时不安全函数: {func}"
 
 
-def test_kernel_pragma_unroll(kernel_source: str):
+def test_kernel_pragma_unroll(kernel_source: str) -> None:
     """验证关键循环已添加 #pragma unroll (T10 优化)。"""
     expected_pragmas = [
         "#pragma unroll",  # SHA-256 展开 + RIPEMD-160 + hash160_full 2 处
@@ -332,7 +333,7 @@ def test_kernel_pragma_unroll(kernel_source: str):
     assert count >= 5, f"#pragma unroll 出现次数不足 ({count}), 期望至少 5 处"
 
 
-def test_kernel_no_inline_sha256_ktable(kernel_source: str):
+def test_kernel_no_inline_sha256_ktable(kernel_source: str) -> None:
     """SHA-256 K 常量必须引用 K_SHA256 而非内联数字。"""
     # 检查是否有形如 for(int i=0;i<64;i++) t1 = ... + w[i] 但没有 K_SHA256
     # 或检测旧版内联常量模式
