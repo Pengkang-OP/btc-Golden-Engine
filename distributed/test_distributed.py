@@ -370,7 +370,8 @@ class TestMasterService:
         )
         resp = service.ReportHit(req, FakeContext())
         assert resp.accepted is True
-        assert "hit-1" in resp.collision_id
+        # collision_id 是数据库返回的自增 ID（int → str）
+        assert resp.collision_id.isdigit()
 
     def test_get_target_info(self, service: Any) -> None:
         from distributed.protocol_pb2 import TargetInfoRequest

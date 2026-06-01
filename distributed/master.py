@@ -16,7 +16,10 @@ import os
 import threading
 import time
 from concurrent import futures
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from core.database import ResultDB
 
 import grpc
 
@@ -316,7 +319,7 @@ class MasterService(MasterServiceServicer):
         """
         self._registry = registry
         self._hit_count = 0
-        self._db = None  # 延迟初始化 ResultDB
+        self._db: Optional[ResultDB] = None  # 延迟初始化 ResultDB
 
     def Register(
         self, request: RegisterRequest, context: grpc.ServicerContext
@@ -431,7 +434,7 @@ class MasterService(MasterServiceServicer):
             )
         except Exception as exc:
             _logger.error("[Master] 持久化碰撞结果失败: %s", exc, exc_info=True)
-            collision_id = f"hit-{self._hit_count}"
+            collision_id = self._hit_count
 
         return ReportResponse(
             accepted=True,

@@ -16,7 +16,7 @@ import time
 from typing import Any, Optional
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from starlette.responses import HTMLResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, Response
 
 from .state import (
     get_hash160_set,
@@ -84,8 +84,8 @@ def _build_stats() -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-@router.get("/", response_class=HTMLResponse)
-async def dashboard() -> str:
+@router.get("/", response_class=HTMLResponse, response_model=None)
+async def dashboard() -> str | HTMLResponse:
     """渲染 Dashboard 页面。"""
     try:
         template = jinja_env.get_template("dashboard.html")
@@ -93,8 +93,6 @@ async def dashboard() -> str:
         return template.render(stats=stats)
     except Exception as exc:
         logger.error("渲染 Dashboard 失败: %s", exc)
-        from starlette.responses import HTMLResponse
-
         return HTMLResponse(
             content=f"<h1>Dashboard 渲染错误</h1><pre>{exc}</pre>",
             status_code=500,
@@ -141,16 +139,14 @@ _VALID_ADDRESS_TYPES = frozenset(
 )
 
 
-@router.get("/api/results")
+@router.get("/api/results", response_model=None)
 async def get_results(
     limit: int = Query(50, ge=1, le=500, description="每页条数"),
     offset: int = Query(0, ge=0, description="偏移量"),
     address_type: Optional[str] = Query(None, description="地址类型过滤"),
-) -> dict[str, Any]:
+) -> dict[str, Any] | JSONResponse:
     """分页查询碰撞结果。"""
     if address_type is not None and address_type not in _VALID_ADDRESS_TYPES:
-        from starlette.responses import JSONResponse
-
         return JSONResponse(
             status_code=400,
             content={
@@ -165,8 +161,6 @@ async def get_results(
         items = db.list_results(limit=limit, offset=offset, address_type=address_type)
     except Exception as exc:
         logger.error("查询碰撞结果失败: %s", exc)
-        from starlette.responses import JSONResponse
-
         return JSONResponse(
             status_code=500,
             content={"error": "内部查询错误", "total": 0, "items": []},

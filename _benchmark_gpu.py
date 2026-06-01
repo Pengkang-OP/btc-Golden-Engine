@@ -88,7 +88,7 @@ def benchmark_device(
     return sum(rates) / len(rates)
 
 
-def main():
+def main() -> None:
     platforms = cl.get_platforms()
     devices_info = []
     for pi, p in enumerate(platforms):
