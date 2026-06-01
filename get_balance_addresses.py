@@ -8,17 +8,20 @@ Supports fallback to cached data when the daemon is offline.
     python get_balance_addresses.py
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 BITCOIN_CLI_PATH = r"G:\Bitcoin\daemon\bitcoin-cli.exe"
 BITCOIN_DATADIR = r"G:\Bitcoin"
 WALLET_NAME = "plz"
 
 
-def run_bitcoin_cli(args):
+def run_bitcoin_cli(args: list[str]) -> tuple[Any, str | None]:
     """Run bitcoin-cli command and return the result."""
     cmd = [BITCOIN_CLI_PATH, "-datadir=" + BITCOIN_DATADIR]
     if WALLET_NAME:
@@ -40,27 +43,27 @@ def run_bitcoin_cli(args):
         return None, str(e)
 
 
-def get_wallet_info():
+def get_wallet_info() -> tuple[Any, str | None]:
     """Get general wallet information."""
     return run_bitcoin_cli(["getwalletinfo"])
 
 
-def get_unspent_outputs():
+def get_unspent_outputs() -> tuple[Any, str | None]:
     """Get list of unspent transaction outputs (UTXOs)."""
     return run_bitcoin_cli(["listunspent", "0", "9999999"])
 
 
-def get_addresses_by_label(label):
+def get_addresses_by_label(label: str) -> tuple[Any, str | None]:
     """Get addresses with a specific label."""
     return run_bitcoin_cli(["getaddressesbylabel", label])
 
 
-def list_labels():
+def list_labels() -> tuple[Any, str | None]:
     """List all labels in the wallet."""
     return run_bitcoin_cli(["listlabels"])
 
 
-def calculate_address_balances(utxos):
+def calculate_address_balances(utxos: list[dict[str, Any]]) -> dict[str, float]:
     """Calculate balance for each address from UTXOs.
     Returns a dictionary of address -> balance.
     """
@@ -78,12 +81,12 @@ def calculate_address_balances(utxos):
     return address_balances
 
 
-def get_address_info(address):
+def get_address_info(address: str) -> tuple[Any, str | None]:
     """Get information about an address."""
     return run_bitcoin_cli(["getaddressinfo", address])
 
 
-def get_address_balance(address):
+def get_address_balance(address: str) -> tuple[Any, str | None]:
     """Get balance for a specific address (requires block filter index)."""
     try:
         return run_bitcoin_cli(["getaddressbalance", address])
@@ -91,7 +94,7 @@ def get_address_balance(address):
         return None, None
 
 
-def main():
+def main() -> list[dict[str, Any]] | None:
     """CLI 入口：连接钱包、获取地址余额并输出表格。."""
     print("=" * 100)
     print("Bitcoin Core - 获取有余额的地址")
@@ -213,7 +216,7 @@ def main():
     return addresses_with_details
 
 
-def print_address_table(addresses) -> None:
+def print_address_table(addresses: list[dict[str, Any]]) -> None:
     """Print address table in formatted ASCII."""
     print(
         f"{'排名':<6} {'比特币地址 (Base58Check)':<45} {'类型':<10} {'余额 (BTC)':<18}",
@@ -240,7 +243,7 @@ def print_address_table(addresses) -> None:
     print(f"   - 总余额: {total_balance:.8f} BTC")
 
 
-def generate_markdown_table(addresses):
+def generate_markdown_table(addresses: list[dict[str, Any]]) -> str:
     """Generate Markdown formatted table."""
     md = "# 比特币钱包地址余额表\n\n"
     md += f"**钱包名称**: {WALLET_NAME}\n"

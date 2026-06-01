@@ -243,7 +243,7 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "S105",
 ]
 "get_balance_addresses.py" = [
-    "T201", "ANN001", "ANN201",
+    "T201",
     "DTZ005",
     "BLE001",
     "C901",
