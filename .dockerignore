@@ -7,6 +7,7 @@ __pycache__/
 *.py[cod]
 venv/
 .local-packages/
+*.egg-info/
 
 # Data files (large binary)
 *.bin
@@ -19,3 +20,26 @@ venv/
 .trunk/
 .idea/
 .vscode/
+
+# CI / GitHub
+.github/
+
+# Documentation (not needed at runtime)
+docs/
+CHANGELOG.md
+COPYING.txt
+README.md
+
+# Tests (not needed at runtime)
+tests/
+*.test_out.txt
+_coverage_tdr.py
+_full_test_out.txt
+
+# Docker compose (not needed inside image)
+docker-compose.yml
+
+# Temporary / generated files
+mypy_*.txt
+output.json
+coverage.xml

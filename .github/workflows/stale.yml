@@ -1,0 +1,44 @@
+# Bitcoin Collision Engine — 自动关闭陈旧 Issue 和 PR
+# 每周末运行一次
+name: Stale Issue Manager
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"  # 每周日 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # Issue 设置
+          stale-issue-message: >
+            此 Issue 已 60 天无活动。请确认是否需要继续跟踪，
+            否则将在 7 天后自动关闭。
+          close-issue-message: "因长时间无活动，自动关闭。"
+          days-before-issue-stale: 60
+          days-before-issue-close: 7
+          stale-issue-label: "stale"
+          exempt-issue-labels: "pinned,security,bug"
+
+          # PR 设置
+          stale-pr-message: >
+            此 PR 已 30 天无活动。请确认是否需要继续，
+            否则将在 7 天后自动关闭。
+          close-pr-message: "因长时间无活动，自动关闭。"
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          stale-pr-label: "stale"
+          exempt-pr-labels: "pinned,security,dependencies"
+
+          # 通用设置
+          operations-per-run: 100
+          ascending: true

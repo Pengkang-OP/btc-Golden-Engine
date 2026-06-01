@@ -29,6 +29,5 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports, --platform, linux]
-        # 仅检查 core/ 包的类型
-        files: ^core/.*\.py$
+        # 匹配 CI mypy 全项目扫描
         pass_filenames: false
