@@ -172,11 +172,13 @@ def _make_platforms(
     class FakeDev:
         type = 4  # cl.device_type.GPU 的整数值
         name = "MockDevice"
+        vendor = "Mock Vendor"
         max_compute_units = 16
         max_work_group_size = 256
         global_mem_size = 8 * 1024**3
         local_mem_size = 32768
         max_clock_frequency = 1500
+        max_mem_alloc_size = 2 * 1024**3  # 2 GB
         version = "OpenCL 3.0"
         driver_version = "1.0"
         available = True
@@ -359,7 +361,7 @@ class TestRunStopClose:
         scheduler._pipelines = [mock.MagicMock(), mock.MagicMock()]
         scheduler.close()
         for p in scheduler._pipelines:
-            p.close.assert_called_once()
+            p.close.assert_called_once()  # type: ignore[attr-defined]
         assert len(scheduler._pipelines) == 0
 
     def test_context_manager(self) -> None:

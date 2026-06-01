@@ -484,6 +484,7 @@ class GPUPipeline:
             n_hits = int(self._h_hit_count[0])
             n_hits = min(n_hits, self.batch_size)
             if n_hits > 0:
+                assert self._h_hit_buffer is not None  # mypy guard: n_hits>0 保证已分配
                 hit_buf = self._h_hit_buffer[:n_hits]
                 self._queue.enqueue_read_buffer(self._d_hit_buffer, hit_buf).wait()
                 hit_indices_on_gpu = hit_buf.tolist()

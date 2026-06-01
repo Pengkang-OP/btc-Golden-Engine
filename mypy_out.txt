@@ -1,2 +1,1 @@
-mypy: error: Cannot read file 'src': No such file or directory
-Found 1 error in 1 file (errors prevented further checking)
+Success: no issues found in 50 source files

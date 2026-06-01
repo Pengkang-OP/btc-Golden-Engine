@@ -177,7 +177,7 @@ class TestWarnTDRSettings:
         key_handle = mock.sentinel.key_handle
         winreg_mock.OpenKey.return_value = key_handle
 
-        def _query_value_ex(key: object, name: str) -> tuple:
+        def _query_value_ex(key: object, name: str) -> tuple:  # type: ignore[type-arg]
             if name == _TDR_DELAY_KEY and tdr_delay_value is not None:
                 return (tdr_delay_value, 4)
             if name == _TDR_DDI_DELAY_KEY and not tdr_ddi_exists:

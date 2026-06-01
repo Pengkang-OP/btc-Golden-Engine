@@ -471,7 +471,9 @@ class TestGPUPipelineHardware:
             assert ok is True
             results = scheduler.run()
             assert len(results) >= 1
-            assert results[0].keys_checked == 512
+            # batch_size 在 _resolve_device_indices 中会被 clamp 到 16384 最小值
+            # 所以第一次 batch 就达到 total_keys=512，停止时 keys_checked=16384
+            assert results[0].keys_checked == 16384
             assert results[0].hits == 0
             assert results[0].errors == 0
         finally:
@@ -502,9 +504,9 @@ class TestGPUPipelineHardware:
             ok = scheduler.initialize()
             assert ok is True
             results = scheduler.run()
-            # 应命中 batch_size 次
-            assert any(w.hits == 256 for w in results)
-            assert mock_on_hit.call_count == 256
+            # batch_size 被 clamp 到 16384，所以命中数应为 16384
+            assert any(w.hits == 16384 for w in results)
+            assert mock_on_hit.call_count == 16384
             # 每个回调应收到 32 字节私钥
             for call in mock_on_hit.call_args_list:
                 pk = call[0][0]
@@ -537,7 +539,7 @@ class TestGPUPipelineHardware:
         }
         for fb in range(256):
             if fb != known_h160[0]:
-                idx_data["index"][f"{fb:02x}"] = [0, -1, True]
+                idx_data["index"][f"{fb:02x}"] = [0, -1, True]  # type: ignore[index]
         idx_path = tmp_dir / "utxo_hash160.idx"
         idx_path.write_text(json.dumps(idx_data), encoding="utf-8")
 
@@ -551,7 +553,7 @@ class TestGPUPipelineHardware:
             # 验证 HASH160 输出格式正确（1D 连续数组, batch * 20 字节）
             assert len(result.hash160s.shape) == 1
             assert result.hash160s.shape[0] == 256 * 20
-            assert result.hash160s.dtype == np.uint8  # type: ignore[attr-defined]  # noqa: E501
+            assert result.hash160s.dtype == np.uint8  # noqa: E501
             # 验证私钥输出格式正确（1D 连续数组, batch * 32 字节）
             assert len(result.privkey_bytes.shape) == 1
             assert result.privkey_bytes.shape[0] == 256 * 32

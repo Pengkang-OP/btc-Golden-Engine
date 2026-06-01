@@ -86,8 +86,8 @@ def _patch_all(
     ce: Any,
     ct: Any,
     tmp_dir: Path,
-    mock: dict,
-    mock_xonly: dict | None = None,
+    mock: dict[str, Any],
+    mock_xonly: dict[str, Any] | None = None,
 ):
     """monkeypatch collision_target 和 collision_engine 的路径常量。"""
     monkeypatch.setattr(ct.Hash160Set, "BIN_DEFAULT", Path(mock["bin"]))
@@ -119,7 +119,7 @@ def _init_and_scan(
         stride = (1).to_bytes(32, "big")
         ce.worker_sequential(counter, target, 0, stride, xonly_target)
         assert ce._db is not None
-        return ce._db.list_results()
+        return ce._db.list_results()  # type: ignore[no-any-return]
     finally:
         target.close()
         if ce._db is not None:

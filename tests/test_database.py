@@ -65,7 +65,7 @@ class TestResultDB:
         result_id = db.save_result(sample_proxy)
         retrieved = db.get_result(result_id)
         assert retrieved is not None
-        assert retrieved["privkey_hex"] == sample_proxy.privkey_hex
+        assert retrieved["privkey_hex"] == sample_proxy.privkey_hex  # type: ignore[attr-defined]
         assert retrieved["address_type"] == "P2PKH"
         assert retrieved["id"] == result_id
 
@@ -112,7 +112,7 @@ class TestResultDB:
         import copy
 
         p2wpkh_copy = copy.copy(sample_proxy)
-        p2wpkh_copy.address_type = "P2WPKH"
+        p2wpkh_copy.address_type = "P2WPKH"  # type: ignore[attr-defined]
         setattr(p2wpkh_copy, "privkey_hex", "b" * 64)
 
         db.save_result(p2pkh)
@@ -138,7 +138,7 @@ class TestResultDB:
 
         data = json.loads(json_path.read_text(encoding="utf-8"))
         assert len(data) == 2
-        assert data[0]["privkey_hex"] == sample_proxy.privkey_hex
+        assert data[0]["privkey_hex"] == sample_proxy.privkey_hex  # type: ignore[attr-defined]
 
     def test_import_json(self, db: ResultDB, tmp_dir: Path):
         """测试 import_json 从 JSON 导入数据。"""

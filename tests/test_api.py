@@ -46,7 +46,7 @@ class _MockTargetSet:
 
 
 @pytest.fixture
-def mock_db() -> Generator:
+def mock_db() -> Generator:  # type: ignore[type-arg]
     """内存 SQLite 数据库，替代真实 collision_results.db。"""
     from core.database import ResultDB
 
@@ -59,7 +59,7 @@ def mock_db() -> Generator:
 def app(
     monkeypatch: pytest.MonkeyPatch,
     mock_db: Any,
-) -> Generator:
+) -> Generator:  # type: ignore[type-arg]
     """创建 patched 后的 FastAPI app 实例。
 
     在调用 create_app() 前 monkeypatch api.state 的全变量，
@@ -295,18 +295,18 @@ class TestResults:
 
         for i in range(n):
             obj = _Proxy()
-            obj.privkey_hex = f"{i:064x}"
-            obj.wif_compressed = f"wif_comp_{i}"
-            obj.wif_uncompressed = f"wif_uncomp_{i}"
-            obj.p2pkh_address_comp = f"1Addr{i}"
-            obj.p2wpkh_address = f"bc1qAddr{i}"
-            obj.p2pkh_address_uncomp = f"1UAddr{i}"
-            obj.h160_hex = f"{i:040x}"
-            obj.address_type = address_type
-            obj.found_via = "cpu_test"
-            obj.timestamp = "2026-01-01T00:00:00Z"
-            obj.p2tr_address = ""
-            obj.xonly_hex = ""
+            obj.privkey_hex = f"{i:064x}"  # type: ignore[attr-defined]
+            obj.wif_compressed = f"wif_comp_{i}"  # type: ignore[attr-defined]
+            obj.wif_uncompressed = f"wif_uncomp_{i}"  # type: ignore[attr-defined]
+            obj.p2pkh_address_comp = f"1Addr{i}"  # type: ignore[attr-defined]
+            obj.p2wpkh_address = f"bc1qAddr{i}"  # type: ignore[attr-defined]
+            obj.p2pkh_address_uncomp = f"1UAddr{i}"  # type: ignore[attr-defined]
+            obj.h160_hex = f"{i:040x}"  # type: ignore[attr-defined]
+            obj.address_type = address_type  # type: ignore[attr-defined]
+            obj.found_via = "cpu_test"  # type: ignore[attr-defined]
+            obj.timestamp = "2026-01-01T00:00:00Z"  # type: ignore[attr-defined]
+            obj.p2tr_address = ""  # type: ignore[attr-defined]
+            obj.xonly_hex = ""  # type: ignore[attr-defined]
             db.save_result(obj)
 
 
@@ -421,7 +421,7 @@ class TestEngineStatusReadWrite:
         es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
-        es.STATUS_FILE.read_text.side_effect = FileNotFoundError
+        es.STATUS_FILE.read_text.side_effect = FileNotFoundError  # type: ignore[attr-defined]
 
         result = es.read()
         assert result["running"] is False
@@ -435,7 +435,7 @@ class TestEngineStatusReadWrite:
         es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
-        es.STATUS_FILE.read_text.side_effect = json.JSONDecodeError("bad token", "", 0)
+        es.STATUS_FILE.read_text.side_effect = json.JSONDecodeError("bad token", "", 0)  # type: ignore[attr-defined]
 
         result = es.read()
         assert result["running"] is False
@@ -448,7 +448,7 @@ class TestEngineStatusReadWrite:
         es = api_state.EngineStatus()
         es._cached_ok = False
         self._mock_status_file(es)
-        es.STATUS_FILE.read_text.side_effect = OSError("permission denied")
+        es.STATUS_FILE.read_text.side_effect = OSError("permission denied")  # type: ignore[attr-defined]
 
         result = es.read()
         assert result["running"] is False

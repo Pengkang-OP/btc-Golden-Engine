@@ -79,7 +79,7 @@ class TestBenchmarkRegression:
 
         result = benchmark.pedantic(bench, rounds=10, iterations=100)
         target.close()
-        return result
+        return result  # type: ignore[no-any-return]
 
     def test_cpu_chain_sequential(
         self, benchmark: Any, tmp_dir: Path, monkeypatch: Any
@@ -115,7 +115,7 @@ class TestBenchmarkRegression:
         target.close()
         if ce._db is not None:
             ce._db.close()
-        return result
+        return result  # type: ignore[no-any-return]
 
     def test_gpu_pipeline_mock(
         self, benchmark: Any, tmp_dir: Path, monkeypatch: Any
@@ -164,4 +164,4 @@ class TestBenchmarkRegression:
 
         result = benchmark.pedantic(bench, rounds=5, iterations=10)
         pipe.close()
-        return result
+        return result  # type: ignore[no-any-return]

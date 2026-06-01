@@ -145,6 +145,7 @@ def _mock_pyopencl(monkeypatch) -> None:
 
     dev = MagicMock()
     dev.name = "Mock GPU"
+    dev.vendor = "Mock Vendor"
     dev.max_compute_units = 128
     dev.max_work_group_size = 256
     dev.global_mem_size = 8 * 1024 * 1024 * 1024
@@ -154,6 +155,7 @@ def _mock_pyopencl(monkeypatch) -> None:
     dev.type = 4
     dev.available = True
     dev.driver_version = "Mock 1.0"
+    dev.max_mem_alloc_size = 2 * 1024 * 1024 * 1024  # 2 GB
 
     plat = MagicMock()
     plat.name = "Mock Platform"

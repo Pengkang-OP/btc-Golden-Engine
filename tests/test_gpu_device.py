@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,7 +41,7 @@ def _make_mock_device(
     return dev
 
 
-def _make_mock_platform(name: str = "MockPlatform", devices: list | None = None):
+def _make_mock_platform(name: str = "MockPlatform", devices: list[Any] | None = None):  # noqa: E501
     plat = MagicMock()
     plat.name = name
     plat.get_devices.return_value = devices or []

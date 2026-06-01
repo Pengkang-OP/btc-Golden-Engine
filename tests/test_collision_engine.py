@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Generator
+from typing import Any, Generator
 from unittest import mock
 
 import pytest
@@ -328,13 +328,13 @@ class TestSaveResult:
         self, mock_logger: mock.MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """数据库写入失败应回退到 JSON 并记录警告。"""
-        from core.database import DatabaseError
+        from core.database import DatabaseError  # type: ignore[attr-defined]
 
         db = mock.MagicMock()
         db.save_result.side_effect = DatabaseError("db full")
         ce._db = db
         monkeypatch.setattr(ce, "RESULTS_FILE", mock.MagicMock())
-        ce.RESULTS_FILE.exists.return_value = False  # 新文件
+        ce.RESULTS_FILE.exists.return_value = False  # type: ignore[attr-defined]  # 新文件
 
         result = ce.CollisionResult(
             privkey_hex="01" * 32,
@@ -614,7 +614,7 @@ class TestMain:
         monkeypatch.setattr(ce, "_health_check", mock.MagicMock())
         self._mock_init_core(monkeypatch)
         ce.main()
-        ce._health_check.assert_called_once()
+        ce._health_check.assert_called_once()  # type: ignore[attr-defined]
 
     def test_list_gpu_early_return(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("sys.argv", ["prog", "--list-gpu"])
@@ -698,12 +698,12 @@ class TestStartConfigWatcher:
         """验证 check_reload() 返回 True 时记录日志。"""
         config = mock.MagicMock()
         config.check_reload.return_value = True
-        target_func: list = []
+        target_func: list[Any] = []
 
         monkeypatch.setattr(
             threading,
             "Thread",
-            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),
+            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),  # type: ignore[func-returns-value]
         )
         ce._start_config_watcher(config, interval=0.01, logger=mock_logger)
         fn = target_func[0]
@@ -722,12 +722,12 @@ class TestStartConfigWatcher:
         """验证 check_reload() 抛异常时被静默吞噬。"""
         config = mock.MagicMock()
         config.check_reload.side_effect = RuntimeError("unexpected")
-        target_func: list = []
+        target_func: list[Any] = []
 
         monkeypatch.setattr(
             threading,
             "Thread",
-            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),
+            lambda target=None, **kw: target_func.append(target) or mock.MagicMock(),  # type: ignore[func-returns-value]
         )
         ce._start_config_watcher(config, interval=0.01, logger=mock_logger)
         fn = target_func[0]
