@@ -88,7 +88,7 @@ class _MockMmap:
     def close(self) -> None:
         pass
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: int) -> bytes:
         return self._data[key]
 
     def __len__(self) -> int:

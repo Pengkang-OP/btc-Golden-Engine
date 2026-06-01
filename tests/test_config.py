@@ -48,7 +48,7 @@ class TestEngineConfig:
         """测试绝对路径不被 _base_dir 影响（Windows 兼容）。."""
         import os
 
-        abs_path = os.path.abspath("/absolute/path/db.sqlite")
+        abs_path = os.path.abspath("/absolute/path/db.sqlite")  # noqa: PTH100
         base = Path("/tmp/base")
         cfg = EngineConfig(
             results_db=abs_path,

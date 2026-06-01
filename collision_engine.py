@@ -112,7 +112,7 @@ _refresh_last_time: float = 0.0  # 上次成功刷新时间戳
 _refresh_last_result: str = "N/A"  # 上次刷新结果描述
 
 
-def _handle_signal(signum: int, frame: object | None = None) -> None:
+def _handle_signal(signum: int, frame: object | None = None) -> None:  # noqa: ARG001
     """信号处理器:SIGTERM 设关闭标志,SIGINT 抛 KeyboardInterrupt 以触发清理.."""
     global _shutdown_requested
     _shutdown_requested = True
@@ -132,7 +132,7 @@ def _start_config_watcher(
 
     def _watch() -> None:
         """轮询配置文件的 mtime 变更,检测到变化则自动重载.."""
-        global _shutdown_requested
+        global _shutdown_requested  # noqa: PLW0602
         while not _shutdown_requested:
             try:
                 if config.check_reload():
@@ -211,6 +211,7 @@ def _run_bitcoin_cli_dumptxoutset(
             capture_output=True,
             text=True,
             timeout=7200,  # 2 小时超时
+            check=False,
         )
         if result.returncode == 0:
             logger.info("[UTXO][刷新] dumptxoutset 成功")
@@ -219,14 +220,14 @@ def _run_bitcoin_cli_dumptxoutset(
             "[UTXO][刷新] dumptxoutset 失败: %s",
             result.stderr.strip() or result.stdout.strip(),
         )
-        return False
+        return False  # noqa: TRY300
     except FileNotFoundError:
         logger.exception("[UTXO][刷新] bitcoin-cli 未找到: %s", bitcoin_cli)
         return False
     except subprocess.TimeoutExpired:
         logger.exception("[UTXO][刷新] dumptxoutset 超时 (2h)")
         return False
-    except Exception as exc:
+    except Exception:
         logger.exception("[UTXO][刷新] dumptxoutset 异常")
         return False
 
@@ -285,12 +286,12 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
     try:
         # 抑制 extract_snapshot 的 stdout 输出
         # (通过临时替换 print 为静默函数)
-        import builtins as _builtins
+        import builtins as _builtins  # noqa: PLC0415
 
         builtins_print = _builtins.print
         _builtins.print = _quiet_print
 
-        from extract_utxo_hash160 import extract_snapshot
+        from extract_utxo_hash160 import extract_snapshot  # noqa: PLC0415
 
         stats = extract_snapshot(
             snapshot_path=str(Path(snapshot_path).resolve()),
@@ -304,7 +305,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         )
     except Exception as exc:
         _refresh_last_result = f"提取失败: {exc}"
-        logger.exception("[UTXO][刷新] 提取 Hash160 失败: %s", exc)
+        logger.exception("[UTXO][刷新] 提取 Hash160 失败")
         return False
     finally:
         _builtins.print = builtins_print
@@ -320,7 +321,7 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
         )
     except Exception as exc:
         _refresh_last_result = f"新目标集加载失败: {exc}"
-        logger.exception("[UTXO][刷新] 加载新目标集失败: %s", exc)
+        logger.exception("[UTXO][刷新] 加载新目标集失败")
         return False
 
     # 6) P2TR 支持(如果当前有两份)
@@ -358,8 +359,8 @@ def _do_utxo_refresh(logger: logging.Logger) -> bool:
 
 def _start_utxo_refresher(
     config: EngineConfig,
-    swappable_target: SwappableTarget,
-    swappable_xonly: SwappableTarget | None,
+    swappable_target: SwappableTarget,  # noqa: ARG001
+    swappable_xonly: SwappableTarget | None,  # noqa: ARG001
     logger: logging.Logger | None = None,
 ) -> threading.Thread | None:
     """启动 UTXO 自动刷新后台线程..
@@ -384,13 +385,13 @@ def _start_utxo_refresher(
 
     def _refresher_loop() -> None:
         """后台循环,周期性调用 _do_utxo_refresh 执行 UTXO 刷新.."""
-        global _shutdown_requested
+        global _shutdown_requested  # noqa: PLW0602
         while not _shutdown_requested:
             try:
                 _do_utxo_refresh(log)
-            except Exception as exc:
-                log.exception("[UTXO][刷新] 刷新循环异常: %s", exc)
-            # 等待下一个周期(分段等待以响应关闭请求)
+            except Exception:
+                log.exception("[UTXO][刷新] 刷新循环异常")
+            # 等待下一个周期(分段等待以响应关闭请求)  # noqa: ERA001
             for _ in range(int(interval / 2)):
                 if _shutdown_requested:
                     return
@@ -446,6 +447,7 @@ def hash160(data: bytes) -> bytes:
 # ── 地址编码 ──────────────────────────────────────────────────
 def base58check_encode(payload: bytes) -> str:
     """Base58Check 编码(payload 已包含前缀和可选压缩标记).
+
     内部自动计算并追加双 SHA256 checksum..
     """
     chk = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
@@ -503,7 +505,7 @@ def p2sh_address(h160: bytes) -> str:
     return base58check_encode(b"\x05" + script_hash)  # 0x05 = P2SH 主网版本字节
 
 
-def privkey_to_p2sh(privkey: bytes, compressed: bool = True) -> str:  # noqa: FBT001, FBT002
+def privkey_to_p2sh(privkey: bytes, compressed: bool = True) -> str:  # noqa: FBT001, FBT002, ARG001
     """从私钥直接生成 P2SH-P2WPKH 嵌套 SegWit 地址..
 
     P2SH 包装: OP_0 <20-byte-key-hash> → Hash160 → Base58Check(0x05)
@@ -529,7 +531,7 @@ _BECH32M_CONST = 0x2BC830A3
 
 def _bech32m_create_checksum(hrp: str, data: list[int]) -> list[int]:
     """Bech32m 校验和(M = 0x2BC830A3 vs Bech32 的 M = 1).."""
-    from bech32 import bech32_hrp_expand, bech32_polymod
+    from bech32 import bech32_hrp_expand, bech32_polymod  # noqa: PLC0415
 
     values = bech32_hrp_expand(hrp) + data
     polymod = bech32_polymod([*values, 0, 0, 0, 0, 0, 0]) ^ _BECH32M_CONST
@@ -572,7 +574,7 @@ def tweak_taproot(pubkey: "PublicKey") -> bytes | None:
     if t_int >= SECP256K1_ORDER:
         return None  # negligible probability (< 2^-128)
 
-    # Q = P + t*G
+    # Q = P + t*G  # noqa: ERA001
     t_bytes = t_int.to_bytes(32, "big")
     pubkey_copy = PublicKey(pubkey.format())  # 复制避免 side-effect 修改调用方对象
     pubkey_copy.add(t_bytes, update=True)
@@ -585,7 +587,7 @@ results_lock = threading.Lock()
 
 
 @dataclass
-class CollisionResult:
+class CollisionResult:  # noqa: D101
     privkey_hex: str
     wif_compressed: str
     wif_uncompressed: str
@@ -664,7 +666,7 @@ def save_result(result: CollisionResult) -> None:
         "=" * 70,
     )
 
-    # 异步通知(如已配置)
+    # 异步通知(如已配置)  # noqa: ERA001
     if _notifier is not None:
         _notifier.on_hit(result)
 
@@ -678,7 +680,7 @@ def load_checkpoint() -> dict[str, object]:
     if CHECKPOINT_FILE.exists():
         try:
             data: dict[str, object] = json.loads(CHECKPOINT_FILE.read_text())
-            return data
+            return data  # noqa: TRY300
         except (json.JSONDecodeError, OSError):
             pass
     return {}
@@ -896,7 +898,7 @@ def check_single_key_chain(
                     pubkey,
                 )
 
-        return (None, pubkey)
+        return (None, pubkey)  # noqa: TRY300
 
     except Exception as exc:  # noqa: BLE001
         _logger and _logger.warning(
@@ -1072,7 +1074,7 @@ def _run_gpu_mode(
 
     # TDR 诊断(Windows 平台)
     if args.gpu_tdr_safe:
-        from gpu_engine.tdr_handler import warn_tdr_settings
+        from gpu_engine.tdr_handler import warn_tdr_settings  # noqa: PLC0415
 
         warn_tdr_settings(quiet=False)
 
@@ -1125,11 +1127,11 @@ def _run_gpu_mode(
     except KeyboardInterrupt:
         _logger.warning("\n[GPU] 扫描被用户中断")
         # GPU 顺序模式 checkpoint
-        if args.gpu_mode == "sequential" and scheduler._pipelines:
+        if args.gpu_mode == "sequential" and scheduler._pipelines:  # noqa: SLF001
             # 取第一个管道的当前起始值作为下一个检查点的 next_key
             # (多 GPU 时取最小的起始值,此方案保守但安全)
-            next_k = min(p.sequential_start for p in scheduler._pipelines)
-            checked = max(seq_start, total_checked_pre) + scheduler._total_checked
+            next_k = min(p.sequential_start for p in scheduler._pipelines)  # noqa: SLF001
+            checked = max(seq_start, total_checked_pre) + scheduler._total_checked  # noqa: SLF001
             save_checkpoint(
                 {
                     "mode": "gpu_sequential",
@@ -1142,7 +1144,11 @@ def _run_gpu_mode(
         scheduler.close()
 
 
-def _report_progress(current_key: int, local_count: int, thread_id: int) -> None:
+def _report_progress(
+    current_key: int,
+    local_count: int,  # noqa: ARG001
+    thread_id: int,
+) -> None:
     """记录进度(周期性进度信息)+ 写入引擎状态文件.."""
     elapsed = time.time() - _global_start_time
     with _counter_lock:
@@ -1495,7 +1501,7 @@ def _load_targets(
 def _display_banner(
     target: TargetProtocol,
     args: argparse.Namespace,
-    xonly_target: TargetProtocol | None,
+    xonly_target: TargetProtocol | None,  # noqa: ARG001
 ) -> None:
     """打印引擎启动 banner.."""
     _logger.info("\n%s", "#" * 70)
@@ -1687,11 +1693,11 @@ def main() -> None:
             args.worker_id,
         )
         try:
-            from distributed.worker import DistributedScanner
+            from distributed.worker import DistributedScanner  # noqa: PLC0415
 
             worker_id = args.worker_id
             if not worker_id:
-                import os as _os
+                import os as _os  # noqa: PLC0415
 
                 worker_id = f"worker-{_os.urandom(4).hex()}"
 
@@ -1713,8 +1719,8 @@ def main() -> None:
                 _logger.error("分布式 Worker 连接失败,退出")
                 sys.exit(1)
             _cleanup(target=None, xonly_target=None)
-            return
-        except ImportError as exc:
+            return  # noqa: TRY300
+        except ImportError:
             _logger.exception("分布式模块不可用,请安装 grpcio/protobuf")
             sys.exit(1)
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.3.1] — 2026-06-01
+
+### Changed
+- **Ruff per-file-ignores 全面精简**: `parse_wallet.py`、`verify_hash160.py`、`view_transactions.py` 等遗留脚本的豁免规则从 13-16 条缩减至 2-9 条（移除了通过代码修复+内联 `# noqa` 替代的冗余文件级豁免）
+- **遗留脚本类型注解**: `parse_wallet.py`（9 个内部函数）、`verify_hash160.py`（全部函数）、`view_transactions.py`、`scan_balance.py` 添加完整类型注解，从 mypy Block 7 完全豁免中移除
+- **Mypy override blocks 收紧**: 移除 Block 7（遗留脚本 6 模块），进一步收紧 Block 2/4/5 的 `disable_error_code` 条目
+- **遗留脚本 lint 修复**: `parse_wallet.py`（D205 docstring 间距、N806 `GEN`→`gen` 命名规范、PLC0415 import 位置、PTH123 `Path.open()`）; `view_transactions.py`（PLW1510 `check=False`）
+
+### Removed
+- 清理 30+ 个根目录临时/诊断文件：CI 诊断脚本（`_check_ci*.py`, `_get_*.py`, `_wait_ci.py`）、mypy 输出（`_mypy_*.txt`, `mypy_full.txt`）、pytest 输出（`pytest_*_out.txt`）、ruff 输出（`ruff_*.txt`）、临时产物（`bench_out.txt`, `fmt_out.txt`, `test_kernel_out.txt` 等）
+
 ## [2.3.0] — 2026-06-01
 
 ### Added
@@ -10,9 +21,6 @@
 - **版本统一**: 全项目版本号同步为 v2.3.0（`pyproject.toml`, `api/server.py`, `api/routes.py`, `distributed/worker.py`, `collision_engine.py` banner）
 - **README 项目结构**：更新反映当前实际目录（补充 `distributed/`, `api/`, `core/`, `docs/`, `daemon/`），移除过时的 `[v1.3.0]` 版本标记
 - **README CLI 参数表**：补充 `--p2tr`、`--gpu-mode`、`--distributed`、`--utxo-refresh`、`--utxo-refresh-interval` 等遗漏参数
-
-### Removed
-- 清理 30+ 个根目录临时/诊断文件：CI 诊断脚本（`_check_ci*.py`, `_get_*.py`, `_wait_ci.py`）、mypy 输出（`_mypy_*.txt`, `mypy_full.txt`）、pytest 输出（`pytest_*_out.txt`）、ruff 输出（`ruff_*.txt`）、临时产物（`bench_out.txt`, `fmt_out.txt`, `test_kernel_out.txt` 等）
 
 ## [2.2.0] — 2026-06-01
 

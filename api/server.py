@@ -48,7 +48,7 @@ def create_app(enable_grpc_master: bool = False, grpc_port: int = 50051) -> Fast
 
     # ── 生命周期事件 ──────────────────────────────────────────
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
         """应用生命周期管理(替代已弃用的 on_event).."""
         # startup
         logger.info("API 服务启动中...")

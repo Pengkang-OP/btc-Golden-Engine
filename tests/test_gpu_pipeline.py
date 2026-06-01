@@ -27,7 +27,7 @@ def _mock_pyopencl() -> Generator[None, None, None]:
     """自动 mock pyopencl 模块及其所有依赖。."""
     import sys
 
-    global _real_pyopencl
+    global _real_pyopencl  # noqa: PLW0603
     _real_pyopencl = sys.modules.get("pyopencl")  # 保存真实模块
 
     cl_mock = MagicMock()

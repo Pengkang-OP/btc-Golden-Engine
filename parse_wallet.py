@@ -8,18 +8,21 @@ encoders. Outputs address list sorted by type.
     python parse_wallet.py
 """
 
+import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 
-def parse_wallet_dat(file_path):
+def parse_wallet_dat(file_path: str) -> tuple[list[dict[str, Any]], int]:
     """Parse Bitcoin Core wallet.dat file and extract address information.
+
     Note: This is a simplified parser for basic wallet structure.
     """
-    addresses = []
+    addresses: list[dict[str, Any]] = []
 
     try:
-        with open(file_path, "rb") as f:
+        with Path(file_path).open("rb") as f:
             content = f.read()
 
         address_count = 0
@@ -72,7 +75,7 @@ def parse_wallet_dat(file_path):
         return [], 0
 
 
-def hash160_to_b58(hash160, version):
+def hash160_to_b58(hash160: bytes, version: int) -> str | None:
     """Convert hash160 to Base58Check address."""
     try:
         version_bytes = bytes([version])
@@ -84,10 +87,10 @@ def hash160_to_b58(hash160, version):
         return None
 
 
-def hash_to_bech32(hash_bytes, hrp):
+def hash_to_bech32(hash_bytes: bytes, hrp: str) -> str | None:
     """Convert hash to Bech32 address (simplified)."""
     try:
-        converted = convertbits(hash_bytes, 8, 5)
+        converted = convertbits(list(hash_bytes), 8, 5)
         if converted is None:
             return None
         combined = [0, *converted]
@@ -99,7 +102,7 @@ def hash_to_bech32(hash_bytes, hrp):
         return None
 
 
-def base58_encode(data):
+def base58_encode(data: bytes) -> str:
     """Base58 encoding with leading zero handling."""
     alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     # count leading zero bytes
@@ -118,14 +121,14 @@ def base58_encode(data):
     return "1" * leading_zeros + encoded
 
 
-def double_sha256(data):
+def double_sha256(data: bytes) -> bytes:
     """Double SHA256 hash."""
-    import hashlib
-
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
 
-def convertbits(data, frombits, tobits, pad=True):
+def convertbits(
+    data: list[int], frombits: int, tobits: int, pad: bool = True
+) -> list[int] | None:
     """Convert between bit groups."""
     acc = 0
     bits = 0
@@ -148,27 +151,27 @@ def convertbits(data, frombits, tobits, pad=True):
     return ret
 
 
-def bech32_create_checksum(hrp, data):
+def bech32_create_checksum(hrp: str, data: list[int]) -> list[int]:
     """Create Bech32 checksum."""
     values = expand_hrp(hrp) + data
     polymod = bech32_polymod([*values, 0, 0, 0, 0, 0, 0]) ^ 1
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
-def expand_hrp(hrp):
+def expand_hrp(hrp: str) -> list[int]:
     """Expand HRP for checksum calculation."""
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
-def bech32_polymod(values):
+def bech32_polymod(values: list[int]) -> int:
     """Bech32 polymod function."""
-    GEN = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
+    gen = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
         top = chk >> 25
         chk = (chk & 0x1FFFFFF) << 5 ^ value
         for i in range(5):
-            chk ^= GEN[i] if ((top >> i) & 1) else 0
+            chk ^= gen[i] if ((top >> i) & 1) else 0
     return chk
 
 
@@ -210,7 +213,7 @@ def main() -> None:
         print("=" * 80)
 
         output_file = r"g:\Bitcoin\wallet_addresses_balances.json"
-        with open(output_file, "w", encoding="utf-8") as f:
+        with Path(output_file).open("w", encoding="utf-8") as f:
             json.dump(addresses, f, indent=2, ensure_ascii=False)
         print(f"\n数据已保存到: {output_file}")
 

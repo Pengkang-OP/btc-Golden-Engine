@@ -9,6 +9,7 @@ against the current UTXO set, displaying total balance for each.
 
 import json
 import subprocess
+from typing import Any
 
 ADDRESSES = [
     "bc1q8kjxlkffnrpja09g5z3sj5pmrqtaz0f6cdx7lh",
@@ -23,14 +24,16 @@ BITCOIN_CLI = r"G:\Bitcoin\daemon\bitcoin-cli.exe"
 DATADIR = r"G:\Bitcoin"
 
 
-def run_cli(args):
+def run_cli(args: list[str]) -> dict[str, Any] | str:
     """Run bitcoin-cli with given args and parse JSON output."""
     cmd = [BITCOIN_CLI, f"-datadir={DATADIR}", *args]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)  # noqa: S603  # 参数来自可信配置
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=120, check=False
+    )  # 参数来自可信配置
     if result.returncode == 0:
         try:
-            return json.loads(result.stdout)
-        except Exception:
+            return json.loads(result.stdout)  # type: ignore[no-any-return]
+        except json.JSONDecodeError:
             return result.stdout
     else:
         return {"error": result.stderr}
@@ -47,7 +50,9 @@ descriptors = [f"addr({addr})" for addr in ADDRESSES]
 cmd_args = ["scantxoutset", "start", json.dumps(descriptors)]
 result = run_cli(cmd_args)
 
-if "error" in result:
+if isinstance(result, str):
+    print(f"原始输出: {result}")
+elif "error" in result:
     print(f"错误: {result['error']}")
 else:
     print("扫描结果:\n")

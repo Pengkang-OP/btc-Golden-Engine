@@ -89,10 +89,10 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "ARG001", "ARG002", "ARG004", "ARG005",
     "S101", "SLF001", "S108", "S112", "S110",
     "PLR2004", "PLC0415", "PTH123", "PLW0406", "PLR0913",
-    "RUF001", "RUF002", "RUF003", "RUF012", "RUF034",
+    "RUF012", "RUF034",
     "B007", "BLE001", "ERA001", "FBT",
     "F403",
-    "E402", "E501", "PT019", "SIM117",
+    "PT019", "SIM117",
 ]
 "gpu_engine/test_*.py" = [
     "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN401",
@@ -100,9 +100,9 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "ARG001", "ARG002", "ARG004", "ARG005",
     "S101", "SLF001", "S108", "S112", "S110",
     "PLR2004", "PLC0415", "PTH123", "PLW0406", "PLR0913",
-    "RUF001", "RUF002", "RUF003", "RUF012", "RUF034",
+    "RUF012", "RUF034",
     "B007", "BLE001", "ERA001", "FBT",
-    "E402", "E501", "SIM117",
+    "SIM117",
 ]
 "distributed/test_distributed.py" = [
     "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN401",
@@ -110,12 +110,10 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "ARG001", "ARG002", "ARG004", "ARG005",
     "S101", "SLF001", "S108", "S112", "S110",
     "PLR2004", "PLC0415", "PTH123", "PLW0406", "PLR0913",
-    "RUF001", "RUF002", "RUF003", "RUF012", "RUF034",
+    "RUF012", "RUF034",
     "B007", "BLE001", "ERA001", "FBT",
     "D107",
-    "E501",
 ]
-# ── 分布式 Worker（生产代码，类似 master.py 的宽松范畴）──
 "distributed/worker.py" = [
     "ANN001", "ANN202",
     "D107",
@@ -126,26 +124,14 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "S110",
     "TRY300",
     "TRY401",
-    "E402",
     "PLC0415",
 ]
-# ── 遗留脚本：独立 CLI 工具，允许较低规范标准 ──
 "verify_hash160.py" = [
-    "T201", "ANN001", "ANN201", "ANN202",
-    "RUF001", "RUF002", "RUF003",
-    "E501",
-    "ARG001",
-    "C901",
-    "PLR0912",
-    "PLR0915",
-    "PTH123",
-    "PLR2004",
-    "PLC0415",
+    "T201", "PTH123", "ARG001", "C901", "PLR0912", "PLR0915",
+    "PLR2004", "PLC0415",
 ]
 "extract_utxo_*.py" = [
     "T201", "ANN001", "ANN201", "ANN202",
-    "RUF001", "RUF002", "RUF003",
-    "E501",
     "DTZ005",
     "PLR2004",
     "ARG001",
@@ -157,60 +143,20 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "ERA001",
 ]
 "parse_wallet.py" = [
-    "T201", "ANN001", "ANN201",
-    "RUF001", "RUF002", "RUF003",
-    "E501",
-    "BLE001",
-    "C901",
-    "D205",
-    "FBT002",
-    "N806",
-    "PLC0415",
-    "PTH123",
-    "TRY300",
+    "T201", "FBT001", "FBT002", "BLE001", "C901", "TRY300",
 ]
 "view_transactions.py" = [
-    "T201", "ANN001", "ANN201",
-    "RUF001", "RUF002", "RUF003",
-    "DTZ005",
-    "DTZ006",
-    "E501",
-    "BLE001",
-    "C901",
-    "PLR0912",
-    "PLR0915",
-    "PLR2004",
-    "PLW1510",
-    "PTH123",
-    "S603",
-    "TRY300",
+    "T201", "BLE001", "C901", "PLR0912", "PLR0915", "S101",
+    "PLR2004", "PTH123", "TRY300", "S603",
 ]
 "scan_balance.py" = [
-    "T201", "ANN001", "ANN201",
-    "RUF001", "RUF002", "RUF003",
-    "PLW1510",
-    "BLE001",
+    "T201", "S603",
 ]
-
-# ── 生产代码：collision_engine ──
 "collision_engine.py" = [
-    "ARG001",
-    "D101",
-    "D205",
-    "F841",
-    "PLW1510",
-    "TRY300",
-    "TRY401",
     "C901",
     "PLR0911",
     "PLR0912",
     "PLR0915",
-    "PLW0602",
-    "SLF001",
-    "E402",
-    "ERA001",
-    "SIM105",
-    "PLC0415",
     "PLW0603",
 ]
 "collision_target.py" = [
@@ -218,68 +164,31 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "PTH110",
     "S110",
     "PTH123",
-    "PTH202",
     "PLR0911",
     "C901",
-    "TRY300",
-    "RUF002",
     "SIM105",
     "SIM115",
 ]
-# ── API 模块 ──
 "api/routes.py" = [
     "ANN401",
-    "E501",
     "PLC0415",
     "PLW0603",
 ]
 "api/server.py" = [
     "C901",
     "PLR0915",
-    "ARG001",
     "SLF001",
     "N806",
-    "E402",
     "PLC0415",
 ]
 "api/state.py" = [
     "ANN401",
-    "E402",
     "PLC0415",
     "PLW0603",
 ]
-"api/metrics.py" = [
-    "ARG002",
-    "PLW0603",
-]
-# ── Core 模块 ──
-"core/config.py" = [
-    "F841",
-    "TRY300",
-    "SLF001",
-    "PLC0415",
-    "PLW0603",
-]
-"core/database.py" = [
-    "ANN401",
-    "TRY300",
-    "PTH123",
-    "PLC0415",
-]
-"core/logger.py" = [
-    "N802",
-    "PLR0913",
-]
-"core/notifier.py" = [
-    "S110",
-    "TRY300",
-    "ANN401",
-    "SIM105",
-]
-"core/stats.py" = [
-    "PLR2004",
-]
-# ── 分布式模块 ──
+
+
+
 "distributed/master.py" = [
     "ARG002",
     "D107",
@@ -289,19 +198,12 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "E501",
     "PLC0415",
 ]
-"distributed/models.py" = [
-    "PLR2004",
-]
-# ── GPU 引擎 ──
-"gpu_engine/gpu_device.py" = [
-    "PLC0415",
-]
+
+
 "gpu_engine/gpu_dispatcher.py" = [
     "F841",
     "SLF001",
     "S110",
-    "ANN401",
-    "E501",
     "SIM105",
     "PLC0415",
 ]
@@ -313,60 +215,36 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
     "PLR0912",
     "PLR0913",
     "PLR0915",
-    "E402",
     "ERA001",
     "NPY002",
-    "RUF002",
     "SIM105",
     "PLC0415",
     "PLR2004",
 ]
 "gpu_engine/tdr_handler.py" = [
-    "RUF003",
     "SIM105",
     "PLC0415",
     "PLR2004",
 ]
 "gpu_engine/test_kernel_compile.py" = [
     "TRY300",
-    "E501",
     "SIM105",
 ]
-# ── 测试文件 ──
-"tests/test_collision_target.py" = [
-    "ANN204",
-]
-"tests/test_config.py" = [
-    "PTH100",
-]
-"tests/test_database.py" = [
-    "PTH118",
-]
-"tests/test_gpu_pipeline.py" = [
-    "PLW0603",
-]
-"tests/test_logger.py" = [
-    "G003",
-]
-"tests/test_notifier.py" = [
-    "S106",
-    "SIM117",
-]
-# ── 遗留脚本 ──
+
+
+
+
+
+
 "share/rpcauth/rpcauth.py" = [
     "ANN001",
     "ANN201",
     "D103",
     "S105",
-    "E501",
 ]
-
-
 "get_balance_addresses.py" = [
     "T201", "ANN001", "ANN201",
-    "RUF001", "RUF002", "RUF003",
     "DTZ005",
-    "E501",
     "BLE001",
     "C901",
     "D205",
@@ -386,7 +264,6 @@ ignore = ["E501", "E402", "D203", "D213", "COM812", "EM101", "TRY003", "RUF001",
 ]
 "_coverage_tdr.py" = [
     "T201", "ANN001", "ANN201",
-    "RUF001", "RUF002", "RUF003",
 ]
 # ── 临时分析脚本：仅内部使用，不施加规范 ──
 # ruff 不支持通配符豁免，通过全局 exclude 排除这些文件
@@ -416,20 +293,8 @@ disable_error_code = [
 ]
 
 # 测试文件：类型注解完整度低于生产代码
-[[tool.mypy.overrides]]
-module = [
-    "gpu_engine.test_kernel_compile",
-    "gpu_engine.test_vectors",
-]
-disable_error_code = [
-    "misc",
-    "no-untyped-def",
-    "no-untyped-call",
-    "type-arg",
-    "assignment",
-    "str-bytes-safe",
-
-]
+# (Block 2 已全部收紧 - 2026-06-01)
+# gpu_engine.test_kernel_compile, gpu_engine.test_vectors 无豁免
 
 # protobuf 生成代码：动态属性、无类型注解
 [[tool.mypy.overrides]]
@@ -453,26 +318,11 @@ module = [
 disable_error_code = [
     "misc",
     "attr-defined",
-    "no-untyped-call",
     "no-untyped-def",
-    "arg-type",
     "union-attr",
-    "no-any-return",
 ]
 
-# GPU 下调模块：部分内部辅助函数无需 strict 注解
-[[tool.mypy.overrides]]
-module = [
-    "gpu_engine.gpu_pipeline",
-    "gpu_engine.gpu_dispatcher",
-    "api.server",
-]
-disable_error_code = [
-    "no-untyped-call",
-    "no-untyped-def",
-    "arg-type",
-    "unused-ignore",
-]
+
 
 # 测试目录：测试代码中的类型注解允许宽松
 [[tool.mypy.overrides]]
@@ -488,26 +338,6 @@ disable_error_code = [
     "union-attr",
     "attr-defined",
     "return-value",
-]
-
-# 根目录遗留/实用脚本：非生产模块，不施加 strict 检查
-[[tool.mypy.overrides]]
-module = [
-    "view_transactions",
-    "scan_balance",
-    "parse_wallet",
-    "get_balance_addresses",
-    "verify_hash160",
-    "_coverage_tdr",
-]
-disable_error_code = [
-    "no-untyped-def",
-    "no-untyped-call",
-    "arg-type",
-    "assignment",
-    "union-attr",
-    "return-value",
-    "method-assign",
 ]
 
 [tool.pytest.ini_options]

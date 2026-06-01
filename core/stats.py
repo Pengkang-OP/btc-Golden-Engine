@@ -91,7 +91,7 @@ class StatsTracker:
 
             # 窗口实际时间跨度
             span = now - self._window[0][0]
-            if span < 0.001:
+            if span < 0.001:  # noqa: PLR2004
                 return 0.0
 
             total_in_window = sum(c for _, c in self._window)
@@ -140,7 +140,7 @@ class StatsTracker:
             window_total = 0
         else:
             span = window[-1][0] - window[0][0]
-            kps = 0.0 if span < 0.001 else sum(c for _, c in window) / span
+            kps = 0.0 if span < 0.001 else sum(c for _, c in window) / span  # noqa: PLR2004
             window_count = len(window)
             window_total = sum(c for _, c in window)
 

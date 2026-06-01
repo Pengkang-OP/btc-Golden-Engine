@@ -37,7 +37,7 @@ class MetricsRegistry:
         self,
         name: str,
         value: float,
-        labels: dict[str, str] | None = None,
+        labels: dict[str, str] | None = None,  # noqa: ARG002
     ) -> None:
         """记录 gauge 指标..
 
@@ -98,7 +98,7 @@ _registry_lock: threading.Lock = threading.Lock()
 
 def get_registry() -> MetricsRegistry:
     """获取全局 MetricsRegistry 单例 (双重检查锁定).."""
-    global _registry
+    global _registry  # noqa: PLW0603
     if _registry is None:
         with _registry_lock:
             if _registry is None:
@@ -108,6 +108,6 @@ def get_registry() -> MetricsRegistry:
 
 def reset_registry() -> None:
     """重置全局注册表 (测试用).."""
-    global _registry
+    global _registry  # noqa: PLW0603
     with _registry_lock:
         _registry = MetricsRegistry()

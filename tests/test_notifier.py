@@ -30,7 +30,7 @@ def config_with_smtp(tmp_dir: Path) -> EngineConfig:
         smtp_host="smtp.example.com",
         smtp_port=587,
         smtp_user="user@example.com",
-        smtp_password="secret",
+        smtp_password="secret",  # noqa: S106
         smtp_from="from@example.com",
         smtp_to="to@example.com",
     )

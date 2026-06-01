@@ -27,7 +27,7 @@ def _find_free_port() -> int:
     """I06: 返回 OS 分配的临时空闲端口，避免硬编码端口冲突。."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+        return s.getsockname()[1]  # type: ignore[no-any-return]
 
 
 # ═══════════════════════════════════════════════════════════════

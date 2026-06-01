@@ -97,7 +97,7 @@ class ResultDB:
             msg = f"数据库初始化失败: {exc}"
             raise DatabaseError(msg, original=exc) from exc
 
-    def save_result(self, result: Any) -> int:
+    def save_result(self, result: Any) -> int:  # noqa: ANN401
         """保存碰撞结果到数据库..
 
         Args:
@@ -250,7 +250,7 @@ class ResultDB:
         try:
             total = self.count_results()
             exported = 0
-            with open(output_path, "w", encoding="utf-8") as f:
+            with Path(output_path).open("w", encoding="utf-8") as f:
                 f.write("[\n")
                 first_chunk = True
                 for offset in range(0, total, chunk_size):
@@ -262,7 +262,7 @@ class ResultDB:
                         first_chunk = False
                         exported += 1
                 f.write("\n]")
-            return exported
+            return exported  # noqa: TRY300
         except (sqlite3.Error, OSError) as exc:
             msg = f"导出 JSON 失败: {exc}"
             raise DatabaseError(msg, original=exc) from exc
@@ -287,7 +287,7 @@ class ResultDB:
                     setattr(proxy, k, v)
                 self.save_result(proxy)
                 count += 1
-            return count
+            return count  # noqa: TRY300
         except (json.JSONDecodeError, OSError, sqlite3.Error) as exc:
             msg = f"导入 JSON 失败: {exc}"
             raise DatabaseError(msg, original=exc) from exc
@@ -306,7 +306,7 @@ class ResultDB:
             self._conn.close()
         except sqlite3.Error as exc:
             # 关闭失败不影响整体流程,但记录警告供排查
-            import logging
+            import logging  # noqa: PLC0415
 
             logging.getLogger("ResultDB").warning("数据库连接关闭异常: %s", exc)
         self._closed = True

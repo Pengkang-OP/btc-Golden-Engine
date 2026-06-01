@@ -192,7 +192,7 @@ class TestResultDB:
         import os
 
         bad_path = (
-            os.path.join("\\\\.\\NUL", "test.db")
+            os.path.join("\\\\.\\NUL", "test.db")  # noqa: PTH118
             if os.name == "nt"
             else "/dev/null/test.db"
         )

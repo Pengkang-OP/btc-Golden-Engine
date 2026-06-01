@@ -32,7 +32,7 @@ class WorkerInfo:
     @property
     def is_alive(self) -> bool:
         """检查 worker 是否存活(30秒心跳超时).."""
-        return (time.time() - self.last_heartbeat) < 30.0
+        return (time.time() - self.last_heartbeat) < 30.0  # noqa: PLR2004
 
     @property
     def uptime_seconds(self) -> float:
@@ -45,7 +45,7 @@ class WorkerInfo:
     def scan_rate(self) -> float:
         """估算扫描速率 (keys/sec),需运行超过 10 秒才有意义.."""
         uptime = self.uptime_seconds
-        if uptime < 10:
+        if uptime < 10:  # noqa: PLR2004
             return 0.0
         return self.keys_checked / uptime
 

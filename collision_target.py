@@ -145,7 +145,7 @@ class _BaseTargetSet:
 
         if not quiet:
             logger.info("已加载 %s 个 %s", f"{self._total:,}", self.RECORD_NAME)
-            bin_gb = os.path.getsize(bin_path) / 1e9
+            bin_gb = Path(bin_path).stat().st_size / 1e9
             logger.info("文件: %s (%.2f GB, mmap)", bin_path, bin_gb)
             if bloom_loaded:
                 bloom_mb = self._bloom_m / 8 / 1_048_576
@@ -202,7 +202,7 @@ class _BaseTargetSet:
 
             self._bloom_m = bloom_m
             self._bloom = bloom_bytes
-            return True
+            return True  # noqa: TRY300
 
         except (OSError, struct.error, ValueError) as e:
             logger.warning("%s Bloom Filter 缓存加载失败: %s", self.RECORD_NAME, e)

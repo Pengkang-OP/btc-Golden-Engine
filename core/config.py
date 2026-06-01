@@ -155,10 +155,10 @@ class EngineConfig:
                     ):
                         continue
                     setattr(self, field_name, getattr(new_config, field_name))
-                return True
-            except Exception as exc:  # noqa: BLE001
+                return True  # noqa: TRY300
+            except Exception:  # noqa: BLE001
                 logger = logging.getLogger("config.check_reload")
-                logger.warning("配置热重载失败 (保留旧配置): %s", exc)
+                logger.warning("配置热重载失败 (保留旧配置)")
                 return False
 
     @classmethod
@@ -240,7 +240,7 @@ _config_lock: threading.Lock = threading.Lock()
 
 def load_config(path: os.PathLike[str] | None = None) -> EngineConfig:
     """加载配置,失败时回退到默认配置(线程安全).."""
-    global _default_config
+    global _default_config  # noqa: PLW0603
     if path is not None:
         return EngineConfig.load(path)
     with _config_lock:
@@ -267,12 +267,12 @@ def request_shutdown() -> None:
 
     同时同步 collision_engine 的关闭标志,避免双标志不同步导致线程无法关闭.
     """
-    global _shutdown_requested
+    global _shutdown_requested  # noqa: PLW0603
     _shutdown_requested = True
     # 同步通知 collision_engine 的关闭标志(延迟导入避免循环依赖)
-    import collision_engine as _ce
+    import collision_engine as _ce  # noqa: PLC0415
 
-    _ce._shutdown_requested = True
+    _ce._shutdown_requested = True  # noqa: SLF001
 
 
 def start_config_watcher(
@@ -303,7 +303,7 @@ def start_config_watcher(
             try:
                 if config.check_reload():
                     logger.info("Configuration reloaded from file")
-            except Exception as exc:
+            except Exception:
                 logger.exception("配置热重载轮询异常 (interval=%ss)", interval)
             time.sleep(interval)
 

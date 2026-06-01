@@ -42,7 +42,7 @@ class JsonFormatter(logging.Formatter):
     通过 record.extra_fields 字典可附加额外字段.
     """
 
-    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:  # noqa: N802
         """使用 datetime.strftime 替代 time.strftime (支持 %f 微秒).."""
         ct = datetime.datetime.fromtimestamp(record.created, tz=datetime.UTC)
         if datefmt:
@@ -78,7 +78,7 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_entry, ensure_ascii=False)
 
 
-def setup_logger(
+def setup_logger(  # noqa: PLR0913
     name: str = "collision_engine",
     log_path: Path | None = None,
     level: str = "INFO",

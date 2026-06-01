@@ -144,7 +144,7 @@ class DistributedScanner:
         while not self._stop_event.is_set():
             try:
                 # 1. 获取下一个作业范围
-                assignment = self._get_assignment()
+                assignment = self._get_assignment()  # type: ignore[no-untyped-call]
                 if assignment is None or not assignment.has_work:
                     _logger.info(
                         "[Worker %s] 无可用作业,等待 %.1fs 后重试...",
@@ -174,7 +174,7 @@ class DistributedScanner:
                 )
 
                 # 2. 加载目标集(支持本地预部署或从 Master 下载)
-                target, xonly_target = self._load_targets()
+                target, xonly_target = self._load_targets()  # type: ignore[no-untyped-call]
                 if target is None:
                     _logger.error(
                         "[Worker %s] 目标集加载失败,跳过作业",
@@ -287,7 +287,7 @@ class DistributedScanner:
                 result, pubkey_point = check_single_key_chain(
                     k,
                     target,
-                    stride_bytes if not first else None,
+                    stride_bytes if not first else None,  # type: ignore[arg-type]
                     pubkey_point if not first else None,
                     xonly_target,
                 )
@@ -503,7 +503,7 @@ class DistributedScanner:
             if resp.cancel_requested:
                 _logger.warning("[Worker %s] Master 要求停止当前范围", self._worker_id)
                 self._stop_event.set()
-            return resp.acknowledged
+            return resp.acknowledged  # type: ignore[no-any-return]
         except (grpc.RpcError, OSError) as exc:
             _logger.warning("[Worker %s] 心跳失败: %s", self._worker_id, exc)
             return False

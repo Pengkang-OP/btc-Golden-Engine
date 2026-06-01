@@ -12,7 +12,7 @@ IDX = BASE / "utxo_hash160.idx"
 STATS = BASE / "utxo_hash160_stats.json"
 
 
-def check_size():
+def check_size() -> int | None:
     """验证数据文件大小是否为 20 字节对齐并返回条目数。."""
     size = BIN.stat().st_size
     n = size // 20
@@ -23,7 +23,7 @@ def check_size():
     return n
 
 
-def check_sorted(n) -> bool:
+def check_sorted(n: int) -> bool:
     """通过等间隔采样检查数据是否全局排序。."""
     print("[...]  Checking sort order (sampling every 1000)...")
     t0 = time.time()
@@ -41,7 +41,7 @@ def check_sorted(n) -> bool:
     return True
 
 
-def check_bounds(n):
+def check_bounds(n: int) -> tuple[bytes, bytes]:
     """读取第一个和最后一个 Hash160 值作为基准。."""
     with open(BIN, "rb") as f:
         first = f.read(20)
@@ -52,7 +52,7 @@ def check_bounds(n):
     return first, last
 
 
-def check_first_byte_distribution(n):
+def check_first_byte_distribution(n: int) -> list[int]:
     """统计首字节分布，用于快速检查数据平衡性。."""
     print("[...]  Counting first-byte distribution...")
     t0 = time.time()
@@ -72,7 +72,7 @@ def check_first_byte_distribution(n):
     return dist
 
 
-def check_stats_match(n) -> None:
+def check_stats_match(n: int) -> None:
     """验证条目数与 stats.json 中的记录一致。."""
     if not STATS.exists():
         print(f"[WARN] {STATS} not found, skipping")
@@ -87,7 +87,7 @@ def check_stats_match(n) -> None:
         print(f"[FAIL] Count mismatch: file={n:,}, stats={expected:,}")
 
 
-def check_index_match(n) -> None:
+def check_index_match(n: int) -> None:
     """验证前缀索引与数据文件内容一致（首字节、边界）。."""
     if not IDX.exists():
         print(f"[WARN] {IDX} not found, skipping")
@@ -150,7 +150,7 @@ def check_index_match(n) -> None:
         print(f"[FAIL] {errors} index errors")
 
 
-def check_known_targets(n):
+def check_known_targets(_n: int) -> bool:
     """测试几个已知地址（创世地址、假地址）的命中/未命中。."""
     from collision_target import Hash160Set
 
@@ -182,7 +182,7 @@ def check_known_targets(n):
     return all_ok
 
 
-def check_no_duplicates_sampling(n) -> bool:
+def check_no_duplicates_sampling(n: int) -> bool:
     """通过等间隔采样检查是否存在相邻重复条目。."""
     print("[...]  Checking duplicates (sampling every 10000)...")
     t0 = time.time()
@@ -200,7 +200,7 @@ def check_no_duplicates_sampling(n) -> bool:
     return True
 
 
-def check_checksum():
+def check_checksum() -> str:
     """计算完整数据文件的 SHA256 校验和。."""
     print("[...]  Computing SHA256 checksum...")
     t0 = time.time()

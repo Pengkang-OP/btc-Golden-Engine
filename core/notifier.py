@@ -58,7 +58,7 @@ class Notifier:
         """释放线程池资源,防止线程泄漏.."""
         try:
             self._executor.shutdown(wait=False)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110
             pass
 
     def __enter__(self) -> Self:
@@ -71,7 +71,7 @@ class Notifier:
 
     # ── 公共接口 ──────────────────────────────────────────
 
-    def on_hit(self, result: Any) -> None:
+    def on_hit(self, result: Any) -> None:  # noqa: ANN401
         """碰撞命中时触发通知(异步发送)..
 
         Args:
@@ -88,7 +88,7 @@ class Notifier:
 
     # ── 发送逻辑 ──────────────────────────────────────────
 
-    def _send_all(self, result: Any) -> None:
+    def _send_all(self, result: Any) -> None:  # noqa: ANN401
         """发送所有已配置的通知通道.."""
         subject = f"🔥 碰撞命中! {getattr(result, 'address_type', '?')}"
         body = self._format_body(result)
@@ -141,7 +141,7 @@ class Notifier:
                 server.send_message(msg)
 
             logger.info("邮件通知发送成功: %s", subject[:50])
-            return True
+            return True  # noqa: TRY300
 
         except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
             logger.warning("邮件通知发送失败: %s", exc)
@@ -182,7 +182,7 @@ class Notifier:
                     )
 
             logger.info("Webhook 通知发送成功 -> %s", url[:60])
-            return True
+            return True  # noqa: TRY300
 
         except (URLError, OSError, TypeError) as exc:
             logger.warning("Webhook 通知发送失败: %s", exc)
@@ -233,7 +233,7 @@ class Notifier:
                     )
 
             logger.info("Telegram 通知发送成功")
-            return True
+            return True  # noqa: TRY300
 
         except (URLError, OSError, TypeError) as exc:
             logger.warning("Telegram 通知发送失败: %s", exc)
@@ -265,7 +265,7 @@ class Notifier:
         return self.config.webhook_url or ""
 
     @staticmethod
-    def _format_body(result: Any) -> str:
+    def _format_body(result: Any) -> str:  # noqa: ANN401
         """将碰撞结果格式化为可读文本.."""
         lines = [
             f"地址类型: {getattr(result, 'address_type', '?')}",
@@ -285,7 +285,7 @@ class Notifier:
         return "\n".join(lines)
 
     @staticmethod
-    def _build_payload(result: Any, subject: str) -> dict[str, Any]:
+    def _build_payload(result: Any, subject: str) -> dict[str, Any]:  # noqa: ANN401
         """构造 Webhook JSON payload.."""
         return {
             "subject": subject,

@@ -50,7 +50,7 @@ def list_devices(device_type: str | None = None) -> list[DeviceInfo]:
 
     """
     try:
-        import pyopencl as cl
+        import pyopencl as cl  # noqa: PLC0415
     except ImportError:
         logger.warning("[GPU] pyopencl 未安装.使用 pip install pyopencl 安装.")
         return []

@@ -17,7 +17,7 @@ DATADIR = r"G:\Bitcoin"
 WALLET = "plz"
 
 
-def run_cli(args):
+def run_cli(args: list[str]) -> tuple[object | str | None, str | None]:
     """Run bitcoin-cli command and return (result, error)."""
     cmd = [BITCOIN_CLI, f"-datadir={DATADIR}"]
     if WALLET:
@@ -25,7 +25,9 @@ def run_cli(args):
     cmd.extend(args)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30, check=False
+        )
         if result.returncode == 0:
             try:
                 return json.loads(result.stdout), None
@@ -36,7 +38,7 @@ def run_cli(args):
         return None, str(e)
 
 
-def format_timestamp(ts):
+def format_timestamp(ts: int) -> str:
     """Convert Unix timestamp to human-readable datetime string."""
     try:
         return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
@@ -83,6 +85,7 @@ def main() -> None:
         print("⚠️  未找到任何交易记录")
         return
 
+    assert isinstance(transactions, list)
     print(f"✅ 找到 {len(transactions)} 笔交易\n")
 
     print("=" * 100)
