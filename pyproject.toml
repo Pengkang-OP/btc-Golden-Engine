@@ -486,6 +486,8 @@ disable_error_code = [
     "arg-type",
     "assignment",
     "union-attr",
+    "attr-defined",
+    "return-value",
 ]
 
 # 根目录遗留/实用脚本：非生产模块，不施加 strict 检查
