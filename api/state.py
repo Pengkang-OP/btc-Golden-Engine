@@ -115,7 +115,7 @@ def load_target_sets() -> dict[str, Any]:
         _hash160_set.load(quiet=True)
         result["hash160_loaded"] = True
         result["hash160_count"] = len(_hash160_set)
-    except (FileNotFoundError, Exception) as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         logger.info("Hash160Set 未加载: %s", exc)
 
     # 加载 x-only
@@ -124,7 +124,7 @@ def load_target_sets() -> dict[str, Any]:
         _xonly_set.load(quiet=True)
         result["xonly_loaded"] = True
         result["xonly_count"] = len(_xonly_set)
-    except (FileNotFoundError, Exception) as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         logger.info("XOnlySet 未加载: %s", exc)
 
     return result
