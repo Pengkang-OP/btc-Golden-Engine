@@ -17,7 +17,7 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download coverage artifact from CI
         uses: actions/download-artifact@v4
